@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BPMN_JSON",
+  "description": "Formato intermediário robusto para síntese e edição de processos BPMN",
+  "type": "object",
+  "required": ["process", "elements", "flows"],
+  "properties": {
+    "process": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "documentation": { "type": "string" }
+      }
+    },
+    "lanes": {
+      "type": "array",
+      "description": "Definição de raias e pools para layout hierárquico (ELK.js)",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "childElementIds": { 
+            "type": "array", 
+            "items": { "type": "string" } 
+          }
+        }
+      }
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { 
+            "type": "string",
+            "enum": ["task", "userTask", "serviceTask", "startEvent", "endEvent", "exclusiveGateway", "parallelGateway"] 
+          },
+          "name": { "type": "string" },
+          "laneId": { "type": "string", "description": "Referência à raia onde o elemento reside" },
+          "meta": {
+             "type": "object",
+             "description": "Dados para rastreabilidade (citações do RAG)",
+             "properties": {
+               "sourceArtifactId": { "type": "string" },
+               "pageNumber": { "type": "integer" }
+             }
+          }
+        }
+      }
+    },
+    "flows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source", "target", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "source": { "type": "string" },
+          "target": { "type": "string" },
+          "type": { "type": "string", "default": "sequenceFlow" },
+          "name": { "type": "string" }
+        }
+      }
+    }
+  }
+}

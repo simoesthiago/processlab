@@ -1,0 +1,5 @@
+{
+  "name": "bpmappr",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"]
+}

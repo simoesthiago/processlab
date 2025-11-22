@@ -1,0 +1,31 @@
+# Dependências
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Builds e Dist
+.next/
+dist/
+build/
+out/
+.vercel/
+
+# Ambiente e Segredos
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs e Dados locais
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
