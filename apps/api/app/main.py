@@ -44,7 +44,7 @@ app.add_middleware(
 # TODO: Configure for production domains
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["localhost", "127.0.0.1", "*.bpmappr.io"]
+    allowed_hosts=["localhost", "127.0.0.1", "testserver", "*.bpmappr.io"]  # testserver for FastAPI TestClient
 )
 
 # Include API routers

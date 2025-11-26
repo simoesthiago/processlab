@@ -7,9 +7,18 @@ These models extend the base BPMN_JSON schema with API-specific request/response
 import sys
 from pathlib import Path
 
-# Add packages to path for importing shared schemas
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent / "packages" / "shared-schemas" / "src"))
+# Find the monorepo root (contains packages/ directory)
+current_file = Path(__file__).resolve()
+monorepo_root = current_file.parent
+while monorepo_root.name != 'bpmappr' and monorepo_root.parent != monorepo_root:
+    monorepo_root = monorepo_root.parent
 
+# Add shared-schemas to path
+shared_schemas_path = monorepo_root / "packages" / "shared-schemas" / "src"
+if shared_schemas_path.exists() and str(shared_schemas_path) not in sys.path:
+    sys.path.insert(0, str(shared_schemas_path))
+
+# Import shared BPMN models
 from models import BPMNJSON, BPMNElement, SequenceFlow, Lane, ProcessInfo
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
