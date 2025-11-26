@@ -1,5 +1,6 @@
 # Dependências
 node_modules/
+.pnpm-store/
 .venv/
 venv/
 __pycache__/
