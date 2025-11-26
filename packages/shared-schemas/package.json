@@ -1,0 +1,19 @@
+{
+    "name": "@bpmappr/shared-schemas",
+    "version": "0.1.0",
+    "description": "Shared BPMN JSON schemas and generated types for BPMappr",
+    "main": "src/types.ts",
+    "scripts": {
+        "generate:ts": "json2ts -i src/bpmn_json.schema.json -o src/types.ts --bannerComment '/* Auto-generated from bpmn_json.schema.json - DO NOT EDIT MANUALLY */'",
+        "generate:py": "datamodel-codegen --input src/bpmn_json.schema.json --output src/models.py --output-model-type pydantic_v2.BaseModel --use-schema-description --use-title-as-name",
+        "generate": "pnpm run generate:ts && pnpm run generate:py",
+        "validate": "ajv validate -s src/bpmn_json.schema.json -d 'examples/*.json'"
+    },
+    "devDependencies": {
+        "json-schema-to-typescript": "^15.0.3",
+        "ajv-cli": "^5.0.0"
+    },
+    "files": [
+        "src/"
+    ]
+}
