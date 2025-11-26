@@ -5,7 +5,7 @@
  * Future implementation will use WebSockets for live updates.
  */
 
-import type { BPMN_JSON } from '@bpmappr/shared-schemas';
+import type { BPMN_JSON } from '@processlab/shared-schemas';
 
 export interface SyncClient {
     connect: () => Promise<void>;

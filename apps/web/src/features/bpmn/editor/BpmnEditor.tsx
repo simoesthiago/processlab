@@ -12,7 +12,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { BPMN_JSON } from '@bpmappr/shared-schemas';
+import type { BPMN_JSON } from '@processlab/shared-schemas';
 
 // Dynamic import to avoid SSR issues with bpmn-js
 // bpmn-js requires browser APIs

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BPMappr",
+  title: "ProcessLab",
   description: "AI-powered BPMN diagram generator and editor",
   icons: {
     icon: [

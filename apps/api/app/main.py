@@ -1,5 +1,5 @@
 """
-BPMappr API
+ProcessLab API
 
 FastAPI backend for BPMN process modeling with AI assistance.
 """
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
-    title="BPMappr API",
+    title="ProcessLab API",
     description="AI-powered BPMN process modeling platform",
     version="0.1.0",
     docs_url="/docs",
@@ -44,7 +44,7 @@ app.add_middleware(
 # TODO: Configure for production domains
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["localhost", "127.0.0.1", "testserver", "*.bpmappr.io"]  # testserver for FastAPI TestClient
+    allowed_hosts=["localhost", "127.0.0.1", "testserver", "*.processlab.io"]  # testserver for FastAPI TestClient
 )
 
 # Include API routers
@@ -60,7 +60,7 @@ def health():
     """Health check endpoint"""
     return {
         "ok": True,
-        "service": "bpmappr-api",
+        "service": "processlab-api",
         "version": "0.1.0"
     }
 
@@ -69,7 +69,7 @@ def health():
 def root():
     """Root endpoint with API information"""
     return {
-        "service": "BPMappr API",
+        "service": "ProcessLab API",
         "version": "0.1.0",
         "docs": "/docs",
         "endpoints": {
@@ -92,7 +92,7 @@ def root():
 @app.on_event("startup")
 async def startup_event():
     """Application startup tasks"""
-    logger.info("BPMappr API starting up...")
+    logger.info("ProcessLab API starting up...")
     # TODO: Initialize database connections
     # TODO: Initialize object storage client
     # TODO: Initialize RAG system
@@ -102,6 +102,6 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Application shutdown tasks"""
-    logger.info("BPMappr API shutting down...")
+    logger.info("ProcessLab API shutting down...")
     # TODO: Close database connections
     # TODO: Close storage connections

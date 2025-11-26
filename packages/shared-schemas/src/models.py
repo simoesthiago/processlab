@@ -63,7 +63,7 @@ class BPMNJSON(BaseModel):
     BPMN JSON Format
     
     Robust intermediate format for BPMN process synthesis and editing.
-    This is the internal representation used throughout BPMappr.
+    This is the internal representation used throughout ProcessLab.
     XML conversion happens only at export/visualization time.
     """
     process: ProcessInfo

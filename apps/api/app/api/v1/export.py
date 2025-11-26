@@ -72,7 +72,7 @@ def _export_to_xml(request: ExportRequest) -> ExportResponse:
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-                  targetNamespace="http://bpmappr.io/schema/bpmn">
+                  targetNamespace="http://processlab.io/schema/bpmn">
   <bpmn:process id="{process_id}" name="{process_name}" isExecutable="false">
     <!-- TODO: Convert elements and flows from JSON -->
     <!-- Element count: {len(request.bpmn.elements)} -->
@@ -113,7 +113,7 @@ def _export_to_json(request: ExportRequest) -> ExportResponse:
     """
     Export internal BPMN_JSON format.
     
-    This is the native format used throughout BPMappr.
+    This is the native format used throughout ProcessLab.
     """
     json_str = request.bpmn.model_dump_json(indent=2)
     content_b64 = base64.b64encode(json_str.encode()).decode()
@@ -153,7 +153,7 @@ async def get_supported_formats():
             {
                 "id": "json",
                 "name": "BPMN JSON",
-                "description": "BPMappr internal format",
+                "description": "ProcessLab internal format",
                 "mimeType": "application/json",
                 "extension": ".bpmn.json"
             }

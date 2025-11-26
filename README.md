@@ -1,15 +1,15 @@
-# BPMappr
+# ProcessLab
 
 **AI-Powered BPMN Process Modeling Platform**
 
-BPMappr is a modern BPMN (Business Process Model and Notation) modeling tool that uses multimodal AI to automatically generate, edit, and optimize business process diagrams from documents, images, and natural language.
+ProcessLab is a modern BPMN (Business Process Model and Notation) modeling tool that uses multimodal AI to automatically generate, edit, and optimize business process diagrams from documents, images, and natural language.
 
 ## 🏗️ Architecture Overview
 
-BPMappr is built as a monorepo with the following structure:
+ProcessLab is built as a monorepo with the following structure:
 
 ```
-bpmappr/
+processlab/
 ├── apps/
 │   ├── api/          # FastAPI backend (Python)
 │   ├── web/          # Next.js frontend (TypeScript)
@@ -47,7 +47,7 @@ bpmappr/
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd bpmappr
+   cd processlab
    ```
 
 2. **Install dependencies**
@@ -160,7 +160,7 @@ BPMN_JSON (Internal Format) ← Source of Truth
 
 ## 📦 Packages
 
-### `@bpmappr/shared-schemas`
+### `@processlab/shared-schemas`
 
 Source of truth for BPMN data structures.
 

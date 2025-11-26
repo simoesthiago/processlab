@@ -4,7 +4,7 @@
  * Validates BPMN diagrams against best practices and BPMN 2.0 rules.
  */
 
-import type { BPMN_JSON, BPMNElement, SequenceFlow } from '@bpmappr/shared-schemas';
+import type { BPMN_JSON, BPMNElement, SequenceFlow } from '@processlab/shared-schemas';
 
 export interface LintIssue {
     severity: 'error' | 'warning' | 'info';

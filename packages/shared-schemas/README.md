@@ -1,6 +1,6 @@
 # Shared Schemas
 
-This package contains the source of truth for BPMappr's BPMN JSON format.
+This package contains the source of truth for ProcessLab's BPMN JSON format.
 
 ## Structure
 
@@ -25,7 +25,7 @@ This will:
 
 ### TypeScript (Frontend)
 ```typescript
-import type { BPMN_JSON } from '@bpmappr/shared-schemas';
+import type { BPMN_JSON } from '@processlab/shared-schemas';
 ```
 
 ### Python (Backend)

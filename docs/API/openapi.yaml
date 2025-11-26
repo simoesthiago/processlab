@@ -1,5 +1,5 @@
 openapi: 3.0.3
-info: { title: BPMappr API, version: 0.1.0 }
+info: { title: ProcessLab API, version: 0.1.0 }
 paths:
   /health:
     get: { responses: { "200": { description: OK } } }

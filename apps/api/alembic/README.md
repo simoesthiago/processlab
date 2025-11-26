@@ -1,6 +1,6 @@
 # Alembic Migrations
 
-This directory contains database migrations for BPMappr.
+This directory contains database migrations for ProcessLab.
 
 ## Usage
 

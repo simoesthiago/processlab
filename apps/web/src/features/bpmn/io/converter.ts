@@ -8,7 +8,7 @@
  * only at export/visualization time (cite PRD: 166).
  */
 
-import type { BPMN_JSON } from '@bpmappr/shared-schemas';
+import type { BPMN_JSON } from '@processlab/shared-schemas';
 
 /**
  * Convert BPMN_JSON to BPMN 2.0 XML
@@ -33,7 +33,7 @@ export function jsonToXml(bpmn: BPMN_JSON): string {
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-                  targetNamespace="http://bpmappr.io/schema/bpmn">
+                  targetNamespace="http://processlab.io/schema/bpmn">
   <bpmn:process id="${processId}" name="${processName}" isExecutable="false">
     <!-- TODO: Convert elements and flows -->
     <!-- Elements: ${bpmn.elements.length} -->

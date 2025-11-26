@@ -1,5 +1,5 @@
 """
-Database Models for BPMappr
+Database Models for ProcessLab
 
 SQLAlchemy models for:
 - ProcessModel: BPMN process versions

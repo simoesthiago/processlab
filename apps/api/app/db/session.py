@@ -13,7 +13,7 @@ import os
 # Get database URL from environment
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg://postgres:postgres@db:5432/bpmappr"
+    "postgresql+psycopg://postgres:postgres@db:5432/processlab"
 )
 
 # Create engine with connection pooling

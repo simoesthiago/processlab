@@ -1,4 +1,4 @@
-# BPMappr - Regras de Desenvolvimento e Segurança
+# ProcessLab - Regras de Desenvolvimento e Segurança
 
 ## 🔐 Segurança
 

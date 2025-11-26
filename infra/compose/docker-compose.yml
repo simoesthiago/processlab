@@ -8,7 +8,7 @@ services:
     environment:
       - PYTHONPATH=/srv/apps/api
       - MINIO_ENDPOINT=minio:9000
-      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/bpmappr
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/processlab
     depends_on: [ db, minio ]
   web:
     image: node:20
@@ -32,7 +32,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: bpmappr
+      POSTGRES_DB: processlab
     ports: [ "5433:5432" ]
   minio:
     image: minio/minio:latest

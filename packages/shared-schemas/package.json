@@ -1,7 +1,7 @@
 {
-    "name": "@bpmappr/shared-schemas",
+    "name": "@processlab/shared-schemas",
     "version": "0.1.0",
-    "description": "Shared BPMN JSON schemas and generated types for BPMappr",
+    "description": "Shared BPMN JSON schemas and generated types for ProcessLab",
     "main": "src/types.ts",
     "scripts": {
         "generate:ts": "json2ts -i src/bpmn_json.schema.json -o src/types.ts --bannerComment '/* Auto-generated from bpmn_json.schema.json - DO NOT EDIT MANUALLY */'",

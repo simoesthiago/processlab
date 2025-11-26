@@ -8,7 +8,7 @@ API_URL = "http://localhost:8000/api/v1"
 def test_flow():
     # 1. Upload
     print("Uploading file...")
-    files = {'file': ('test.txt', b'This is a test document for BPMappr RAG system.', 'text/plain')}
+    files = {'file': ('test.txt', b'This is a test document for ProcessLab RAG system.', 'text/plain')}
     try:
         res = requests.post(f"{API_URL}/ingest/", files=files)
     except requests.exceptions.ConnectionError:
@@ -29,7 +29,7 @@ def test_flow():
     
     # 3. Search
     print("Searching...")
-    search_payload = {"query": "BPMappr RAG", "limit": 1}
+    search_payload = {"query": "ProcessLab RAG", "limit": 1}
     res = requests.post(f"{API_URL}/search/", json=search_payload)
     if res.status_code != 200:
         print(f"Search failed: {res.text}")
@@ -38,7 +38,7 @@ def test_flow():
     results = res.json()
     print(f"Search results: {json.dumps(results, indent=2)}")
     
-    if len(results) > 0 and "BPMappr" in results[0]['text']:
+    if len(results) > 0 and "ProcessLab" in results[0]['text']:
         print("SUCCESS: Found relevant text!")
     else:
         print("FAILURE: Did not find relevant text.")

@@ -14,7 +14,7 @@
     "react-dom": "19.2.0",
     "bpmn-js": "^17.11.1",
     "elkjs": "^0.9.3",
-    "@bpmappr/shared-schemas": "workspace:*"
+    "@processlab/shared-schemas": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -17,7 +17,7 @@ def test_health_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["ok"] is True
-    assert data["service"] == "bpmappr-api"
+    assert data["service"] == "processlab-api"
     assert "version" in data
 
 
@@ -26,7 +26,7 @@ def test_root_endpoint():
     response = client.get("/")
     assert response.status_code == 200
     data = response.json()
-    assert data["service"] == "BPMappr API"
+    assert data["service"] == "ProcessLab API"
     assert "endpoints" in data
     assert "architecture_notes" in data
 

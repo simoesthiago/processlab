@@ -1,5 +1,5 @@
 {
-  "name": "bpmappr",
+  "name": "processlab",
   "private": true,
   "workspaces": ["apps/*", "packages/*"]
 }

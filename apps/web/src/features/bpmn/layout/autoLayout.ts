@@ -8,7 +8,7 @@
  */
 
 import ELK from 'elkjs/lib/elk.bundled.js';
-import type { BPMN_JSON, Lane } from '@bpmappr/shared-schemas';
+import type { BPMN_JSON, Lane } from '@processlab/shared-schemas';
 
 const elk = new ELK();
 

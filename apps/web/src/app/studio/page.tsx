@@ -1,5 +1,5 @@
 /**
- * BPMappr Studio - BPMN Process Modeling Interface
+ * ProcessLab Studio - BPMN Process Modeling Interface
  * 
  * This is the main workspace where users:
  * - View and edit BPMN diagrams
@@ -21,7 +21,7 @@ export default function StudioPage() {
                 {/* Toolbar */}
                 <div className="h-14 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-4 gap-4">
                     <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-                        BPMappr Studio
+                        ProcessLab Studio
                     </h1>
                     <div className="flex-1" />
                     <button className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
