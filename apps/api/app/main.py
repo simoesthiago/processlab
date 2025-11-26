@@ -7,7 +7,7 @@ FastAPI backend for BPMN process modeling with AI assistance.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from app.api.v1 import ingest, generate, edit, export
+from app.api.v1 import ingest, generate, edit, export, search
 import logging
 
 # Configure logging
@@ -52,6 +52,7 @@ app.include_router(ingest.router)
 app.include_router(generate.router)
 app.include_router(edit.router)
 app.include_router(export.router)
+app.include_router(search.router)
 
 
 @app.get("/health")
@@ -75,7 +76,9 @@ def root():
             "ingest": "/api/v1/ingest",
             "generate": "/api/v1/generate",
             "edit": "/api/v1/edit",
-            "export": "/api/v1/export"
+            "edit": "/api/v1/edit",
+            "export": "/api/v1/export",
+            "search": "/api/v1/search"
         },
         "architecture_notes": {
             "internal_format": "BPMN_JSON (see /docs for schema)",

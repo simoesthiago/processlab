@@ -9,6 +9,13 @@ python-multipart>=0.0.20
 sqlalchemy>=2.0.30,<2.1.0
 alembic>=1.13.1,<1.15.0
 psycopg[binary]>=3.1.19,<3.3.0
+pgvector>=0.2.5
+
+# Storage & Ingestion
+minio>=7.2.7
+pypdf>=4.2.0
+python-docx>=1.1.2
+tenacity>=8.3.0
 
 # AI/ML (para próximas sprints - OPCIONAL)
 # langchain==0.2.1

@@ -18,8 +18,23 @@ shared_schemas_path = monorepo_root / "packages" / "shared-schemas" / "src"
 if shared_schemas_path.exists() and str(shared_schemas_path) not in sys.path:
     sys.path.insert(0, str(shared_schemas_path))
 
-# Import shared BPMN models
-from models import BPMNJSON, BPMNElement, SequenceFlow, Lane, ProcessInfo
+try:
+    # Import shared BPMN models
+    from models import BPMNJSON, BPMNElement, SequenceFlow, Lane, ProcessInfo
+except ImportError:
+    # Fallback: create stub models if shared schema not available
+    from pydantic import BaseModel
+    class BPMNJSON(BaseModel):
+        pass
+    class BPMNElement(BaseModel):
+        pass
+    class SequenceFlow(BaseModel):
+        pass
+    class Lane(BaseModel):
+        pass
+    class ProcessInfo(BaseModel):
+        pass
+
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 

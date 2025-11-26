@@ -17,6 +17,7 @@ TODO (Sprint 2+):
 from sqlalchemy import Column, String, Integer, DateTime, JSON, LargeBinary, ForeignKey, Text, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
 from datetime import datetime
 import uuid
 
@@ -130,6 +131,9 @@ class Artifact(Base):
     chunk_count = Column(Integer, nullable=True, default=0)  # Number of embedding chunks
     processed_at = Column(DateTime, nullable=True)
     
+    # Metadata
+    meta = Column(JSON, nullable=True)  # Extra info (pages, language, etc.)
+    
     # Ownership
     uploaded_by = Column(String(255), nullable=True)
     organization_id = Column(String(36), nullable=True)
@@ -162,13 +166,13 @@ class EmbeddingChunk(Base):
     page_number = Column(Integer, nullable=True)  # For PDFs
     
     # Embedding (pgvector)
-    # TODO: Use pgvector.Vector type when integrated
-    # embedding = Column(Vector(1536), nullable=True)  # OpenAI ada-002 dimension
-    embedding_json = Column(JSON, nullable=True)  # Temporary: store as JSON array
+    embedding = Column(Vector(1536), nullable=True)  # OpenAI ada-002 dimension
+    # embedding_json = Column(JSON, nullable=True)  # Temporary: store as JSON array
     
     # Metadata
     embedding_model = Column(String(100), nullable=True)  # e.g., "text-embedding-ada-002"
     token_count = Column(Integer, nullable=True)
+    meta = Column(JSON, nullable=True)  # Extra info
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -206,7 +210,7 @@ class AuditEntry(Base):
     changes = Column(JSON, nullable=True)
     
     # Metadata
-    metadata = Column(JSON, nullable=True)  # Additional context
+    meta = Column(JSON, nullable=True)  # Additional context
     
     # Timestamp
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

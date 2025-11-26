@@ -5,10 +5,14 @@ Handles upload of various document formats (PDF, DOCX, images, text).
 Maximum file size: 30MB per upload.
 """
 
-from fastapi import APIRouter, File, UploadFile, HTTPException, status
+from fastapi import APIRouter, File, UploadFile, HTTPException, status, BackgroundTasks, Depends
+from sqlalchemy.orm import Session
 from app.schemas import IngestResponse
+from app.db.session import get_db
+from app.db.models import Artifact
+from app.services.storage.minio import storage_service
+from app.worker.main import process_artifact
 import uuid
-from typing import Optional
 
 router = APIRouter(prefix="/api/v1/ingest", tags=["ingest"])
 
@@ -28,22 +32,12 @@ MAX_FILE_SIZE = 30 * 1024 * 1024  # 30MB in bytes
 
 @router.post("/", response_model=IngestResponse, status_code=status.HTTP_201_CREATED)
 async def upload_artifact(
-    file: UploadFile = File(..., description="Document to upload (max 30MB)")
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(..., description="Document to upload (max 30MB)"),
+    db: Session = Depends(get_db)
 ) -> IngestResponse:
     """
     Upload a document for BPMN process extraction.
-    
-    Supported formats:
-    - PDF (.pdf)
-    - Word Documents (.doc, .docx)
-    - Images (.png, .jpg, .jpeg)
-    - Plain Text (.txt)
-    
-    Maximum file size: 30MB
-    
-    Returns:
-    - artifactId: Unique identifier for the uploaded document
-    - status: Upload status (uploaded, processing, failed)
     """
     
     # Validate MIME type
@@ -66,19 +60,42 @@ async def upload_artifact(
         )
     
     # Generate unique artifact ID
-    artifact_id = f"artifact_{uuid.uuid4().hex[:12]}"
+    artifact_id = str(uuid.uuid4())
+    storage_key = f"{artifact_id}/{file.filename}"
     
-    # TODO: Store file in object storage (MinIO/S3)
-    # TODO: Trigger RAG processing pipeline
-    # TODO: Extract text and create embeddings
+    # Upload to MinIO
+    try:
+        storage_service.put_object(storage_key, content, file.content_type)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to store file: {str(e)}"
+        )
+    
+    # Create Artifact record
+    artifact = Artifact(
+        id=artifact_id,
+        filename=file.filename or "unknown",
+        mime_type=file.content_type or "application/octet-stream",
+        file_size=file_size,
+        storage_path=storage_key,
+        storage_bucket=storage_service.bucket_name,
+        status="uploaded"
+    )
+    db.add(artifact)
+    db.commit()
+    db.refresh(artifact)
+    
+    # Trigger processing in background
+    background_tasks.add_task(process_artifact, artifact_id)
     
     return IngestResponse(
         artifactId=artifact_id,
-        filename=file.filename or "unknown",
-        fileSize=file_size,
-        mimeType=file.content_type or "application/octet-stream",
-        status="uploaded",
-        message=f"File uploaded successfully. Processing will begin shortly."
+        filename=artifact.filename,
+        fileSize=artifact.file_size,
+        mimeType=artifact.mime_type,
+        status=artifact.status,
+        message=f"File uploaded successfully. Processing started."
     )
 
 
