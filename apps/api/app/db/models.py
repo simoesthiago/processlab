@@ -219,9 +219,18 @@ class AuditEntry(Base):
         return f"<AuditEntry(id={self.id}, event_type={self.event_type}, resource_id={self.resource_id})>"
 
 
-# TODO (Sprint 2+):
-# - Add User model for authentication
-# - Add Organization model for multi-tenancy
-# - Add Collaboration models for real-time editing
-# - Add Citation model for RAG traceability
-# - Add proper pgvector integration
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    full_name = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+    is_superuser = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<User(id={self.id}, email={self.email})>"
+

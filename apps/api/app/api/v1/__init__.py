@@ -1,5 +1,6 @@
 # API v1 Router Initialization
 
-from . import ingest, generate, edit, export
+from . import generate, edit, export, search
 
-__all__ = ["ingest", "generate", "edit", "export"]
+__all__ = ["generate", "edit", "export", "search"]
+

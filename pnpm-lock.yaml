@@ -10,7 +10,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@bpmappr/shared-schemas':
+      '@processlab/shared-schemas':
         specifier: workspace:*
         version: link:../../packages/shared-schemas
       bpmn-js:
