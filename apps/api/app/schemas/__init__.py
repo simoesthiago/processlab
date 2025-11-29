@@ -10,7 +10,7 @@ from pathlib import Path
 # Find the monorepo root (contains packages/ directory)
 current_file = Path(__file__).resolve()
 monorepo_root = current_file.parent
-while monorepo_root.name != 'processlab' and monorepo_root.parent != monorepo_root:
+while not (monorepo_root / "packages").exists() and monorepo_root.parent != monorepo_root:
     monorepo_root = monorepo_root.parent
 
 # Add shared-schemas to path

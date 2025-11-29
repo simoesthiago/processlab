@@ -18,7 +18,7 @@ import logging
 import re
 import json
 
-router = APIRouter(prefix="/api/v1/edit", tags=["edit"])
+router = APIRouter(tags=["edit"])
 logger = logging.getLogger(__name__)
 
 patch_service = BpmnPatchService()

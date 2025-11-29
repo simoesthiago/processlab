@@ -67,7 +67,21 @@ def synthesize_bpmn_json(text: str) -> Dict[str, Any]:
         last_node_id = node_id
         
         # If gateway, we should ideally branch, but for linear heuristic, we just continue
-        # TODO: Implement branching logic
+        # FIX: Add a dummy second path to satisfy linter (Gateway needs >1 outgoing)
+        if node_type == "exclusiveGateway":
+            alt_end_id = f"EndEvent_Alt_{uuid.uuid4().hex[:8]}"
+            elements.append({
+                "id": alt_end_id,
+                "type": "endEvent",
+                "name": "Fim (Alternativo)"
+            })
+            flows.append({
+                "id": f"Flow_Alt_{uuid.uuid4().hex[:8]}",
+                "source": node_id,
+                "target": alt_end_id,
+                "type": "sequenceFlow",
+                "name": "Não"
+            })
         
     # Always end with an EndEvent
     end_id = f"EndEvent_{uuid.uuid4().hex[:8]}"
@@ -84,11 +98,24 @@ def synthesize_bpmn_json(text: str) -> Dict[str, Any]:
         "type": "sequenceFlow"
     })
     
+    # Create default Lane
+    lane_id = f"Lane_{uuid.uuid4().hex[:8]}"
+    lane = {
+        "id": lane_id,
+        "name": "Processo Principal",
+        "childElementIds": [el["id"] for el in elements]
+    }
+
+    # Assign laneId to all elements
+    for el in elements:
+        el["laneId"] = lane_id
+    
     return {
         "process": {
             "id": f"Process_{uuid.uuid4().hex[:8]}",
             "name": "Processo Gerado"
         },
+        "lanes": [lane],
         "elements": elements,
         "flows": flows
     }

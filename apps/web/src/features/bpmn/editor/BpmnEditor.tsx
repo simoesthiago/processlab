@@ -137,6 +137,152 @@ export default function BpmnEditor({
         );
     }
 
+    const handleLayout = async () => {
+        if (!modelerRef.current) return;
+
+        try {
+            const ELK = (await import('elkjs/lib/elk.bundled')).default;
+            const elk = new ELK();
+
+            const elementRegistry = modelerRef.current.get('elementRegistry');
+            const modeling = modelerRef.current.get('modeling');
+            const canvas = modelerRef.current.get('canvas');
+            const rootElement = canvas.getRootElement();
+
+            // Get all flow elements (shapes and connections)
+            const elements = elementRegistry.filter((e: any) => e.parent === rootElement || e.parent?.type === 'bpmn:Lane' || e.parent?.type === 'bpmn:Participant');
+
+            const participants = elementRegistry.filter((e: any) => e.type === 'bpmn:Participant');
+            const lanes = elementRegistry.filter((e: any) => e.type === 'bpmn:Lane');
+
+            // Filter out containers from nodes list
+            const nodes = elements.filter((e: any) =>
+                e.type !== 'bpmn:SequenceFlow' &&
+                e.type !== 'label' &&
+                e.type !== 'bpmn:Participant' &&
+                e.type !== 'bpmn:Lane'
+            );
+            const edges = elements.filter((e: any) => e.type === 'bpmn:SequenceFlow');
+
+            // Build ELK graph
+            // Strategy: 
+            // 1. Create nodes for Participants
+            // 2. Create nodes for Lanes inside Participants
+            // 3. Create nodes for Elements inside Lanes
+
+            const elkChildren: any[] = [];
+
+            // If we have participants/lanes, build hierarchy
+            if (participants.length > 0) {
+                participants.forEach((p: any) => {
+                    const pLanes = lanes.filter((l: any) => l.parent === p);
+
+                    const laneChildren = pLanes.map((l: any) => {
+                        const lNodes = nodes.filter((n: any) => n.parent === l);
+                        return {
+                            id: l.id,
+                            layoutOptions: {
+                                'elk.direction': 'RIGHT',
+                                'elk.padding': '[top=30,left=30,bottom=30,right=30]',
+                            },
+                            children: lNodes.map((n: any) => {
+                                let width = 140;
+                                let height = 90;
+                                const type = n.type.toLowerCase();
+                                if (type.includes('event')) { width = 30; height = 30; }
+                                else if (type.includes('gateway')) { width = 40; height = 40; }
+                                else if (type.includes('datastore') || type.includes('data store')) { width = 50; height = 50; }
+                                else if (type.includes('dataobject') || type.includes('data object')) { width = 40; height = 50; }
+
+                                return { id: n.id, width, height };
+                            })
+                        };
+                    });
+
+                    elkChildren.push({
+                        id: p.id,
+                        layoutOptions: {
+                            'elk.direction': 'RIGHT',
+                            'elk.padding': '[top=30,left=30,bottom=30,right=30]',
+                        },
+                        children: laneChildren
+                    });
+                });
+            } else {
+                // Flat layout fallback
+                elkChildren.push(...nodes.map((n: any) => {
+                    let width = 140;
+                    let height = 90;
+                    const type = n.type.toLowerCase();
+                    if (type.includes('event')) { width = 30; height = 30; }
+                    else if (type.includes('gateway')) { width = 40; height = 40; }
+                    else if (type.includes('datastore') || type.includes('data store')) { width = 50; height = 50; }
+                    else if (type.includes('dataobject') || type.includes('data object')) { width = 40; height = 50; }
+
+                    return { id: n.id, width, height };
+                }));
+            }
+
+            const elkGraph = {
+                id: 'root',
+                layoutOptions: {
+                    'elk.algorithm': 'layered',
+                    'elk.direction': 'RIGHT',
+                    'elk.spacing.nodeNode': '50',
+                    'elk.layered.spacing.nodeNodeBetweenLayers': '50',
+                    'elk.padding': '[top=50,left=50,bottom=50,right=50]',
+                },
+                children: elkChildren,
+                edges: edges.map((e: any) => ({
+                    id: e.id,
+                    sources: [e.source.id],
+                    targets: [e.target.id],
+                })),
+            };
+
+            // Run Layout
+            const layoutedGraph = await elk.layout(elkGraph);
+
+            // Apply positions recursively
+            const applyPositions = (graphNode: any, parentX = 0, parentY = 0) => {
+                const element = elementRegistry.get(graphNode.id);
+                if (element && graphNode.id !== 'root') {
+                    // For containers (Pools/Lanes), we might need to resize them too
+                    if (element.type === 'bpmn:Participant' || element.type === 'bpmn:Lane') {
+                        modeling.resizeShape(element, {
+                            x: parentX + graphNode.x,
+                            y: parentY + graphNode.y,
+                            width: graphNode.width,
+                            height: graphNode.height
+                        });
+                    } else {
+                        modeling.moveElements([element], {
+                            x: (parentX + graphNode.x) - element.x,
+                            y: (parentY + graphNode.y) - element.y
+                        });
+                    }
+                }
+
+                if (graphNode.children) {
+                    const currentX = (graphNode.id === 'root') ? 0 : (parentX + graphNode.x);
+                    const currentY = (graphNode.id === 'root') ? 0 : (parentY + graphNode.y);
+
+                    graphNode.children.forEach((child: any) => {
+                        applyPositions(child, currentX, currentY);
+                    });
+                }
+            };
+
+            applyPositions(layoutedGraph);
+
+            // Fit viewport
+            canvas.zoom('fit-viewport');
+
+        } catch (err) {
+            console.error('Auto Layout failed:', err);
+        }
+    };
+
     return (
         <div className="relative w-full h-full">
             {/* Editor Container */}
@@ -145,6 +291,16 @@ export default function BpmnEditor({
                 className="w-full h-full"
                 style={{ minHeight: '500px' }}
             />
+
+            {/* Toolbar Overlay */}
+            <div className="absolute top-4 right-4 flex gap-2">
+                <button
+                    onClick={handleLayout}
+                    className="px-3 py-1.5 bg-white text-zinc-700 text-sm font-medium rounded-md shadow-sm border border-zinc-200 hover:bg-zinc-50 transition-colors"
+                >
+                    Auto Layout
+                </button>
+            </div>
 
             {/* Loading State */}
             {!isReady && (

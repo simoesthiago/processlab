@@ -72,3 +72,23 @@ class BpmnLinter:
                     errors.append(f"Node '{node.name or node.id}' is a dead end (no outgoing flows)")
 
         return errors
+
+def lint_bpmn_json(bpmn_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Module-level helper to lint a raw dictionary.
+    Raises ValueError if critical errors are found.
+    Returns the original dict if valid.
+    """
+    try:
+        model = BPMNJSON(**bpmn_dict)
+    except Exception as e:
+        raise ValueError(f"Invalid BPMN JSON structure: {e}")
+        
+    linter = BpmnLinter()
+    errors = linter.lint(model)
+    
+    if errors:
+        # For now, we treat all lint errors as critical for generation
+        raise ValueError(f"Generated BPMN failed validation: {'; '.join(errors)}")
+        
+    return bpmn_dict
