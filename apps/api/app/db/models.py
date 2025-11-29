@@ -87,6 +87,9 @@ class ModelVersion(Base):
     source_artifact_ids = Column(JSON, nullable=True)  # List of artifact IDs used
     generation_prompt = Column(Text, nullable=True)
     
+    # Status
+    status = Column(String(20), nullable=False, default="draft")  # draft, ready, error
+
     # Quality metrics (GED/RGED)
     quality_score = Column(Integer, nullable=True)  # 0-100
     ged_score = Column(Integer, nullable=True)  # Graph Edit Distance
@@ -98,9 +101,27 @@ class ModelVersion(Base):
     
     # Relationships
     process = relationship("ProcessModel", back_populates="versions", foreign_keys=[process_id])
-    
+    artifacts = relationship("Artifact", secondary="model_version_artifacts", backref="model_versions")
+
     def __repr__(self):
         return f"<ModelVersion(id={self.id}, process_id={self.process_id}, v{self.version_number})>"
+
+
+class ModelVersionArtifact(Base):
+    """
+    Association table between ModelVersion and Artifact.
+    Tracks which artifacts were used to generate a specific model version.
+    """
+    __tablename__ = "model_version_artifacts"
+
+    model_version_id = Column(String(36), ForeignKey("model_versions.id"), primary_key=True)
+    artifact_id = Column(String(36), ForeignKey("artifacts.id"), primary_key=True)
+    
+    # Optional: store relevance score or specific usage context
+    relevance_score = Column(Integer, nullable=True) 
+    
+    def __repr__(self):
+        return f"<ModelVersionArtifact(model_version_id={self.model_version_id}, artifact_id={self.artifact_id})>"
 
 
 class Artifact(Base):

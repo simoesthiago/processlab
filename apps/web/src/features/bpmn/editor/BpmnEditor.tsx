@@ -12,20 +12,17 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { BPMN_JSON } from '@processlab/shared-schemas';
 
-// Dynamic import to avoid SSR issues with bpmn-js
-// bpmn-js requires browser APIs
-let BpmnModeler: any = null;
-if (typeof window !== 'undefined') {
-    import('bpmn-js/lib/Modeler').then((mod) => {
-        BpmnModeler = mod.default;
-    });
-}
+// Import bpmn-js styles - REQUIRED for palette to appear
+import 'bpmn-js/dist/assets/diagram-js.css';
+import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
+import type { BPMN_JSON } from '@processlab/shared-schemas';
 
 interface BpmnEditorProps {
     /** Initial BPMN in JSON format */
     initialBpmn?: BPMN_JSON;
+    /** Initial BPMN XML (optional, overrides initialBpmn) */
+    initialXml?: string;
     /** Callback when BPMN is modified */
     onChange?: (bpmn: BPMN_JSON) => void;
     /** Read-only mode */
@@ -34,6 +31,7 @@ interface BpmnEditorProps {
 
 export default function BpmnEditor({
     initialBpmn,
+    initialXml,
     onChange,
     readOnly = false,
 }: BpmnEditorProps) {
@@ -41,45 +39,76 @@ export default function BpmnEditor({
     const modelerRef = useRef<any>(null);
     const [isReady, setIsReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [BpmnModeler, setBpmnModeler] = useState<any>(null);
 
+    // Load BpmnModeler module
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        import('bpmn-js/lib/Modeler').then((mod) => {
+            setBpmnModeler(() => mod.default);
+        }).catch(err => {
+            console.error('Failed to load bpmn-js:', err);
+            setError('Failed to load BPMN editor module');
+        });
+    }, []);
+
+    // Initialize modeler when module is loaded
     useEffect(() => {
         if (!containerRef.current || !BpmnModeler) return;
 
-        // Initialize bpmn-js modeler
-        try {
-            const modeler = new BpmnModeler({
-                container: containerRef.current,
-                keyboard: {
-                    bindTo: document,
-                },
-            });
+        // Wait for container to have dimensions before initializing
+        // This ensures the palette and canvas are properly sized
+        const initTimer = setTimeout(() => {
+            if (!containerRef.current || !BpmnModeler) return;
 
-            modelerRef.current = modeler;
-            setIsReady(true);
+            try {
+                const modeler = new BpmnModeler({
+                    container: containerRef.current,
+                    keyboard: {
+                        bindTo: document,
+                    },
+                });
 
-            // TODO: Convert BPMN_JSON to XML for visualization
-            // TODO: Load XML into modeler
-            // TODO: Apply ELK.js layout for pools/lanes
+                modelerRef.current = modeler;
+                setIsReady(true);
 
-            // Cleanup
-            return () => {
-                modeler.destroy();
-            };
-        } catch (err) {
-            console.error('Failed to initialize BPMN editor:', err);
-            setError('Failed to initialize BPMN editor');
-        }
-    }, []);
+                // Load initial XML if provided, otherwise start with truly empty diagram
+                if (initialXml) {
+                    modeler.importXML(initialXml).catch((err: any) => {
+                        console.error('Failed to load diagram:', err);
+                    });
+                } else {
+                    // Import empty BPMN XML to avoid automatic StartEvent
+                    const emptyXml = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" 
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" 
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" 
+                  id="Definitions_1" 
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1" />
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+                    modeler.importXML(emptyXml).catch((err: any) => {
+                        console.error('Failed to create empty diagram:', err);
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to initialize BPMN editor:', err);
+                setError('Failed to initialize BPMN editor');
+            }
+        }, 100); // Small delay to ensure container has rendered
 
-    useEffect(() => {
-        if (!isReady || !modelerRef.current || !initialBpmn) return;
-
-        // TODO: Convert BPMN_JSON to XML
-        // TODO: Import XML into modeler
-        // TODO: Apply automatic layout using ELK.js
-
-        console.log('Initial BPMN:', initialBpmn);
-    }, [isReady, initialBpmn]);
+        // Cleanup
+        return () => {
+            clearTimeout(initTimer);
+            if (modelerRef.current) {
+                modelerRef.current.destroy();
+            }
+        };
+    }, [BpmnModeler, initialXml]);
 
     const handleExport = async () => {
         if (!modelerRef.current) return;
@@ -124,19 +153,6 @@ export default function BpmnEditor({
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
                         <p className="text-gray-600">Loading BPMN Editor...</p>
                     </div>
-                </div>
-            )}
-
-            {/* Toolbar (placeholder) */}
-            {isReady && (
-                <div className="absolute top-4 right-4 bg-white shadow-lg rounded-lg p-2 space-x-2">
-                    <button
-                        onClick={handleExport}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                    >
-                        Export
-                    </button>
-                    {/* TODO: Add more toolbar buttons */}
                 </div>
             )}
         </div>

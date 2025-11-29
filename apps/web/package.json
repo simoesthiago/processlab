@@ -9,12 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@processlab/shared-schemas": "workspace:*",
+    "bpmn-js": "^17.11.1",
+    "bpmn-js-bpmnlint": "^0.23.0",
+    "bpmn-js-properties-panel": "^5.43.0",
+    "bpmnlint": "^11.7.1",
+    "camunda-bpmn-moddle": "^7.0.1",
+    "diagram-js-minimap": "^5.2.0",
+    "elkjs": "^0.9.3",
     "next": "16.0.3",
     "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "bpmn-js": "^17.11.1",
-    "elkjs": "^0.9.3",
-    "@processlab/shared-schemas": "workspace:*"
+    "react-dom": "19.2.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

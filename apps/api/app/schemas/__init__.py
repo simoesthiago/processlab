@@ -100,7 +100,9 @@ class GenerateResponse(BaseModel):
 # Edit Endpoint Models
 class EditRequest(BaseModel):
     """Request to edit BPMN using natural language"""
-    bpmn: BPMNJSON = Field(..., description="Current BPMN state")
+    bpmn: Optional[BPMNJSON] = Field(None, description="Current BPMN state (JSON)")
+    bpmn_xml: Optional[str] = Field(None, description="Current BPMN state (XML)")
+    model_version_id: Optional[str] = Field(None, description="ID of the version being edited")
     command: str = Field(..., description="Natural language editing command")
     userApiKey: Optional[str] = Field(
         None,
@@ -110,7 +112,7 @@ class EditRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "bpmn": {"process": {"id": "proc1"}, "elements": [], "flows": []},
+                "bpmn_xml": "<?xml ...>",
                 "command": "Add a user task called 'Review Document' after the start event"
             }
         }

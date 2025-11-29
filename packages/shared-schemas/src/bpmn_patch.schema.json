@@ -1,0 +1,77 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "BPMN Patch",
+    "description": "A deterministic patch operation for BPMN models",
+    "type": "object",
+    "properties": {
+        "op": {
+            "type": "string",
+            "enum": [
+                "add_node",
+                "connect",
+                "remove",
+                "rename",
+                "convert",
+                "move_to_lane",
+                "set_property"
+            ],
+            "description": "The operation to perform"
+        },
+        "args": {
+            "type": "object",
+            "description": "Arguments for the operation",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "ID of the element to operate on (or new ID for add_node)"
+                },
+                "type": {
+                    "type": "string",
+                    "description": "BPMN type for add_node or convert (e.g., bpmn:Task)"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name/Label of the element"
+                },
+                "sourceId": {
+                    "type": "string",
+                    "description": "Source node ID for connect"
+                },
+                "targetId": {
+                    "type": "string",
+                    "description": "Target node ID for connect"
+                },
+                "laneId": {
+                    "type": "string",
+                    "description": "Target lane ID for move_to_lane"
+                },
+                "key": {
+                    "type": "string",
+                    "description": "Property key for set_property"
+                },
+                "value": {
+                    "type": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "null"
+                    ],
+                    "description": "Property value for set_property"
+                },
+                "x": {
+                    "type": "number",
+                    "description": "X coordinate for add_node (optional)"
+                },
+                "y": {
+                    "type": "number",
+                    "description": "Y coordinate for add_node (optional)"
+                }
+            },
+            "required": []
+        }
+    },
+    "required": [
+        "op",
+        "args"
+    ]
+}
