@@ -82,5 +82,5 @@ async def generate_bpmn(
             "edges": len(result["json"]["flows"]),
             "duration": result["metrics"]["duration"]
         },
-        preview_xml=result["xml"][:5000] if len(result["xml"]) > 5000 else result["xml"]  # Truncate if too large
+        preview_xml=result["xml"]
     )

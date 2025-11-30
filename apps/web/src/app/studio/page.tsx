@@ -22,12 +22,15 @@ export default function StudioPage() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [bpmnXml, setBpmnXml] = useState<string | undefined>(undefined);
     const [activeTab, setActiveTab] = useState<'copilot' | 'citations' | 'artifacts'>('copilot');
+    const [artifactId, setArtifactId] = useState('');
 
     const handleGenerate = async () => {
-        const artifactIdsStr = window.prompt("Enter Artifact IDs (comma separated):", "art_1");
-        if (!artifactIdsStr) return;
+        if (!artifactId) {
+            alert("Please enter an Artifact ID");
+            return;
+        }
 
-        const artifactIds = artifactIdsStr.split(',').map(s => s.trim());
+        // Wait, artifactIdsStr is gone. Need to fix this logic.
 
         setIsGenerating(true);
         try {
@@ -38,7 +41,7 @@ export default function StudioPage() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    artifact_ids: artifactIds,
+                    artifact_ids: [artifactId], // Use the state
                     process_name: "Generated Process",
                     options: { apply_layout: true }
                 }),
@@ -71,11 +74,31 @@ export default function StudioPage() {
                     <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
                         ProcessLab Studio
                     </h1>
+
+                    <div className="h-6 w-px bg-zinc-200 dark:bg-zinc-800 mx-2" />
+
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="text"
+                            value={artifactId}
+                            onChange={(e) => setArtifactId(e.target.value)}
+                            placeholder="Artifact ID"
+                            className="px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                            onClick={() => setArtifactId('test-123')}
+                            className="px-3 py-1.5 text-xs bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 rounded-md transition-colors"
+                        >
+                            Load Example
+                        </button>
+                    </div>
+
                     <div className="flex-1" />
+
                     <button
                         onClick={handleGenerate}
-                        disabled={isGenerating}
-                        className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+                        disabled={isGenerating || !artifactId}
+                        className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isGenerating ? "Generating..." : "Generate Diagram"}
                     </button>
