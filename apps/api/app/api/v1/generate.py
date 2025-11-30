@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.db.models import ProcessModel, ModelVersion, ModelVersionArtifact
 from app.services.agents.pipeline import generate_process
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import uuid
 
@@ -12,7 +12,7 @@ router = APIRouter()
 class GenerateRequest(BaseModel):
     artifact_ids: List[str]
     process_name: str
-    options: Optional[Dict[str, Any]] = {}
+    options: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 class GenerateResponse(BaseModel):
     model_version_id: str

@@ -7,13 +7,12 @@ Converts internal BPMN JSON to various export formats:
 - JSON: Internal format for backup/sharing
 """
 
-from fastapi import APIRouter, HTTPException, status, Response
+from fastapi import APIRouter, HTTPException, status
 from app.schemas import ExportRequest, ExportResponse
+from app.services.bpmn import json_to_xml
 import base64
-import json
-from typing import Literal
 
-router = APIRouter(prefix="/api/v1/export", tags=["export"])
+router = APIRouter(tags=["export"])
 
 
 @router.post("/", response_model=ExportResponse)
@@ -60,35 +59,20 @@ def _export_to_xml(request: ExportRequest) -> ExportResponse:
     The editor always operates on the JSON format and converts to XML
     only at export/visualization time (cite PRD: 166).
     """
-    # TODO: Implement JSON -> XML conversion
-    # TODO: Use bpmn-moddle or similar library
-    # TODO: Ensure BPMN 2.0 compliance
-    
-    # Stub XML
-    process_id = request.bpmn.process.id
-    process_name = request.bpmn.process.name or "Unnamed Process"
-    
-    stub_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-                  targetNamespace="http://processlab.io/schema/bpmn">
-  <bpmn:process id="{process_id}" name="{process_name}" isExecutable="false">
-    <!-- TODO: Convert elements and flows from JSON -->
-    <!-- Element count: {len(request.bpmn.elements)} -->
-    <!-- Flow count: {len(request.bpmn.flows)} -->
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <!-- TODO: Add diagram interchange (DI) elements -->
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>"""
-    
-    content_b64 = base64.b64encode(stub_xml.encode()).decode()
-    
+    try:
+        xml_str = json_to_xml.to_bpmn_xml(request.bpmn.model_dump())
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to convert BPMN to XML: {exc}"
+        )
+
+    content_b64 = base64.b64encode(xml_str.encode()).decode()
+
     return ExportResponse(
         format="xml",
         content=content_b64,
-        filename=f"{process_id}.bpmn",
+        filename=f"{request.bpmn.process.id}.bpmn",
         mimeType="application/xml"
     )
 

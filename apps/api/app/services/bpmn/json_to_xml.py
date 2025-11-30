@@ -198,4 +198,3 @@ def to_bpmn_xml(bpmn_json: Dict[str, Any]) -> str:
     
     # Return raw XML string with declaration
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(definitions, encoding='unicode')
-```

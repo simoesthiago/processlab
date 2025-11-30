@@ -73,7 +73,6 @@ def root():
             "ingest": "/api/v1/ingest",
             "generate": "/api/v1/generate",
             "edit": "/api/v1/edit",
-            "edit": "/api/v1/edit",
             "export": "/api/v1/export",
             "search": "/api/v1/search"
         },

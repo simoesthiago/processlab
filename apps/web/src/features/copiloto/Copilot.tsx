@@ -24,12 +24,13 @@ export default function Copilot({ bpmn, bpmnXml, modelVersionId, onEditApplied }
         if (!input.trim() || isLoading) return;
 
         const command = input;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
         setInput('');
         setHistory(prev => [...prev, { role: 'user', content: command }]);
         setIsLoading(true);
 
         try {
-            const res = await fetch('/api/v1/edit', {
+            const res = await fetch(`${apiBase}/api/v1/edit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

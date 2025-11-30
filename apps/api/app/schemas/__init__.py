@@ -20,7 +20,7 @@ if shared_schemas_path.exists() and str(shared_schemas_path) not in sys.path:
 
 try:
     # Import shared BPMN models
-    from models import BPMNJSON, BPMNElement, SequenceFlow, Lane, ProcessInfo
+    from models import BPMNJSON, BPMNElement, SequenceFlow, Lane, ProcessInfo, ElementMeta
 except ImportError:
     # Fallback: create stub models if shared schema not available
     from pydantic import BaseModel
@@ -34,6 +34,8 @@ except ImportError:
         pass
     class ProcessInfo(BaseModel):
         pass
+    class ElementMeta(BaseModel):
+        pass
 
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
@@ -46,6 +48,7 @@ __all__ = [
     "SequenceFlow",
     "Lane",
     "ProcessInfo",
+    "ElementMeta",
     "IngestRequest",
     "IngestResponse",
     "GenerateRequest",

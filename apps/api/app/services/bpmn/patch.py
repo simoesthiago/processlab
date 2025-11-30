@@ -6,7 +6,7 @@ Applies deterministic patches to BPMN models.
 
 from typing import Dict, Any, Optional
 import uuid
-from app.schemas import BPMNJSON, BPMNElement, SequenceFlow
+from app.schemas import BPMNJSON, BPMNElement, SequenceFlow, ElementMeta
 
 class BpmnPatchService:
     def apply_patch(self, bpmn: BPMNJSON, patch: Dict[str, Any]) -> BPMNJSON:
@@ -129,7 +129,23 @@ class BpmnPatchService:
                 return
 
     def _set_property(self, bpmn: BPMNJSON, args: Dict[str, Any]):
-        # BPMNElement doesn't have generic properties dict in schema yet.
-        # It has 'meta'.
-        # We'll ignore for now or add to meta if applicable.
-        pass
+        target_id = args.get("id")
+        key = args.get("key")
+        value = args.get("value")
+
+        if not target_id or not key:
+            raise ValueError("Set property requires id and key")
+
+        for node in bpmn.elements:
+            if node.id == target_id:
+                # Only allow fields defined in ElementMeta for now
+                if node.meta is None:
+                    node.meta = ElementMeta()
+
+                if hasattr(node.meta, key):
+                    setattr(node.meta, key, value)
+                    return
+                else:
+                    raise ValueError(f"Unsupported property '{key}' for BPMN element meta")
+
+        raise ValueError(f"Could not find node to set property: {target_id}")

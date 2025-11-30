@@ -5,7 +5,7 @@ from app.services.rag.retriever import retriever_service
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 
-router = APIRouter(prefix="/api/v1/search", tags=["search"])
+router = APIRouter(tags=["search"])
 
 class SearchRequest(BaseModel):
     query: str
