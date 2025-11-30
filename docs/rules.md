@@ -1,156 +1,78 @@
-# ProcessLab - Regras de Desenvolvimento e Segurança
+# ProcessLab - Regras de Desenvolvimento e Seguranca
 
-## 🔐 Segurança
+## Seguranca
+1. Nunca logar segredos
+   - Proibido logar API keys, tokens, senhas ou qualquer credencial.
+   - BYOK: chaves de usuario sao usadas somente no request e nunca persistidas.
+2. Rate limiting
+   - Todas as rotas publicas devem ter rate limiting; endpoints do copilot com limites mais restritos.
+3. Validacao de entrada
+   - Validar inputs com Pydantic; limite de upload 30MB; validar MIME types.
+4. CORS e TrustedHost
+   - Dev: localhost:3000; Prod: dominios especificos; usar middlewares FastAPI.
+5. RBAC e multi-tenant
+   - Escopo por organizacao; roles (viewer/editor/reviewer/admin). SSO (SAML/OIDC) em fases avançadas.
 
-### 1. NUNCA logar segredos
-- **PROIBIDO**: Logar API keys, tokens, senhas ou qualquer credencial
-- **PADRÃO BYOK**: User API keys devem ser usadas apenas durante o request e NUNCA persistidas
-- **Exemplo correto**:
-  ```python
-  if user_api_key:
-      logger.info("Using user-provided API key (BYOK)")
-      # NEVER: logger.info(f"API key: {user_api_key}")
-  ```
+## Arquitetura
+6. Formato interno JSON
+   - Editar sempre em BPMN_JSON; XML apenas em import/export/visualizacao.
+7. Schema como fonte de verdade
+   - Unico schema: `packages/shared-schemas/src/bpmn_json.schema.json`; gerar TS/Pydantic; proibido tipos divergentes.
+8. Layout automatico
+   - Usar ELK.js para layout de pools/lanes; ajustar no frontend ou backend opcional.
+9. Editor plugavel
+   - bpmn.io como motor atual; contrato de entrada/saida e BPMN_JSON + eventos de patch para permitir troca futura.
 
-### 2. Rate Limiting
-- **OBRIGATÓRIO**: Todas as rotas públicas devem ter rate limiting
-- **CRÍTICO**: Endpoints do copiloto devem ter limites mais restritos
-- **Implementação**: Usar middleware de rate limiting no FastAPI
+## Codigo e Versionamento
+10. Monorepo
+    - Imports relativos dentro de apps; codigo compartilhado em `packages/`; cada app/package com seu manifesto de deps.
+11. Commits atomicos de schema
+    - Alterou schema -> rodar `pnpm run generate` -> commitar schema + types.ts + models.py juntos.
+12. Testes
+    - Obrigatorios para logica critica (geracao, edicao, RAG); alvo minimo 70% nas partes criticas.
+13. Versionamento de processos
+    - Toda mudanca gera ModelVersion com mensagem; historico preservado; fluxo de aprovacao promove versao ativa; registrar auditoria.
+14. Colaboracao
+    - Comentarios ancorados e review/approval sao parte do fluxo; notificacoes em canais definidos.
 
-### 3. Validação de Entrada
-- **OBRIGATÓRIO**: Validar todos os inputs com Pydantic models
-- **Tamanho máximo**: 30MB para uploads de arquivos
-- **MIME types**: Validar tipos de arquivo permitidos
+## RAG e IA
+15. Ingestao multimodal
+    - Suportar texto (PDF/DOCX/TXT), imagem (OCR), audio/video (ASR) com metadados de pagina/timestamp; armazenar transcricoes.
+16. Rastreabilidade de citacoes
+    - Todo elemento gerado deve referenciar fonte via meta (sourceArtifactId, pagina/timestamp).
+17. Guardrails de copilot
+    - Respostas devem citar evidencias; proibido criar passos sem fonte; grounding obrigatorio; avaliar precisao/recall do RAG.
+18. Prompt management
+    - Centralizar prompts (ex: `packages/prompts/`) e versionar; se LangGraph for adotado, orquestracao documentada; remover do escopo ate existir.
 
-### 4. CORS e TrustedHost
-- **Desenvolvimento**: Permitir localhost:3000
-- **Produção**: Configurar domínios específicos
-- **Implementação**: Usar middlewares do FastAPI
+## Error Handling e Observabilidade
+19. Erros informativos
+    - HTTP status apropriados; mensagens claras; logging com contexto sem dados sensiveis.
+20. Graceful degradation
+    - Fallbacks para servicos externos; timeouts; retries com backoff.
+21. Logging e metricas
+    - Logs estruturados (JSON) com request_id; metricas de latencia/erros/qualidade BPMN (GED/RGED se aplicavel).
+22. Health checks
+    - Endpoint `/health` em todos os servicos; verificar dependencias (DB, storage, fila).
 
-## 🏗️ Arquitetura
+## Frontend
+23. Componentes isolados
+    - Organizar por feature; props tipadas em TS; reuso sempre que possivel.
+24. Estado global minimo
+    - Preferir estado local; contexto/zustand apenas para compartilhado; bpmn-js nao e fonte de verdade, BPMN_JSON sim.
+25. Performance
+    - Lazy load do bpmn-js; memoizacao de componentes pesados; virtual scroll em listas grandes (historico, artefatos).
 
-### 5. Formato JSON Interno
-- **REGRA**: Editar SEMPRE no formato BPMN_JSON interno
-- **XML**: Converter para BPMN XML APENAS no momento do export/visualização
-- **Justificativa** (PRD:166): JSON é mais fácil de manipular programaticamente
-
-### 6. Schema como Source of Truth
-- **ÚNICO SCHEMA**: `packages/shared-schemas/src/bpmn_json.schema.json`
-- **Auto-geração**: Tipos TypeScript e modelos Pydantic são gerados automaticamente
-- **PROIBIDO**: Criar tipos manualmente divergentes do schema
-
-### 7. Layout Automático
-- **OBRIGATÓRIO**: Usar ELK.js para layout de pools e lanes
-- **Justificativa** (PRD:149): Produz diagramas profissionais sem esforço manual
-- **Implementação**: `apps/web/src/features/bpmn/layout/`
-
-## 📦 Código
-
-### 8. Monorepo Discipline
-- **Imports**: Usar imports relativos dentro de apps, absolute entre packages
-- **Shared Code**: Código compartilhado vai em `packages/`, não em `apps/`
-- **Dependências**: Cada app/package tem seu próprio `package.json` ou `requirements.txt`
-
-### 9. Commits Atômicos de Schema
-- **REGRA**: Ao alterar o schema, commitar junto com os tipos gerados
-- **Ordem**: 
-  1. Editar `bpmn_json.schema.json`
-  2. Rodar `pnpm run generate`
-  3. Commitar schema + types.ts + models.py juntos
-
-### 10. Testes
-- **OBRIGATÓRIO**: Testes para toda lógica de negócio
-- **Cobertura mínima**: 70% para código crítico (geração, edição, RAG)
-- **Fixtures**: Usar fixtures realistas baseados no schema
-
-## 🔄 RAG e AI
-
-### 11. Rastreabilidade de Citações
-- **OBRIGATÓRIO**: Todo elemento gerado deve ter `meta.sourceArtifactId`
-- **Transparência**: Usuário deve poder visualizar de onde veio cada elemento
-- **Formato**: Usar campo `meta` no BPMN_JSON
-
-### 12. Prompt Management
-- **Centralizado**: Todos os prompts em `packages/prompts/`
-- **Versionamento**: Prompts devem ser versionados
-- **Templates**: Usar Jinja2 para templates de prompts
-
-### 13. Multiagente
-- **Orquestração**: Usar LangGraph para orquestração de agentes
-- **Isolamento**: Cada agente deve ter responsabilidade única
-- **Estado**: Compartilhar estado via LangGraph state
-
-## 🚨 Error Handling
-
-### 14. Erros Informativos
-- **HTTP Status**: Usar códigos HTTP apropriados
-- **Mensagens**: Mensagens de erro devem ser claras e acionáveis
-- **Logging**: Logar erros com contexto suficiente (sem segredos!)
-
-### 15. Graceful Degradation
-- **Fallbacks**: Ter fallbacks para serviços externos
-- **Timeouts**: Configurar timeouts apropriados
-- **Retry Logic**: Implementar retry com backoff exponencial
-
-## 📊 Observabilidade
-
-### 16. Structured Logging
-- **Formato**: JSON structured logs em produção
-- **Contexto**: Incluir request_id em todos os logs
-- **Níveis**: INFO para operações normais, ERROR para falhas, DEBUG para desenvolvimento
-
-### 17. Métricas
-- **Latência**: Medir latência de todos os endpoints
-- **Contadores**: Contar requests, erros, uploads
-- **Custom**: Métricas de qualidade BPMN (GED, RGED)
-
-## 🎨 Frontend
-
-### 18. Componentes Isolados
-- **Feature-based**: Organizar por feature, não por tipo de arquivo
-- **Reusabilidade**: Componentes devem ser reutilizáveis
-- **Props**: Usar TypeScript interfaces para props
-
-### 19. Estado Global Mínimo
-- **Local First**: Preferir estado local quando possível
-- **Compartilhado**: Usar Context/Zustand apenas para estado global
-- **Sincronização**: Bpmn-js é source of truth do editor
-
-### 20. Performance
-- **Lazy Loading**: Carregar bpmn-js de forma lazy
-- **Memoization**: Usar React.memo para componentes pesados
-- **Virtual Scrolling**: Para listas grandes (histórico, artifacts)
-
-## 🚀 Deploy
-
-### 21. Environment Variables
-- **OBRIGATÓRIO**: Todas as configs via variáveis de ambiente
-- **PROIBIDO**: Hardcoding de URLs, credenciais, etc
-- **Validação**: Validar env vars no startup
-
-### 22. Health Checks
-- **OBRIGATÓRIO**: Endpoint `/health` em todos os serviços
-- **Dependências**: Health check deve verificar DB, storage, etc
-- **Formato**: Retornar status + versão
-
-### 23. Migrations
-- **Versionadas**: Usar Alembic para migrations versionadas
-- **Reversíveis**: Toda migration deve ter downgrade
-- **Testadas**: Testar migrations em staging antes de produção
-
-## ⚡ Performance
-
-### 24. Database
-- **Indexes**: Criar indexes para queries frequentes
-- **N+1**: Evitar queries N+1 com eager loading
-- **Pooling**: Usar connection pooling
-
-### 25. Caching
-- **RAG**: Cachear embeddings de documentos
-- **Layout**: Cachear resultados do ELK.js
-- **Invalidação**: Implementar invalidação de cache apropriada
+## Deploy e Performance
+26. Variaveis de ambiente
+    - Configuracoes via env vars; proibido hardcode de URLs/credenciais; validar no startup.
+27. Migrations
+    - Alembic versionado; com downgrade; testar em staging.
+28. Database
+    - Indexes para queries frequentes; evitar N+1; pooling.
+29. Cache
+    - Cachear embeddings e layout quando util; invalidar ao mudar artefatos/modelos.
 
 ---
 
-**IMPORTANTE**: Estas regras são parte do contrato de qualidade do projeto. 
-Violações devem ser justificadas em code review e documentadas como ADRs quando apropriado.
+Importante: Violacoes devem ser justificadas em code review e, quando necessario, registradas como ADR.
