@@ -165,63 +165,70 @@ export default function BpmnEditor({
             const edges = elements.filter((e: any) => e.type === 'bpmn:SequenceFlow');
 
             // Build ELK graph
-            // Strategy: 
-            // 1. Create nodes for Participants
-            // 2. Create nodes for Lanes inside Participants
-            // 3. Create nodes for Elements inside Lanes
+            // Strategy: Build a map of all elements and restructure them into a tree based on parent-child relationships
 
-            const elkChildren: any[] = [];
+            const elkNodesMap = new Map<string, any>();
+            const elkGraphChildren: any[] = [];
 
-            // If we have participants/lanes, build hierarchy
-            if (participants.length > 0) {
-                participants.forEach((p: any) => {
-                    const pLanes = lanes.filter((l: any) => l.parent === p);
+            // 1. Create ELK nodes for all shapes (Participants, Lanes, Tasks, Events, etc.)
+            // We exclude BoundaryEvents as they are attached to tasks and moving them independently can cause issues
+            const allShapes = [...participants, ...lanes, ...nodes].filter((e: any) => e.type !== 'bpmn:BoundaryEvent');
 
-                    const laneChildren = pLanes.map((l: any) => {
-                        const lNodes = nodes.filter((n: any) => n.parent === l);
-                        return {
-                            id: l.id,
-                            layoutOptions: {
-                                'elk.direction': 'RIGHT',
-                                'elk.padding': '[top=30,left=30,bottom=30,right=30]',
-                            },
-                            children: lNodes.map((n: any) => {
-                                let width = 140;
-                                let height = 90;
-                                const type = n.type.toLowerCase();
-                                if (type.includes('event')) { width = 30; height = 30; }
-                                else if (type.includes('gateway')) { width = 40; height = 40; }
-                                else if (type.includes('datastore') || type.includes('data store')) { width = 50; height = 50; }
-                                else if (type.includes('dataobject') || type.includes('data object')) { width = 40; height = 50; }
+            allShapes.forEach((element: any) => {
+                let width = element.width || 140;
+                let height = element.height || 90;
 
-                                return { id: n.id, width, height };
-                            })
-                        };
-                    });
+                // Adjust dimensions for specific types if needed (though element.width/height from bpmn-js is usually correct)
+                const type = element.type.toLowerCase();
+                if (type.includes('event') && !type.includes('subprocess')) { width = 36; height = 36; }
+                else if (type.includes('gateway')) { width = 50; height = 50; }
 
-                    elkChildren.push({
-                        id: p.id,
-                        layoutOptions: {
-                            'elk.direction': 'RIGHT',
-                            'elk.padding': '[top=30,left=30,bottom=30,right=30]',
-                        },
-                        children: laneChildren
-                    });
-                });
-            } else {
-                // Flat layout fallback
-                elkChildren.push(...nodes.map((n: any) => {
-                    let width = 140;
-                    let height = 90;
-                    const type = n.type.toLowerCase();
-                    if (type.includes('event')) { width = 30; height = 30; }
-                    else if (type.includes('gateway')) { width = 40; height = 40; }
-                    else if (type.includes('datastore') || type.includes('data store')) { width = 50; height = 50; }
-                    else if (type.includes('dataobject') || type.includes('data object')) { width = 40; height = 50; }
+                // For containers, we let ELK decide dimensions based on children, but we need to set layout options
+                const isContainer = element.type === 'bpmn:Participant' || element.type === 'bpmn:Lane';
 
-                    return { id: n.id, width, height };
-                }));
-            }
+                const elkNode: any = {
+                    id: element.id,
+                    width: isContainer ? undefined : width,
+                    height: isContainer ? undefined : height,
+                    children: [],
+                    layoutOptions: isContainer ? {
+                        'elk.direction': 'RIGHT',
+                        'elk.padding': '[top=30,left=30,bottom=30,right=30]',
+                        'elk.spacing.nodeNode': '30',
+                    } : undefined
+                };
+
+                elkNodesMap.set(element.id, elkNode);
+            });
+
+            // 2. Build Tree Structure
+            allShapes.forEach((element: any) => {
+                const elkNode = elkNodesMap.get(element.id);
+
+                // Find nearest container (Lane or Participant)
+                let currentParent = element.parent;
+                let containerId = null;
+
+                while (currentParent) {
+                    if (currentParent.type === 'bpmn:Participant' || currentParent.type === 'bpmn:Lane') {
+                        containerId = currentParent.id;
+                        break;
+                    }
+                    currentParent = currentParent.parent;
+                }
+
+                if (containerId && elkNodesMap.has(containerId)) {
+                    // Add as child to container ELK node
+                    const parentNode = elkNodesMap.get(containerId);
+                    parentNode.children.push(elkNode);
+                } else {
+                    // Top-level element (or parent is Root/Collaboration)
+                    elkGraphChildren.push(elkNode);
+                }
+            });
+
+            // Filter edges to only include those where both source and target are in the graph
+            const validEdges = edges.filter((e: any) => elkNodesMap.has(e.source.id) && elkNodesMap.has(e.target.id));
 
             const elkGraph = {
                 id: 'root',
@@ -232,8 +239,8 @@ export default function BpmnEditor({
                     'elk.layered.spacing.nodeNodeBetweenLayers': '50',
                     'elk.padding': '[top=50,left=50,bottom=50,right=50]',
                 },
-                children: elkChildren,
-                edges: edges.map((e: any) => ({
+                children: elkGraphChildren,
+                edges: validEdges.map((e: any) => ({
                     id: e.id,
                     sources: [e.source.id],
                     targets: [e.target.id],

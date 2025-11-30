@@ -21,8 +21,21 @@ async def generate_process(artifact_ids: List[str], options: Dict[str, Any]) -> 
         # 1. Retrieve Context
         # TODO: Call actual RAG service
         # text = await retriever.get_consolidated_text(artifact_ids)
-        text = "Exemplo de processo. O usuário inicia a tarefa. Se aprovado, segue para fim. Caso contrário, revisa."
-        sup.log_step("retrieve", meta={"artifact_count": len(artifact_ids)})
+        
+        # Allow overriding text via options (for testing/bypass)
+        if options and options.get("context_text"):
+            text = options["context_text"]
+            sup.log_step("retrieve", meta={"source": "options", "length": len(text)})
+        else:
+            text = """
+            Processo de Reembolso.
+            O funcionário solicita o reembolso.
+            O sistema verifica se o valor é maior que 1000.
+            Se for maior que 1000, o Diretor deve aprovar.
+            Se for menor ou igual, o Gerente deve aprovar.
+            Após aprovação, o pagamento é realizado.
+            """
+            sup.log_step("retrieve", meta={"source": "hardcoded", "artifact_count": len(artifact_ids)})
         
         # 2. Synthesize
         bpmn_json = synthesis.synthesize_bpmn_json(text)
