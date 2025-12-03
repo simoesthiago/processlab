@@ -141,152 +141,257 @@ export default function BpmnEditor({
         if (!modelerRef.current) return;
 
         try {
-            const ELK = (await import('elkjs/lib/elk.bundled')).default;
-            const elk = new ELK();
-
-            const elementRegistry = modelerRef.current.get('elementRegistry');
-            const modeling = modelerRef.current.get('modeling');
             const canvas = modelerRef.current.get('canvas');
-            const rootElement = canvas.getRootElement();
+            const elementRegistry = modelerRef.current.get('elementRegistry');
 
-            // Get all flow elements (shapes and connections)
-            const elements = elementRegistry.filter((e: any) => e.parent === rootElement || e.parent?.type === 'bpmn:Lane' || e.parent?.type === 'bpmn:Participant');
+            // Note: We NOW support hierarchical layout with Pools/Lanes!
+            // The code below will handle them correctly via ELK hierarchy.
 
-            const participants = elementRegistry.filter((e: any) => e.type === 'bpmn:Participant');
-            const lanes = elementRegistry.filter((e: any) => e.type === 'bpmn:Lane');
+            // Robust extraction of nodes and edges
+            // We filter by visual capability (shapes vs connections) and include containers.
+            // CRITICAL: We must flatten the hierarchy to skip logical containers like LaneSet or Process
+            // that don't act as visual parents in the ELK graph.
 
-            // Filter out containers from nodes list
-            const nodes = elements.filter((e: any) =>
-                e.type !== 'bpmn:SequenceFlow' &&
-                e.type !== 'label' &&
-                e.type !== 'bpmn:Participant' &&
-                e.type !== 'bpmn:Lane'
-            );
-            const edges = elements.filter((e: any) => e.type === 'bpmn:SequenceFlow');
+            const allElements = elementRegistry.getAll();
 
-            // Build ELK graph
-            // Strategy: Build a map of all elements and restructure them into a tree based on parent-child relationships
-
-            const elkNodesMap = new Map<string, any>();
-            const elkGraphChildren: any[] = [];
-
-            // 1. Create ELK nodes for all shapes (Participants, Lanes, Tasks, Events, etc.)
-            // We exclude BoundaryEvents as they are attached to tasks and moving them independently can cause issues
-            const allShapes = [...participants, ...lanes, ...nodes].filter((e: any) => e.type !== 'bpmn:BoundaryEvent');
-
-            allShapes.forEach((element: any) => {
-                let width = element.width || 140;
-                let height = element.height || 90;
-
-                // Adjust dimensions for specific types if needed (though element.width/height from bpmn-js is usually correct)
-                const type = element.type.toLowerCase();
-                if (type.includes('event') && !type.includes('subprocess')) { width = 36; height = 36; }
-                else if (type.includes('gateway')) { width = 50; height = 50; }
-
-                // For containers, we let ELK decide dimensions based on children, but we need to set layout options
-                const isContainer = element.type === 'bpmn:Participant' || element.type === 'bpmn:Lane';
-
-                const elkNode: any = {
-                    id: element.id,
-                    width: isContainer ? undefined : width,
-                    height: isContainer ? undefined : height,
-                    children: [],
-                    layoutOptions: isContainer ? {
-                        'elk.direction': 'RIGHT',
-                        'elk.padding': '[top=30,left=30,bottom=30,right=30]',
-                        'elk.spacing.nodeNode': '30',
-                    } : undefined
-                };
-
-                elkNodesMap.set(element.id, elkNode);
+            // Map Process ID -> Participant ID to bridge the gap
+            // In BPMN, Lanes are in a Process, but visually they are in a Pool (Participant).
+            const processToParticipant = new Map<string, string>();
+            allElements.forEach((e: any) => {
+                if (e.type === 'bpmn:Participant' && e.businessObject.processRef) {
+                    processToParticipant.set(e.businessObject.processRef.id, e.id);
+                }
             });
 
-            // 2. Build Tree Structure
-            allShapes.forEach((element: any) => {
-                const elkNode = elkNodesMap.get(element.id);
+            // Define what constitutes a valid layout node
+            const isLayoutNode = (e: any) => {
+                if (!e) return false;
+                if (e.waypoints) return false; // Connection
+                if (e.type === 'label') return false;
+                if (e.type === 'bpmn:BoundaryEvent') return false;
 
-                // Find nearest container (Lane or Participant)
-                let currentParent = element.parent;
-                let containerId = null;
+                // Exclude logical roots/containers that shouldn't be ELK nodes
+                const excludedTypes = [
+                    'bpmn:Definitions',
+                    'bpmn:Collaboration',
+                    'bpmn:Process',
+                    'bpmn:LaneSet'
+                ];
+                if (excludedTypes.includes(e.type)) return false;
 
-                while (currentParent) {
-                    if (currentParent.type === 'bpmn:Participant' || currentParent.type === 'bpmn:Lane') {
-                        containerId = currentParent.id;
-                        break;
+                return true;
+            };
+
+            // 1. Extract Nodes (Shapes + Containers)
+            const nodes = allElements.filter(isLayoutNode);
+            const nodeIds = new Set(nodes.map((n: any) => n.id));
+
+            // Build Lane -> FlowNodes map from businessObject
+            // In BPMN, each Lane has a flowNodeRef array listing the IDs of elements it contains
+            const laneToFlowNodes = new Map<string, Set<string>>();
+            nodes.forEach((n: any) => {
+                if (n.type === 'bpmn:Lane' && n.businessObject?.flowNodeRef) {
+                    const refs = n.businessObject.flowNodeRef.map((ref: any) => ref.id);
+                    laneToFlowNodes.set(n.id, new Set(refs));
+                }
+            });
+
+            // Helper to find the nearest valid layout parent
+            // CRITICAL: In bpmn-js, elements in Lanes don't have Lane as their .parent
+            // They have Process as parent. We use the Lane's flowNodeRef to determine membership.
+            const findLayoutParentId = (element: any): string | undefined => {
+                // Check if this element is referenced by any Lane
+                const elementBusinessObjectId = element.businessObject?.id;
+                if (elementBusinessObjectId) {
+                    for (const [laneId, flowNodeIds] of laneToFlowNodes.entries()) {
+                        if (flowNodeIds.has(elementBusinessObjectId)) {
+                            return laneId;
+                        }
                     }
-                    currentParent = currentParent.parent;
                 }
 
-                if (containerId && elkNodesMap.has(containerId)) {
-                    // Add as child to container ELK node
-                    const parentNode = elkNodesMap.get(containerId);
-                    parentNode.children.push(elkNode);
-                } else {
-                    // Top-level element (or parent is Root/Collaboration)
-                    elkGraphChildren.push(elkNode);
+                // If not in a Lane, walk up the parent tree
+                let current = element.parent;
+                while (current) {
+                    // If current is a Process, check if it belongs to a Participant (Pool)
+                    if (current.type === 'bpmn:Process') {
+                        const participantId = processToParticipant.get(current.businessObject.id);
+                        if (participantId && nodeIds.has(participantId)) {
+                            return participantId;
+                        }
+                    }
+
+                    if (nodeIds.has(current.id)) {
+                        return current.id;
+                    }
+                    current = current.parent;
                 }
+                return undefined;
+            };
+
+            // 2. Extract Edges (Connections)
+            // CRITICAL: Only include edges where BOTH source and target are in the extracted nodes list.
+            // ELK will crash if an edge references a missing node.
+            const edges = allElements.filter((e: any) => {
+                if (!e.waypoints) return false;
+                if (e.type !== 'bpmn:SequenceFlow') return false;
+
+                const sourceId = e.source?.id;
+                const targetId = e.target?.id;
+
+                if (!sourceId || !targetId) return false;
+
+                // Check if source and target are in our valid nodes list
+                // Note: We need to check if the ID is in nodeIds OR if it's a re-parented ID?
+                // No, ELK needs the node ID to match.
+
+                // If we excluded BoundaryEvents, edges from them will crash ELK.
+                // We should probably include BoundaryEvents, but for now let's just filter the edges to stop the crash.
+                return nodeIds.has(sourceId) && nodeIds.has(targetId);
             });
 
-            // Filter edges to only include those where both source and target are in the graph
-            const validEdges = edges.filter((e: any) => elkNodesMap.has(e.source.id) && elkNodesMap.has(e.target.id));
+            console.log(`[AutoLayout] Extracted ${nodes.length} nodes and ${edges.length} edges.`);
 
-            const elkGraph = {
-                id: 'root',
-                layoutOptions: {
-                    'elk.algorithm': 'layered',
-                    'elk.direction': 'RIGHT',
-                    'elk.spacing.nodeNode': '50',
-                    'elk.layered.spacing.nodeNodeBetweenLayers': '50',
-                    'elk.padding': '[top=50,left=50,bottom=50,right=50]',
-                },
-                children: elkGraphChildren,
-                edges: validEdges.map((e: any) => ({
-                    id: e.id,
-                    sources: [e.source.id],
-                    targets: [e.target.id],
+            if (nodes.length === 0) {
+                console.warn('[AutoLayout] No nodes found.');
+                canvas.zoom('fit-viewport');
+                return;
+            }
+
+            // Construct BPMN_JSON-like structure with CORRECTED hierarchy
+            const tempBpmn: any = {
+                process: { id: 'process_1', name: 'Process 1', documentation: '' }, // Dummy process to satisfy schema
+                elements: nodes.map((n: any) => ({
+                    id: n.id,
+                    type: n.type,
+                    parentId: findLayoutParentId(n), // Skip LaneSets/Processes, link to Lane/Pool
                 })),
+                flows: edges.map((e: any) => ({
+                    id: e.id,
+                    source: e.source?.id,
+                    target: e.target?.id
+                })).filter((f: any) => f.source && f.target)
             };
 
-            // Run Layout
-            const layoutedGraph = await elk.layout(elkGraph);
+            console.log('[AutoLayout] Input to applyLayout:', {
+                elements: tempBpmn.elements.map((e: any) => ({ id: e.id, type: e.type, parentId: e.parentId })),
+                flows: tempBpmn.flows.map((f: any) => ({ id: f.id, src: f.source, tgt: f.target }))
+            });
 
-            // Apply positions recursively
-            const applyPositions = (graphNode: any, parentX = 0, parentY = 0) => {
-                const element = elementRegistry.get(graphNode.id);
-                if (element && graphNode.id !== 'root') {
-                    // For containers (Pools/Lanes), we might need to resize them too
-                    if (element.type === 'bpmn:Participant' || element.type === 'bpmn:Lane') {
+            console.log('[AutoLayout] Detailed input:');
+            tempBpmn.elements.forEach((e: any) => {
+                const original = nodes.find((n: any) => n.id === e.id);
+                console.log(`  ${e.id}: type=${e.type}, parentId=${e.parentId}, original(x=${original?.x}, y=${original?.y})`);
+            });
+
+            // Dynamically import the layout service to avoid SSR issues with ELK
+            const { applyLayout } = await import('../layout/layout');
+
+            const layoutedBpmn = await applyLayout(tempBpmn, {
+                direction: 'RIGHT',
+                spacing: 80
+            });
+
+            console.log('[AutoLayout] Output from applyLayout:');
+            layoutedBpmn.elements.forEach((e: any) => {
+                console.log(`  ${e.id}: x=${e.x}, y=${e.y}, w=${e.width}, h=${e.height}, parentId=${e.parentId}`);
+            });
+
+            // 3. Apply positions (Bottom-Up Approach)
+            // To avoid "double movement" (moving a parent moves its children), we should:
+            // Option A: Move elements relative to their parent's new position?
+            // Option B: Move only the elements that need to move relative to their container, then move the container?
+
+            // Better Strategy:
+            // 1. Calculate the final absolute position for EVERY element based on ELK.
+            // 2. Calculate the delta (dx, dy) needed for each element from its CURRENT absolute position.
+            // 3. Apply moves. BUT, bpmn-js `modeling.moveElements` moves children when parent moves.
+
+            // 3. Apply positions
+            // IMPORTANT: layoutedBpmn already has ABSOLUTE coordinates (converted in layout.ts)
+            // We just need to move each element to its absolute position
+
+            const modeling = modelerRef.current.get('modeling');
+
+            console.log('[AutoLayout] Applying layout...');
+
+            // Build a map of target positions
+            const targetPositions = new Map<string, { x: number, y: number, width?: number, height?: number }>();
+            layoutedBpmn.elements.forEach((e: any) => {
+                targetPositions.set(e.id, { x: e.x, y: e.y, width: e.width, height: e.height });
+            });
+
+            // Get all elements from the canvas
+            const canvasElements = elementRegistry.getAll().filter((e: any) =>
+                e.id && !e.labelTarget && e.type !== 'label'
+            );
+
+            // Apply positions and sizes in correct order:
+            // 1. Resize Containers (Pools/Lanes) first to ensure space
+            // 2. Move Elements to their absolute positions
+
+            // Pass 1: Resize Containers
+            canvasElements.forEach((element: any) => {
+                const target = targetPositions.get(element.id);
+                if (!target) return;
+
+                if ((element.type === 'bpmn:Participant' || element.type === 'bpmn:Lane') && target.width && target.height) {
+                    const needsResize = Math.abs(target.width - element.width) > 1 || Math.abs(target.height - element.height) > 1;
+                    if (needsResize) {
                         modeling.resizeShape(element, {
-                            x: parentX + graphNode.x,
-                            y: parentY + graphNode.y,
-                            width: graphNode.width,
-                            height: graphNode.height
-                        });
-                    } else {
-                        modeling.moveElements([element], {
-                            x: (parentX + graphNode.x) - element.x,
-                            y: (parentY + graphNode.y) - element.y
+                            x: element.x,
+                            y: element.y,
+                            width: target.width,
+                            height: target.height
                         });
                     }
                 }
+            });
 
-                if (graphNode.children) {
-                    const currentX = (graphNode.id === 'root') ? 0 : (parentX + graphNode.x);
-                    const currentY = (graphNode.id === 'root') ? 0 : (parentY + graphNode.y);
+            // Pass 2: Move All Elements (including containers if they moved position)
+            canvasElements.forEach((element: any) => {
+                const target = targetPositions.get(element.id);
+                if (!target) return;
 
-                    graphNode.children.forEach((child: any) => {
-                        applyPositions(child, currentX, currentY);
-                    });
+                // Re-read element position as it might have changed during resize
+                const currentX = element.x;
+                const currentY = element.y;
+
+                const dx = target.x - currentX;
+                const dy = target.y - currentY;
+
+                if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+                    modeling.moveElements([element], { x: dx, y: dy });
                 }
-            };
+            });
 
-            applyPositions(layoutedGraph);
+            // 4. Apply edge waypoints from ELK (ensures orthogonal routing and correct anchors)
+            const connections = elementRegistry.filter((e: any) => e.type === 'bpmn:SequenceFlow');
+            connections.forEach((connection: any) => {
+                const layoutedFlow = layoutedBpmn.flows.find((f: any) => f.id === connection.id);
+                if (layoutedFlow && layoutedFlow.waypoints && layoutedFlow.waypoints.length > 1) {
+                    modeling.updateWaypoints(connection, layoutedFlow.waypoints);
+                } else {
+                    // Fallback: let bpmn-js calculate
+                    modeling.layoutConnection(connection);
+                }
+            });
 
-            // Fit viewport
+            // 5. Adjust label positions for events and gateways (create more spacing)
+            canvasElements.forEach((element: any) => {
+                const isEvent = element.type && (element.type.includes('Event') || element.type.includes('Gateway'));
+                if (isEvent && element.label) {
+                    const labelShape = element.label;
+                    // Move label down by 10px for better spacing
+                    modeling.moveShape(labelShape, { x: 0, y: 10 });
+                }
+            });
+
             canvas.zoom('fit-viewport');
 
         } catch (err) {
             console.error('Auto Layout failed:', err);
+            alert('Auto Layout encountered an error. Check console for details.');
         }
     };
 
