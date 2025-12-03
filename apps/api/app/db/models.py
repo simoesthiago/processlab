@@ -29,25 +29,21 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
-class ProcessModel(Base):
+class Organization(Base):
     """
-    BPMN Process Model
+    Organization (Multi-tenant)
     
-    Stores process definitions and their current version.
-    Each process can have multiple versions (tracked in ModelVersion).
+    Represents a company or consultancy client.
+    All data is scoped by organization for multi-tenancy.
     """
-    __tablename__ = "processes"
+    __tablename__ = "organizations"
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False, unique=True)
     description = Column(Text, nullable=True)
     
-    # Current active version
-    current_version_id = Column(String(36), ForeignKey("model_versions.id"), nullable=True)
-    
-    # Ownership
-    created_by = Column(String(255), nullable=True)  # User ID from auth system
-    organization_id = Column(String(36), nullable=True)  # For multi-tenancy
+    # Settings
+    settings = Column(JSON, nullable=True)  # Organization-specific settings
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -57,10 +53,88 @@ class ProcessModel(Base):
     deleted_at = Column(DateTime, nullable=True)
     
     # Relationships
+    projects = relationship("Project", back_populates="organization")
+    users = relationship("User", back_populates="organization")
+    
+    def __repr__(self):
+        return f"<Organization(id={self.id}, name={self.name})>"
+
+
+class Project(Base):
+    """
+    Project
+    
+    Groups related processes together within an organization.
+    Hierarchy: Organization → Project → Process → Version
+    """
+    __tablename__ = "projects"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=False)
+    
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    
+    # Metadata
+    tags = Column(JSON, nullable=True)  # e.g., ["finance", "compliance"]
+    settings = Column(JSON, nullable=True)  # Project-specific settings
+    
+    # Ownership
+    created_by = Column(String(255), nullable=True)  # User ID
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Soft delete
+    deleted_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    organization = relationship("Organization", back_populates="projects")
+    processes = relationship("ProcessModel", back_populates="project")
+    
+    def __repr__(self):
+        return f"<Project(id={self.id}, name={self.name}, org_id={self.organization_id})>"
+
+
+
+class ProcessModel(Base):
+    """
+    BPMN Process Model
+    
+    Stores process definitions and their current version.
+    Each process can have multiple versions (tracked in ModelVersion).
+    Belongs to a Project within an Organization.
+    """
+    __tablename__ = "processes"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
+    
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    
+    # Current active version
+    current_version_id = Column(String(36), ForeignKey("model_versions.id"), nullable=True)
+    
+    # Ownership
+    created_by = Column(String(255), nullable=True)  # User ID from auth system
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=False)  # Denormalized for easy filtering
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Soft delete
+    deleted_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    project = relationship("Project", back_populates="processes")
     versions = relationship("ModelVersion", back_populates="process", foreign_keys="ModelVersion.process_id")
     
     def __repr__(self):
-        return f"<ProcessModel(id={self.id}, name={self.name})>"
+        return f"<ProcessModel(id={self.id}, name={self.name}, project_id={self.project_id})>"
+
 
 
 class ModelVersion(Base):
@@ -75,21 +149,28 @@ class ModelVersion(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     process_id = Column(String(36), ForeignKey("processes.id"), nullable=False)
     
-    # Version info
-    version_number = Column(Integer, nullable=False)  # Auto-incrementing per process
-    version_label = Column(String(50), nullable=True)  # e.g., "v1", "draft", "final"
+    # Versioning fields
+    version_number = Column(Integer, nullable=False)
+    version_label = Column(String, nullable=True)  # e.g., "v1.0", "Draft 2"
+    commit_message = Column(String, nullable=True)  # Git-style commit message
+    change_type = Column(String, default="minor")  # major, minor, patch
     
-    # BPMN data (stored as JSON)
-    bpmn_json = Column(JSON, nullable=False)  # BPMN_JSON format
+    # Hierarchy
+    parent_version_id = Column(String(36), ForeignKey("model_versions.id"), nullable=True)
+    parent_version = relationship("ModelVersion", remote_side="ModelVersion.id", backref="child_versions")
     
-    # Generation metadata
-    generation_method = Column(String(50), nullable=True)  # "ai_generated", "manual", "edited"
+    # Content
+    bpmn_json = Column(JSON, nullable=False)
+    
+    # Metadata
+    generation_method = Column(String, nullable=False)  # "ai_generated", "manual_edit"
     source_artifact_ids = Column(JSON, nullable=True)  # List of artifact IDs used
-    generation_prompt = Column(Text, nullable=True)
+    generation_prompt = Column(String, nullable=True)
     
     # Status
-    status = Column(String(20), nullable=False, default="draft")  # draft, ready, error
-
+    status = Column(String, default="draft")  # draft, ready, archived
+    is_active = Column(Boolean, default=False)  # Only one active version per process
+    
     # Quality metrics (GED/RGED)
     quality_score = Column(Integer, nullable=True)  # 0-100
     ged_score = Column(Integer, nullable=True)  # Graph Edit Distance
@@ -242,16 +323,33 @@ class AuditEntry(Base):
 
 
 class User(Base):
+    """
+    User
+    
+    Application users who belong to an organization.
+    """
     __tablename__ = "users"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=True)
+    
+    # Organization membership
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True)
+    
+    # Status and role
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
+    role = Column(String(50), nullable=True)  # "viewer", "editor", "admin"
+    
+    # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    organization = relationship("Organization", back_populates="users")
 
     def __repr__(self):
-        return f"<User(id={self.id}, email={self.email})>"
+        return f"<User(id={self.id}, email={self.email}, org_id={self.organization_id})>"
+
 

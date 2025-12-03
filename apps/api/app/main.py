@@ -8,12 +8,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import logging
+import os
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+# Setup structured logging FIRST
+from app.core.logging_config import setup_logging
+
+# Determine if we should use JSON logs (production) or text logs (development)
+USE_JSON_LOGS = os.getenv("JSON_LOGS", "true").lower() == "true"
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+setup_logging(log_level=LOG_LEVEL, json_logs=USE_JSON_LOGS)
 logger = logging.getLogger(__name__)
 
 # Create FastAPI app
@@ -24,6 +28,14 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Setup custom middlewares (request tracking, logging, error handling)
+from app.core.middleware import setup_middlewares
+setup_middlewares(app)
+
+# Setup exception handlers
+from app.core.exceptions import setup_exception_handlers
+setup_exception_handlers(app)
 
 # CORS Configuration
 # Allow Next.js frontend to make requests
@@ -40,10 +52,10 @@ app.add_middleware(
 )
 
 # Security: Add trusted host middleware
-# TODO: Configure for production domains
+# Note: This is added AFTER custom middlewares to run first in the chain
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["localhost", "127.0.0.1", "testserver", "*.processlab.io"]  # testserver for FastAPI TestClient
+    allowed_hosts=["localhost", "127.0.0.1", "testserver", "*.processlab.io"]
 )
 
 # Include API routers
@@ -52,14 +64,52 @@ app.include_router(api_router, prefix="/api/v1")
 
 
 
+
 @app.get("/health")
-def health():
-    """Health check endpoint"""
-    return {
+async def health():
+    """
+    Comprehensive health check endpoint.
+    Verifies connectivity to critical services: Database and MinIO.
+    """
+    from sqlalchemy import text
+    from app.db.session import get_db
+    import os
+    
+    health_status = {
         "ok": True,
         "service": "processlab-api",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "checks": {}
     }
+    
+    # Check Database
+    try:
+        db = next(get_db())
+        db.execute(text("SELECT 1"))
+        health_status["checks"]["database"] = {"status": "healthy", "message": "Connected"}
+    except Exception as e:
+        health_status["ok"] = False
+        health_status["checks"]["database"] = {"status": "unhealthy", "message": str(e)}
+        logger.error(f"Database health check failed: {e}")
+    
+    # Check MinIO (optional, only if configured)
+    minio_endpoint = os.getenv("MINIO_ENDPOINT")
+    if minio_endpoint:
+        try:
+            from app.services.storage.minio_client import get_minio_client
+            minio_client = get_minio_client()
+            # Try to list buckets as a health check
+            list(minio_client.list_buckets())
+            health_status["checks"]["minio"] = {"status": "healthy", "message": "Connected"}
+        except Exception as e:
+            health_status["ok"] = False
+            health_status["checks"]["minio"] = {"status": "unhealthy", "message": str(e)}
+            logger.error(f"MinIO health check failed: {e}")
+    else:
+        health_status["checks"]["minio"] = {"status": "not_configured", "message": "MinIO endpoint not set"}
+    
+    return health_status
+
 
 
 @app.get("/")

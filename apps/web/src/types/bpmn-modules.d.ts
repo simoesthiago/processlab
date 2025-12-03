@@ -4,3 +4,4 @@ declare module 'diagram-js-minimap';
 declare module 'bpmn-js-bpmnlint';
 declare module 'bpmnlint/lib/resolver/node-resolver';
 declare module 'camunda-bpmn-moddle/resources/camunda';
+declare module 'bpmn-js/lib/Modeler';
