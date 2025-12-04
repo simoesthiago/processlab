@@ -44,38 +44,49 @@ Objetivo: Consultores usam para mapear processos com IA e guardar versoes basica
     - Polimento visual: espacamento consistente, alinhamento, sombras/elevacao, iconografia.
   - S3: Hardening (erros, logs, BYOK seguro) + deploy dev (compose).
 
-### Fase 2 - Repositorio + Versionamento real (3-4 meses)
-Objetivo: Virar "Git de processos" inicial.
+### Fase 2 - Repositorio + Versionamento real + Governanca (3-4 meses)
+Objetivo: Virar "Git de processos" inicial com governanca basica.
 - Backend
   - Endpoints de criar nova versao a partir de outra, ativar versao, mensagem de commit.
   - Diff basico (backend entrega delta de elementos/flows).
   - Auditoria consistente em `AuditEntry`.
+  - **Optimistic locking**: versoes incluem `version_timestamp`/`etag`; endpoint de save retorna 409 Conflict se base mudou.
+  - **Sistema de convites**: modelo `Invitation` com token, email, role, expires_at; endpoints de criar/aceitar convite.
+  - **Audit log do sistema**: registro de acoes administrativas (criacao/remocao usuarios, mudancas permissao, exportacoes massa).
+  - **Gestao de API Keys**: modelo `ApiKey` para BYOK LLM e chaves de integracao; rotacao e revogacao.
 - Frontend
   - Catalogo de processos: status, filtros por area/dono/projeto.
   - Linha do tempo de versoes; diff visual (highlight add/remove/rename).
+  - **Modal de conflito de edicao**: detecta 409 Conflict, exibe opcoes (sobrescrever/salvar como copia/mesclar).
+  - **Rota `/invite/[token]`**: aceite de convite, definicao de senha.
+  - **Rota `/settings/audit-log`**: tabela de eventos administrativos com filtros e exportacao.
+  - **Rota `/settings/api-keys`**: gestao de chaves BYOK e API.
+  - **Paginas de erro**: `/403`, `/404`, `/500` com mensagens amigaveis.
   - Refinamento de UI/UX: aplicar design system do S2.5 em todas as novas telas, garantir consistencia visual.
 - Seguranca
   - Separacao de dados por organizacao; papeis iniciais (viewer/editor/admin).
 - Sprints sugeridos
-  - S4: Endpoints de versionamento + ativacao + mensagem de commit.
-  - S5: UI catalogo + timeline + diff visual.
-  - S6: Seguranca org-level + ajustes de auditoria.
+  - S4: Endpoints de versionamento + ativacao + mensagem de commit + optimistic locking.
+  - S5: UI catalogo + timeline + diff visual + conflitos de edicao.
+  - S6: Sistema de convites + audit log + API keys + paginas de erro.
 
 ### Fase 3 - Colaboracao, Comentarios, Aprovacao (3-4 meses)
 Objetivo: Pull requests de processo, comentarios ancorados e approvals.
 - Backend
   - Modelos `Comment` (ancorado em elemento/versao), `ReviewRequest` (proposta -> revisao -> aprovacao).
   - Permissoes por papel: viewer, editor, reviewer/aprovador, admin.
+  - **Lixeira/Soft Delete**: endpoints de restaurar/excluir permanentemente; exclusao automatica apos periodo de retencao.
 - Frontend
   - Comentarios inline no diagrama; threads, marcar resolvido.
   - Fluxo de aprovacao: criar proposta, revisar, aprovar/promover para ativa.
   - Lista de mudancas pendentes por processo/projeto.
+  - **Rota `/trash`**: interface de lixeira com filtros, restaurar, excluir permanentemente.
 - Integracoes
   - Notificacoes (email/Slack/Teams) para comentarios e approvals.
 - Sprints sugeridos
   - S7: Comentarios ancorados + API/UX.
   - S8: Review/approval flow + promocao de versao.
-  - S9: Notificacoes basicas + reforco de permissoes.
+  - S9: Notificacoes basicas + lixeira + reforco de permissoes.
 
 ### Fase 4 - Rastreabilidade, RAG real, Relatorios (4-6 meses)
 Objetivo: Evidencias claras e IA sustentada por documentos reais.
@@ -107,10 +118,14 @@ Objetivo: Escala, seguranca, extensoes setoriais e integracoes profundas.
   - UX enterprise: temas customizaveis por organizacao, dashboards executivos, relatorios visuais.
 - Integracoes
   - Conectores com Jira/ServiceNow/ERP/CRM, webhooks, API publica.
+- **Monitoramento e Billing**
+  - **Dashboard de uso** (`/settings/usage`): consumo de IA tokens, armazenamento, membros com graficos e alertas de quota.
+  - Integracao com sistema de billing; projecao de custos.
+  - **Pagina de manutencao** (`/maintenance`): janelas de manutencao programada.
 - Sprints sugeridos
   - S13: SSO + RBAC avancado + logs/auditoria completos.
-  - S14: Hardening de escala (workers, filas, tuning DB/search).
-  - S15: Conectores enterprise + UX avancada (visoes, paletas setoriais).
+  - S14: Hardening de escala (workers, filas, tuning DB/search) + monitoramento de uso.
+  - S15: Conectores enterprise + UX avancada (visoes, paletas setoriais) + billing.
 
 ## Notas Tecnicas Importantes
 - Modelo de dados JSON-first: manter BPMN_JSON como fonte de verdade; converter para XML so em bordas (import/export/render).

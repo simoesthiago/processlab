@@ -9,12 +9,13 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useRouter } from 'next/navigation';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { PlusCircle, FileText, FolderOpen, LogOut, Settings, BarChart } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PlusCircle, FileText, FolderOpen, Settings, BarChart } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -35,8 +36,7 @@ export default function DashboardPage() {
 }
 
 function DashboardContent() {
-    const { user, logout, token } = useAuth();
-    const router = useRouter();
+    const { user, token } = useAuth();
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -65,45 +65,9 @@ function DashboardContent() {
         }
     };
 
-    const handleLogout = () => {
-        logout();
-        router.push('/login');
-    };
-
     return (
-        <div className="min-h-screen bg-background">
-            {/* Header */}
-            <header className="border-b bg-card">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
-                        <div>
-                            <h1 className="text-2xl font-bold text-foreground">
-                                ProcessLab
-                            </h1>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <div className="text-sm text-muted-foreground">
-                                <span className="font-medium text-foreground">
-                                    {user?.full_name || user?.email}
-                                </span>
-                                {user?.role && (
-                                    <span className="ml-2 px-2 py-0.5 bg-secondary text-secondary-foreground rounded text-xs font-medium">
-                                        {user.role}
-                                    </span>
-                                )}
-                            </div>
-                            <Button variant="ghost" size="sm" onClick={handleLogout}>
-                                <LogOut className="mr-2 h-4 w-4" />
-                                Logout
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <AppLayout>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Welcome Section */}
                 <div className="mb-8">
                     <h2 className="text-3xl font-bold tracking-tight mb-2">
@@ -163,20 +127,18 @@ function DashboardContent() {
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                         </div>
                     ) : projects.length === 0 ? (
-                        <Card className="text-center py-12">
+                        <Card>
                             <CardContent className="pt-6">
-                                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                                    <FolderOpen className="h-6 w-6 text-muted-foreground" />
-                                </div>
-                                <h4 className="text-lg font-semibold mb-2">
-                                    No projects yet
-                                </h4>
-                                <p className="text-muted-foreground mb-6">
-                                    Create your first project to get started with process modeling
-                                </p>
-                                <Link href="/projects/new">
-                                    <Button>Create Project</Button>
-                                </Link>
+                                <EmptyState
+                                    icon={FolderOpen}
+                                    title="No projects yet"
+                                    description="Create your first project to get started with process modeling"
+                                    action={{
+                                        label: 'Create Project',
+                                        onClick: () => {},
+                                        href: '/projects/new'
+                                    }}
+                                />
                             </CardContent>
                         </Card>
                     ) : (
@@ -185,9 +147,9 @@ function DashboardContent() {
                                 <Link
                                     key={project.id}
                                     href={`/projects/${project.id}/processes`}
-                                    className="block group"
+                                    className="block group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
                                 >
-                                    <Card className="h-full hover:border-primary/50 transition-colors">
+                                    <Card className="h-full hover:border-primary/50 transition-all duration-200 group-hover:shadow-md">
                                         <CardHeader>
                                             <div className="flex items-start justify-between mb-2">
                                                 <div className="p-2 bg-primary/10 rounded-lg text-primary">
@@ -254,7 +216,7 @@ function DashboardContent() {
                         </CardHeader>
                     </Card>
                 </div>
-            </main>
-        </div>
+            </div>
+        </AppLayout>
     );
 }

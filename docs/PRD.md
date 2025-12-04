@@ -26,11 +26,16 @@
 - Catalogo de processos com status (rascunho, em revisao, ativo).
 - Autenticacao simples; isolamento por organizacao.
 - Ingestao de documentos (TXT/PDF/DOCX) com chunking, embeddings e busca semantica inicial.
+- **Sistema de convites**: admins podem convidar usuarios via email; usuarios aceitam convite e definem senha.
+- **Conflitos de edicao**: deteccao de edicoes simultaneas com optimistic locking; modal de resolucao de conflitos.
+- **Audit log do sistema**: registro imutavel de acoes administrativas (criacao/remocao de usuarios, mudancas de permissao, exportacoes em massa).
+- **Gestao de API Keys**: BYOK para LLM e chaves de API para integracoes externas; rotacao e revogacao.
 
 ### Colaboracao (Fase 3)
 - Comentarios ancorados em elementos/versoes; threads.
 - Fluxo de aprovacao (proposta -> revisao -> aprovacao) e promocao de versao ativa.
 - Notificacoes (email/Slack/Teams) para comentarios e approvals.
+- **Lixeira/Soft Delete**: recuperacao de processos/projetos deletados; exclusao permanente apos periodo configuravel (padrao 30 dias).
 
 ### Rastreabilidade e IA "excelente" (Fase 4)
 - Ingestao multimodal: texto, imagem (OCR), audio/video (ASR) com timestamps.
@@ -44,6 +49,8 @@
 - Multi-tenant forte, jobs assincronos, observabilidade (logs estruturados, metricas, tracing).
 - Integracoes: Jira, ServiceNow, ERP/CRM, webhooks e API publica.
 - UX avancada: visoes por papel/sistema/risco, paletas setoriais, alinhamento/distribuicao/layout refinados.
+- **Monitoramento de uso**: dashboard de consumo (IA tokens, armazenamento, membros) com alertas de quota e projecao de custos.
+- **Paginas de erro**: tratamento de "unhappy path" com paginas amigaveis para 403, 404, 500 e manutencao programada.
 
 ## 5. Requisitos Funcionais
 1) Modelagem BPMN
@@ -69,6 +76,32 @@
    - XML BPMN 2.0; PNG/PDF do diagrama; JSON interno; relatorios (POPs/resumos) com citacoes.
 8) Integracoes
    - Webhooks para mudancas de processo/versao; conectores Slack/Teams para notificacoes.
+9) Gestao de Usuarios e Convites (Fase 2)
+   - Admins podem criar convites por email com role definida (viewer/editor/admin).
+   - Usuarios convidados acessam rota publica `/invite/[token]` para definir senha e entrar na organizacao.
+   - Convites expiram apos periodo configuravel (padrao 7 dias).
+10) Conflitos de Edicao (Fase 2)
+    - Optimistic locking: versoes incluem timestamp/etag; salvar verifica se base mudou.
+    - Se conflito detectado (409 Conflict), frontend exibe modal com opcoes:
+      - Sobrescrever (Force Push): apenas admin, descarta mudancas do servidor.
+      - Salvar como Copia: cria novo processo/branch com mudancas locais.
+      - Mesclar/Ver Diff: abre comparador visual antes de salvar.
+11) Audit Log do Sistema (Fase 2)
+    - Registro imutavel de acoes administrativas: criacao/remocao de usuarios, mudancas de permissao, exportacoes em massa, alteracoes de plano.
+    - Log inclui: timestamp, usuario, IP, user agent, tipo de evento, recurso afetado, snapshots before/after.
+    - Interface de visualizacao com filtros e exportacao (CSV/JSON) para compliance.
+12) Soft Delete e Lixeira (Fase 3)
+    - Exclusao de processos/projetos e "soft" (marca `deleted_at`, nao remove do banco).
+    - Interface de lixeira permite restaurar ou excluir permanentemente.
+    - Exclusao permanente automatica apos periodo de retencao (padrao 30 dias, configuravel).
+13) Gestao de API Keys (Fase 2)
+    - Criacao de chaves BYOK para LLM (nao persistidas, usadas apenas no request).
+    - Criacao de chaves de API para integracoes externas (com rotacao e revogacao).
+    - Logs de uso por chave; mascara de seguranca (mostra apenas ultimos 4 caracteres).
+14) Monitoramento de Uso (Fase 5)
+    - Dashboard de consumo: tokens de IA, armazenamento (GB), membros ativos.
+    - Graficos de tendencia; alertas de quota (80%, 90%, 100%).
+    - Projecao de custos e comparacao com limites do plano.
 
 ## 6. Requisitos Nao Funcionais
 - Seguranca: BYOK (nao persistir chaves), jamais logar segredos; RBAC por organizacao; CORS/TrustedHost configuravel.
@@ -76,7 +109,9 @@
 - Escalabilidade: suporte a multiplas organizacoes; filas para ingest/IA; pooling de DB; cache de embeddings/layout.
 - Confiabilidade: health checks; timeouts e retries; graceful degradation (fallback de IA/layout).
 - Observabilidade: logs estruturados (JSON), `request_id`, metricas (latencia, erros, throughput), tracing na pipeline de geracao/edicao/RAG.
-- Compliance: auditoria de acoes (quem mudou o que, aprovado por quem); politicas de retencao de artefatos/transcricoes conforme cliente.
+- Compliance: auditoria de acoes (quem mudou o que, aprovado por quem); politicas de retencao de artefatos/transcricoes conforme cliente; audit log do sistema para acoes administrativas.
+- Conflitos de edicao: optimistic locking previne perda de dados em edicoes simultaneas; interface de resolucao de conflitos.
+- Recuperacao de dados: soft delete permite restaurar processos/projetos deletados acidentalmente; periodo de retencao configuravel.
 
 ## 7. Arquitetura de Referencia (atual + alvo)
 - Monorepo (`processlab`): `apps/api` (FastAPI), `apps/web` (Next.js + bpmn.io), `packages/shared-schemas` (BPMN_JSON schema/types/models).

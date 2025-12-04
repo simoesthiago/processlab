@@ -2,11 +2,15 @@
 
 **Última atualização**: Dezembro de 2025
 
+**Nota**: Este documento foi atualizado para refletir as novas funcionalidades de governança identificadas na análise crítica de arquitetura (Sprint 6).
+
 ## 📍 Posição Atual no Roadmap
 
-Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui hardening de backend, autenticação completa, gestão de projetos e integração total com o Studio. Estamos na **Fase 2 (Repositório + Versionamento Real)**, com o Sprint 4 concluído e o Sprint 5 em andamento (diff visual implementado).
+Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui hardening de backend, autenticação completa, gestão de projetos e integração total com o Studio. Estamos na **Fase 2 (Repositório + Versionamento Real + Governança)**, com o Sprint 4 e Sprint 5 concluídos. O **Sprint 6 (Governança e Segurança Organizacional)** está planejado como próximo passo.
 
-**Nota importante**: O **Sprint 2.5 (Design System & UI/UX para Conversão)** foi adicionado ao roadmap como prioridade alta. Este sprint foca em criar uma UI/UX que converta usuários e impressione empresas/consultores, incluindo design system completo, onboarding, microinterações e polimento visual.
+**Nota importante**: O **Sprint 2.5 (Design System & UI/UX para Conversão)** foi adicionado ao roadmap como prioridade alta e já foi concluído. Este sprint focou em criar uma UI/UX que converta usuários e impressione empresas/consultores, incluindo design system completo, onboarding, microinterações e polimento visual.
+
+**Novas funcionalidades planejadas (Sprint 6)**: Sistema de convites, conflitos de edição (optimistic locking), audit log do sistema, gestão de API keys e páginas de erro. Essas funcionalidades foram identificadas como críticas para escalar o produto como SaaS Enterprise.
 
 ---
 
@@ -86,6 +90,39 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 
 ## ✅ Sprints Concluídos (Continuação)
 
+### Sprint 2.5 - Design System & UI/UX para Conversão ✅
+**Status**: Concluído (Dezembro 2025)
+
+#### Implementado:
+- ✅ Design System completo com tokens de design (cores, tipografia, espaçamento)
+- ✅ Componentes base reutilizáveis: Button, Input, Card, Badge, Label, Alert, Toast, EmptyState, Textarea
+- ✅ Layout Shell com Sidebar responsiva e Navbar unificada
+- ✅ Empty States padronizados e atrativos
+- ✅ Toast refatorado com Design System e animações
+- ✅ Navegação intuitiva com breadcrumbs dinâmicos
+- ✅ Responsividade mobile completa (menu hambúrguer, sidebar overlay)
+- ✅ Polimento visual: animações sutis, transições suaves, focus rings, sombras consistentes
+- ✅ Acessibilidade melhorada: navegação por teclado, focus visible, ARIA labels
+
+**Componentes Criados**:
+- `components/ui/button.tsx` - Botões com variantes e estados
+- `components/ui/input.tsx` - Campos de entrada padronizados
+- `components/ui/card.tsx` - Cards com hover states
+- `components/ui/badge.tsx` - Badges para status
+- `components/ui/label.tsx` - Labels acessíveis
+- `components/ui/alert.tsx` - Alertas informativos
+- `components/ui/toast.tsx` - Notificações toast
+- `components/ui/empty-state.tsx` - Estados vazios padronizados
+- `components/ui/textarea.tsx` - Textarea padronizado
+- `components/layout/Sidebar.tsx` - Sidebar com navegação
+- `components/layout/Navbar.tsx` - Navbar com breadcrumbs
+- `components/layout/AppLayout.tsx` - Layout principal
+
+**Páginas Refatoradas**:
+- Dashboard, Catalog, Login, Register, Projects (lista e novo)
+
+---
+
 ### Sprint 5 - UI de Versionamento Avançado ✅
 **Status**: Concluído (Dezembro 2025)
 
@@ -105,25 +142,39 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 
 ## 📋 Próximos Passos (Roadmap)
 
-#### Sprint 2.5 - Design System & UI/UX para Conversão 🎨
-**Status**: Em Andamento (Prioridade Alta - Fase 1)
+#### Sprint 2.5 - Design System & UI/UX para Conversão 🎨 ✅
+**Status**: Concluído (Dezembro 2025)
 **Objetivo**: Criar uma UI/UX que converta usuários e impressione empresas/consultores
 
 - [x] Design system completo: tokens de design (cores, tipografia, espaçamento), componentes base reutilizáveis
-- [ ] Onboarding e primeira impressão: landing page, tour guiado, empty states atrativos
-- [ ] Navegação intuitiva: breadcrumbs, menus contextuais, hierarquia visual clara
-- [ ] Microinterações e feedback: loading states elegantes, animações sutis, toasts informativos
-- [ ] Responsividade e acessibilidade: mobile-first, contraste adequado, navegação por teclado
-- [ ] Polimento visual: espaçamento consistente, alinhamento, sombras/elevação, iconografia
+- [x] Onboarding e primeira impressão: empty states atrativos e padronizados (componente EmptyState criado)
+- [x] Navegação intuitiva: breadcrumbs dinâmicos, Layout Shell com Sidebar e Navbar, menus contextuais
+- [x] Microinterações e feedback: loading states elegantes, toasts informativos refatorados com Design System
+- [x] Responsividade e acessibilidade: Sidebar responsiva com menu mobile, mobile-first approach
+- [x] Polimento visual: animações sutis, transições suaves, focus rings melhorados, sombras consistentes
 
 **Nota**: Este sprint foi adicionado ao roadmap para garantir que a UI/UX seja priorizada desde o início, focando em conversão de usuários e impressão positiva para empresas e consultores.
 
 ---
 
-#### Sprint 6 - Segurança Organizacional 🔮
-- [ ] Separação estrita de dados (Row Level Security)
-- [ ] Papéis avançados (Viewer, Editor, Admin)
-- [ ] Auditoria completa de ações
+#### Sprint 6 - Governança e Segurança Organizacional 🔮
+**Status**: Planejado (Dezembro 2025 - Janeiro 2026)
+**Objetivo**: Implementar funcionalidades críticas de governança para escalar como SaaS Enterprise
+
+**Backend**:
+- [ ] **Optimistic Locking**: Adicionar `version_timestamp`/`etag` em versões; endpoint de save retorna 409 Conflict se base mudou
+- [ ] **Sistema de Convites**: Modelo `Invitation` com token, email, role, expires_at; endpoints de criar/aceitar convite
+- [ ] **Audit Log do Sistema**: Registro imutável de ações administrativas (criação/remoção usuários, mudanças permissão, exportações massa)
+- [ ] **Gestão de API Keys**: Modelo `ApiKey` para BYOK LLM e chaves de integração; rotação e revogação
+- [ ] **Separação estrita de dados**: Row Level Security aprimorado
+- [ ] **Papéis avançados**: Viewer, Editor, Reviewer, Admin com permissões granulares
+
+**Frontend**:
+- [ ] **Modal de Conflito de Edição**: Detecta 409 Conflict, exibe opções (sobrescrever/salvar como cópia/mesclar)
+- [ ] **Rota `/invite/[token]`**: Aceite de convite, definição de senha
+- [ ] **Rota `/settings/audit-log`**: Tabela de eventos administrativos com filtros e exportação
+- [ ] **Rota `/settings/api-keys`**: Gestão de chaves BYOK e API
+- [ ] **Páginas de Erro**: `/403`, `/404`, `/500` com mensagens amigáveis
 
 ---
 
@@ -131,10 +182,11 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 
 ### Geral
 - **Fases Concluídas**: 1 / 5 (Fase 1 em 100%)
-- **Sprints Concluídos**: 5 / 16 (incluindo Sprint 2.5 planejado)
+- **Sprints Concluídos**: 6 / 16 (incluindo Sprint 2.5 concluído)
 - **Sprints em Andamento**: 0
-- **Sprints Planejados**: 1 (Sprint 2.5 - Design System & UI/UX)
-- **Progresso Global**: ~35%
+- **Sprints Planejados**: 1 (Sprint 6 - Governança e Segurança Organizacional)
+- **Progresso Global**: ~38%
+- **Fase 2 (Versionamento + Governança)**: ~60% (Sprints 4 e 5 concluídos, Sprint 6 planejado)
 
 ### Fase 1 (MVP Interno)
 - **Progresso**: 100% ✅
@@ -155,7 +207,13 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 | **Catálogo de Processos** | ✅ Completo | 100% |
 | **UI de Projetos** | ✅ Completo | 100% |
 | **Autenticação** | ✅ Completo | 100% |
-| **Design System / UI/UX** | 🟡 Em Andamento | 20% |
+| **Design System / UI/UX** | ✅ Completo | 100% |
+| **Conflitos de Edição** | 🔮 Planejado (Sprint 6) | 0% |
+| **Sistema de Convites** | 🔮 Planejado (Sprint 6) | 0% |
+| **Audit Log do Sistema** | 🔮 Planejado (Sprint 6) | 0% |
+| **Gestão de API Keys** | 🔮 Planejado (Sprint 6) | 0% |
+| **Lixeira/Soft Delete** | 🔮 Planejado (Fase 3) | 0% |
+| **Monitoramento de Uso** | 🔮 Planejado (Fase 5) | 0% |
 | **Colaboração** | ❌ Não iniciado | 0% |
 | **Rastreabilidade** | ❌ Não iniciado | 0% |
 
@@ -172,14 +230,20 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 6. ✅ Concluir Sprint 5 (Diff Visual, Catálogo, Restore)
 
 ### Próximas Semanas (Prioridade)
-- 🎨 **Sprint 2.5 - Design System & UI/UX**: Iniciar implementação do design system e polimento visual para melhorar conversão de usuários e impressão para empresas/consultores.
+- 🔐 **Sprint 6 - Governança e Segurança Organizacional**: Implementar funcionalidades críticas identificadas na análise de arquitetura:
+  - Sistema de convites para crescimento B2B
+  - Conflitos de edição (optimistic locking) para integridade de dados
+  - Audit log do sistema para compliance
+  - Gestão de API keys (BYOK e integrações)
+  - Páginas de erro amigáveis
 
 ---
 
 ## 🚧 Débitos Técnicos Conhecidos
 
 ### Alta Prioridade
-- [ ] **Design System & UI/UX (Sprint 2.5)**: Implementar design system completo e polimento visual para conversão de usuários. Ver Sprint 2.5 nos Próximos Passos.
+- [x] **Design System & UI/UX (Sprint 2.5)**: ✅ Concluído (Dezembro 2025)
+- [ ] **Sprint 6 - Governança**: Sistema de convites, conflitos de edição, audit log, API keys, páginas de erro
 
 ### Média Prioridade
 - [ ] **Testes**: Aumentar cobertura de testes automatizados (Backend/Frontend)
@@ -203,7 +267,14 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 - ✅ **Diff Visual**: Usa `bpmn-js-differ` para comparação semântica e moddle do bpmn-js para parsing.
 
 ### Design & UI/UX
-- 🎨 **Design System (Sprint 2.5)**: Planejado para Fase 1, focado em conversão de usuários e impressão positiva para empresas/consultores. Inclui tokens de design, componentes reutilizáveis, onboarding, microinterações e polimento visual completo.
+- 🎨 **Design System (Sprint 2.5)**: ✅ Concluído (Dezembro 2025). Focado em conversão de usuários e impressão positiva para empresas/consultores. Inclui tokens de design, componentes reutilizáveis, onboarding, microinterações e polimento visual completo.
+
+### Governança e Segurança (Fase 2 - Sprint 6)
+- 🔐 **Sistema de Convites**: Planejado para permitir que admins convidem usuários via email (B2B growth)
+- 🔐 **Conflitos de Edição**: Optimistic locking para prevenir perda de dados em edições simultâneas
+- 🔐 **Audit Log**: Registro imutável de ações administrativas para compliance e auditoria
+- 🔐 **API Keys**: Gestão de chaves BYOK e integrações externas com rotação e revogação
+- 🔐 **Páginas de Erro**: Tratamento amigável de "unhappy path" (403, 404, 500)
 
 ### Tecnologias Confirmadas
 - **Backend**: FastAPI, SQLAlchemy, Pydantic, Python-Jose (JWT)

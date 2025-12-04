@@ -9,11 +9,13 @@
 import { use } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { ArrowLeft, FileText, Loader2, Sparkles, Plus } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { FileText, Loader2, Sparkles, Plus } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -90,29 +92,8 @@ function ProjectProcessesContent({ projectId }: { projectId: string }) {
     };
 
     return (
-        <div className="min-h-screen bg-background">
-            {/* Header */}
-            <header className="border-b bg-card">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-16">
-                        <div className="flex items-center gap-4">
-                            <Link href="/dashboard">
-                                <Button variant="ghost" size="sm">
-                                    <ArrowLeft className="mr-2 h-4 w-4" />
-                                    Dashboard
-                                </Button>
-                            </Link>
-                            <div className="h-6 w-px bg-border" />
-                            <h1 className="text-lg font-semibold tracking-tight">
-                                {project?.name || 'Project'}
-                            </h1>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <AppLayout>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {project?.description && (
                     <p className="text-muted-foreground mb-8">
                         {project.description}
@@ -138,23 +119,18 @@ function ProjectProcessesContent({ projectId }: { projectId: string }) {
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
                     ) : processes.length === 0 ? (
-                        <Card className="text-center py-12">
+                        <Card>
                             <CardContent className="pt-6">
-                                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                                    <FileText className="h-6 w-6 text-muted-foreground" />
-                                </div>
-                                <h3 className="text-lg font-semibold mb-2">
-                                    No processes yet
-                                </h3>
-                                <p className="text-muted-foreground mb-6">
-                                    Create your first process diagram to get started
-                                </p>
-                                <Link href={`/studio?project_id=${projectId}`}>
-                                    <Button>
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        Create Process
-                                    </Button>
-                                </Link>
+                                <EmptyState
+                                    icon={FileText}
+                                    title="No processes yet"
+                                    description="Create your first process diagram to get started"
+                                    action={{
+                                        label: 'Create Process',
+                                        onClick: () => {},
+                                        href: `/studio?project_id=${projectId}`
+                                    }}
+                                />
                             </CardContent>
                         </Card>
                     ) : (
@@ -194,7 +170,7 @@ function ProjectProcessesContent({ projectId }: { projectId: string }) {
                         </div>
                     )}
                 </div>
-            </main>
-        </div>
+            </div>
+        </AppLayout>
     );
 }

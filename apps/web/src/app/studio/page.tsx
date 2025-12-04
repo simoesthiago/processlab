@@ -10,7 +10,7 @@ import VersionDiffViewer from '@/features/versioning/VersionDiffViewer';
 import BpmnEditor, { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
 import Copilot from '@/features/copiloto/Copilot';
 import Citations from '@/features/citations/Citations';
-import Toast, { ToastType } from '@/components/Toast';
+import { Toast, ToastType } from '@/components/ui/toast';
 
 // Mock types if not available
 interface Process {

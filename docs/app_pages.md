@@ -19,6 +19,7 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 /                           → Landing Page (pública)
 /login                      → Login (pública)
 /register                   → Registro (pública)
+/invite/[token]             → Aceite de Convite (pública) [Fase 2]
 /pricing                    → Planos e Preços (pública) [Fase 5]
 /solucao                    → Página de Solução (pública) [Fase 5]
 /docs                       → Documentação (pública) [Fase 5]
@@ -49,10 +50,20 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 /settings                   → Configurações (protegida) [Fase 5]
 /settings/profile           → Perfil do Usuário (protegida)
 /settings/organization      → Configurações da Organização (protegida) [Fase 5]
+/settings/audit-log         → Log de Auditoria do Sistema (protegida, admin) [Fase 2]
+/settings/usage             → Monitoramento de Uso (protegida) [Fase 5]
+/settings/api-keys          → Gestão de API Keys (protegida) [Fase 2]
 /settings/integrations      → Integrações (protegida) [Fase 5]
 /settings/billing           → Faturamento (protegida) [Fase 5]
 
+/trash                      → Lixeira (protegida) [Fase 3]
+
 /onboarding                 → Onboarding Guiado (protegida) [Sprint 2.5]
+
+/403                        → Acesso Negado (pública) [Fase 2]
+/404                        → Não Encontrado (pública) [Fase 2]
+/500                        → Erro do Servidor (pública) [Fase 2]
+/maintenance                → Manutenção Programada (pública) [Fase 5]
 ```
 
 ---
@@ -145,7 +156,36 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 
 ---
 
-### 3.4. Pricing (`/pricing`) [Fase 5]
+### 3.4. Aceite de Convite (`/invite/[token]`) [Fase 2]
+
+**Objetivo**: Permitir que usuários convidados definam senha e entrem na organização existente.
+
+**Conteúdo**:
+- Validação de token de convite
+- Formulário: nome completo (opcional), senha, confirmação de senha
+- Informações da organização: nome, descrição
+- Validação: token válido e não expirado, senha forte
+- Feedback visual em tempo real
+
+**Interações Frontend-Backend**:
+- `GET /api/v1/invitations/[token]` → valida token e retorna dados do convite
+  - Response: `{ invitation: { id, email, organization_id, role, expires_at }, organization: { id, name } }`
+- `POST /api/v1/invitations/[token]/accept`
+  - Request: `{ password, full_name? }`
+  - Response: `{ access_token, user: { id, email, name, organization_id } }`
+- Armazena token no `AuthContext`
+- Redireciona para `/onboarding` (primeira vez) ou `/dashboard`
+
+**Navegação**:
+- Sucesso → `/onboarding` (primeira vez) ou `/dashboard`
+- Token inválido/expirado → exibe mensagem de erro, link para contato
+- Link para login → `/login`
+
+**Fase**: Fase 2
+
+---
+
+### 3.5. Pricing (`/pricing`) [Fase 5]
 
 **Objetivo**: Apresentar planos e preços, converter em assinaturas.
 
@@ -168,7 +208,7 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 
 ---
 
-### 3.5. Solução (`/solucao`) [Fase 5]
+### 3.6. Solução (`/solucao`) [Fase 5]
 
 **Objetivo**: Detalhar funcionalidades e casos de uso.
 
@@ -342,6 +382,8 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 
 ### 4.6. Editor BPMN (`/studio`)
 
+**⚠️ IMPORTANTE - Conflitos de Edição**: O editor implementa detecção de conflitos quando múltiplos usuários editam o mesmo processo simultaneamente. Ao salvar, se a versão base no servidor for mais nova, um modal de conflito é exibido com opções de resolução.
+
 **Objetivo**: Editar processos BPMN com IA/Copilot integrado.
 
 **Conteúdo**:
@@ -358,11 +400,22 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 
 **Interações Frontend-Backend**:
 - `GET /api/v1/processes/[id]/versions/active` (carregar processo)
+  - Response inclui `version_timestamp` ou `etag` para optimistic locking
 - `POST /api/v1/versions` (salvar nova versão)
+  - Request: `{ process_id, bpmn_json, commit_message, base_version_timestamp }`
+  - Se `base_version_timestamp` não corresponder ao servidor → retorna erro 409 (Conflict)
+  - Frontend detecta conflito e exibe modal de resolução
 - `POST /api/v1/edit` (comando do Copilot)
 - `POST /api/v1/generate` (gerar processo a partir de artefatos)
 - `POST /api/v1/export` (exportar XML/PNG/PDF)
 - `GET /api/v1/processes/[id]/versions` (histórico)
+
+**Modal de Conflito** (quando detectado):
+- Exibe diff entre versão local e servidor
+- Opções:
+  - **Sobrescrever (Force Push)**: Apenas Admin, descarta mudanças do servidor
+  - **Salvar como Cópia**: Cria novo processo/branch com mudanças locais
+  - **Mesclar/Ver Diff**: Abre comparador visual antes de salvar
 
 **Navegação**:
 - Salvar → permanece na página, mostra toast
@@ -565,17 +618,49 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 
 ---
 
-### 4.14. Configurações (`/settings`)
+### 4.14. Lixeira (`/trash`) [Fase 3]
+
+**Objetivo**: Visualizar e recuperar processos/projetos deletados (soft delete).
+
+**Conteúdo**:
+- Lista de itens deletados:
+  - Tipo: processo ou projeto
+  - Nome, descrição
+  - Deletado por: usuário, data/hora
+  - Data de exclusão permanente (após 30 dias por padrão)
+- Filtros: tipo, data de exclusão, deletado por
+- Ações:
+  - **Restaurar**: restaura item para estado original
+  - **Excluir Permanentemente**: remove definitivamente (apenas admin, após período de retenção)
+- Contador: itens que serão excluídos permanentemente em breve
+- Empty state: quando não há itens deletados
+
+**Interações Frontend-Backend**:
+- `GET /api/v1/trash?organization_id=[id]&type=[process|project]&deleted_by=[user_id]`
+- `POST /api/v1/trash/[id]/restore` → restaura item
+- `DELETE /api/v1/trash/[id]` → exclui permanentemente (admin apenas)
+
+**Navegação**:
+- Restaurar → redireciona para item restaurado
+- Voltar → `/dashboard` ou `/projects`
+
+**Fase**: Fase 3
+
+---
+
+### 4.15. Configurações (`/settings`)
 
 **Objetivo**: Gerenciar perfil, organização e integrações.
 
 **Conteúdo**:
 - Tabs:
   - **"Perfil"**: nome, email, senha, avatar
-  - **"Organização"** (admin): nome, domínio, membros
+  - **"Organização"** (admin): nome, domínio, membros, convites
+  - **"Audit Log"** (admin, Fase 2): log de atividades do sistema
+  - **"Uso"** (Fase 5): monitoramento de consumo (IA tokens, storage, membros)
+  - **"API Keys"** (Fase 2): chaves BYOK para LLM, chaves de API para integrações
   - **"Integrações"** (Fase 5): SSO, Slack, Teams, Jira
   - **"Faturamento"** (Fase 5): plano, pagamento, uso
-  - **"API Keys"**: chaves BYOK para LLM (Fase 1)
 
 **Interações Frontend-Backend**:
 - `GET /api/v1/users/me`
@@ -584,12 +669,161 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 - `PUT /api/v1/organizations/[id]` (admin)
 - `GET /api/v1/integrations` (Fase 5)
 - `POST /api/v1/integrations/[type]` (Fase 5)
+- `GET /api/v1/organizations/[id]/invitations` (admin, Fase 2)
+- `POST /api/v1/organizations/[id]/invitations` (admin, Fase 2)
+- `GET /api/v1/audit-log?organization_id=[id]&filters` (admin, Fase 2)
+- `GET /api/v1/usage?organization_id=[id]` (Fase 5)
+- `GET /api/v1/api-keys` (Fase 2)
+- `POST /api/v1/api-keys` (Fase 2)
+- `DELETE /api/v1/api-keys/[id]` (Fase 2)
 
 **Navegação**:
 - Salvar → permanece na página, toast de sucesso
 - Voltar → `/dashboard`
 
-**Fase**: Fase 1 (perfil), Fase 5 (organização, integrações)
+**Fase**: Fase 1 (perfil), Fase 2 (audit log, API keys), Fase 5 (organização, integrações, uso)
+
+---
+
+### 4.16. Audit Log (`/settings/audit-log`) [Fase 2]
+
+**Objetivo**: Visualizar log imutável de atividades administrativas e mudanças críticas do sistema.
+
+**Conteúdo**:
+- Tabela de eventos:
+  - Timestamp, tipo de evento, recurso afetado
+  - Usuário que executou a ação, IP, user agent
+  - Detalhes das mudanças (before/after snapshots)
+- Filtros:
+  - Tipo de evento: `process.created`, `user.removed`, `permission.changed`, `export.bulk`, etc.
+  - Usuário, período, recurso
+  - Ações administrativas críticas destacadas
+- Exportação: CSV/JSON para compliance
+- Busca: por mensagem, usuário, recurso
+
+**Interações Frontend-Backend**:
+- `GET /api/v1/audit-log?organization_id=[id]&event_type=[type]&user_id=[id]&start_date=[date]&end_date=[date]&page=[n]`
+- `GET /api/v1/audit-log/export?format=[csv|json]&filters` → download
+
+**Navegação**:
+- Evento → detalhes expandidos
+- Voltar → `/settings`
+
+**Fase**: Fase 2
+
+---
+
+### 4.17. Monitoramento de Uso (`/settings/usage`) [Fase 5]
+
+**Objetivo**: Visualizar consumo de recursos (IA tokens, armazenamento, membros) para gestão de custos.
+
+**Conteúdo**:
+- Dashboard com métricas:
+  - **IA/Copilot**: tokens consumidos (mês atual, histórico), custo estimado
+  - **Armazenamento**: espaço usado (GB), limite do plano, artefatos armazenados
+  - **Membros**: usuários ativos, convites pendentes, limite do plano
+- Gráficos de tendência (últimos 6 meses)
+- Alertas de quota: 80%, 90%, 100% (notificações)
+- Comparação com plano atual
+- Projeção de custos (se aplicável)
+
+**Interações Frontend-Backend**:
+- `GET /api/v1/usage?organization_id=[id]&period=[month|year]`
+  - Response: `{ ai_tokens: { current, limit, cost }, storage: { used_gb, limit_gb }, members: { active, limit } }`
+- `GET /api/v1/usage/history?organization_id=[id]&metric=[ai_tokens|storage|members]&period=[6m|1y]`
+
+**Navegação**:
+- Upgrade de plano → `/pricing` ou `/settings/billing`
+- Voltar → `/settings`
+
+**Fase**: Fase 5
+
+---
+
+### 4.18. Gestão de API Keys (`/settings/api-keys`) [Fase 2]
+
+**Objetivo**: Gerenciar chaves de API para integrações externas e BYOK (Bring Your Own Key) para LLM.
+
+**Conteúdo**:
+- Lista de chaves:
+  - Nome/descrição, tipo (BYOK LLM, API Integration), criada em, último uso
+  - Máscara da chave (mostra apenas últimos 4 caracteres)
+  - Status: ativa, revogada
+- Ações:
+  - **Criar Nova Chave**: gera token, exibe uma vez (copiar)
+  - **Rotar**: gera nova chave, revoga antiga
+  - **Revogar**: desativa chave
+- Logs de uso por chave (últimos 30 dias)
+- Avisos de segurança: nunca compartilhar, rotar periodicamente
+
+**Interações Frontend-Backend**:
+- `GET /api/v1/api-keys?organization_id=[id]`
+- `POST /api/v1/api-keys` → criar nova chave
+  - Request: `{ name, type, description? }`
+  - Response: `{ id, key, name, type, created_at }` (key só aparece uma vez)
+- `POST /api/v1/api-keys/[id]/rotate` → rotar chave
+- `DELETE /api/v1/api-keys/[id]` → revogar
+- `GET /api/v1/api-keys/[id]/usage` → logs de uso
+
+**Navegação**:
+- Voltar → `/settings`
+
+**Fase**: Fase 2
+
+---
+
+### 4.19. Páginas de Erro
+
+#### 4.19.1. Acesso Negado (`/403`) [Fase 2]
+
+**Objetivo**: Página amigável quando usuário não tem permissão para acessar recurso.
+
+**Conteúdo**:
+- Mensagem: "Você não tem permissão para acessar este recurso"
+- Explicação do motivo (se disponível)
+- Ações:
+  - "Voltar ao Dashboard" → `/dashboard`
+  - "Contatar Administrador" → link para suporte/email
+- Código de erro: 403
+
+**Fase**: Fase 2
+
+#### 4.19.2. Não Encontrado (`/404`) [Fase 2]
+
+**Objetivo**: Página quando recurso não existe ou URL inválida.
+
+**Conteúdo**:
+- Mensagem: "Página não encontrada"
+- Sugestões: links para dashboard, projetos, catálogo
+- Busca rápida (opcional)
+
+**Fase**: Fase 2
+
+#### 4.19.3. Erro do Servidor (`/500`) [Fase 2]
+
+**Objetivo**: Página quando ocorre erro interno do servidor.
+
+**Conteúdo**:
+- Mensagem: "Algo deu errado"
+- Ações:
+  - "Tentar Novamente" → recarrega página
+  - "Voltar ao Dashboard" → `/dashboard`
+  - "Reportar Problema" → link para suporte
+- Código de erro: 500
+
+**Fase**: Fase 2
+
+#### 4.19.4. Manutenção (`/maintenance`) [Fase 5]
+
+**Objetivo**: Página estática durante janelas de manutenção programada.
+
+**Conteúdo**:
+- Mensagem: "Estamos em manutenção"
+- Horário estimado de retorno
+- Status page link (se disponível)
+- Contato de emergência
+
+**Fase**: Fase 5
 
 ---
 
@@ -650,13 +884,19 @@ Processo (/processes/[id])
 
 ## 6. Interações Frontend-Backend por Funcionalidade
 
-### 6.1. Autenticação
+### 6.1. Autenticação e Convites
 
 **Endpoints**:
 - `POST /api/v1/auth/login` → `{ access_token, user }`
 - `POST /api/v1/auth/register` → `{ access_token, user, organization }`
 - `GET /api/v1/auth/me` → `{ user }` (validar token)
 - `POST /api/v1/auth/logout` → (invalidar token, Fase 5)
+- `GET /api/v1/invitations/[token]` → validar token de convite (Fase 2)
+- `POST /api/v1/invitations/[token]/accept` → aceitar convite e criar usuário (Fase 2)
+- `GET /api/v1/organizations/[id]/invitations` → listar convites pendentes (admin, Fase 2)
+- `POST /api/v1/organizations/[id]/invitations` → criar convite (admin, Fase 2)
+  - Request: `{ email, role, expires_in_days? }`
+  - Response: `{ invitation: { id, token, email, expires_at } }`
 
 **Frontend**:
 - `AuthContext` gerencia token e estado de autenticação
@@ -701,10 +941,11 @@ Processo (/processes/[id])
 
 **Endpoints**:
 - `POST /api/v1/versions` → criar nova versão
-  - Request: `{ process_id, bpmn_json, commit_message, change_type }`
+  - Request: `{ process_id, bpmn_json, commit_message, change_type, base_version_timestamp }`
   - Response: `{ version_id, process_id, created_at }`
+  - Se `base_version_timestamp` não corresponder → 409 Conflict (conflito de edição)
 - `GET /api/v1/versions?process_id=[id]` → histórico
-- `GET /api/v1/versions/[id]` → detalhes
+- `GET /api/v1/versions/[id]` → detalhes (inclui `version_timestamp` para optimistic locking)
 - `GET /api/v1/versions/[id1]/diff/[id2]` → diff textual
 - `PUT /api/v1/versions/[id]/activate` → ativar versão
 
@@ -774,6 +1015,46 @@ Processo (/processes/[id])
 - Formulário de geração
 - Preview (opcional)
 - Download de arquivo
+
+---
+
+### 6.9. Audit Log [Fase 2]
+
+**Endpoints**:
+- `GET /api/v1/audit-log?organization_id=[id]&filters` → listar eventos
+- `GET /api/v1/audit-log/export?format=[csv|json]` → exportar log
+
+**Frontend**:
+- Tabela filtrada e paginada
+- Exportação para compliance
+
+---
+
+### 6.10. Lixeira [Fase 3]
+
+**Endpoints**:
+- `GET /api/v1/trash?organization_id=[id]&filters` → listar itens deletados
+- `POST /api/v1/trash/[id]/restore` → restaurar item
+- `DELETE /api/v1/trash/[id]` → excluir permanentemente (admin)
+
+**Frontend**:
+- Lista de itens com filtros
+- Ações de restauração/exclusão permanente
+
+---
+
+### 6.11. Gestão de Uso e API Keys [Fase 2-5]
+
+**Endpoints**:
+- `GET /api/v1/usage?organization_id=[id]` → métricas de uso (Fase 5)
+- `GET /api/v1/api-keys?organization_id=[id]` → listar chaves (Fase 2)
+- `POST /api/v1/api-keys` → criar chave (Fase 2)
+- `POST /api/v1/api-keys/[id]/rotate` → rotar chave (Fase 2)
+- `DELETE /api/v1/api-keys/[id]` → revogar chave (Fase 2)
+
+**Frontend**:
+- Dashboard de uso (Fase 5)
+- Gestão de chaves de API (Fase 2)
 
 ---
 
@@ -905,15 +1186,21 @@ Processo (/processes/[id])
 - Dashboard, Projetos, Editor
 - Autenticação básica
 
-### Fase 2 (Versionamento)
+### Fase 2 (Versionamento + Governança)
 - Catálogo de Processos
 - Histórico de Versões
 - Comparação Visual
+- **Sistema de Convites** (`/invite/[token]`)
+- **Audit Log do Sistema** (`/settings/audit-log`)
+- **Gestão de API Keys** (`/settings/api-keys`)
+- **Conflitos de Edição** (optimistic locking no editor)
+- **Páginas de Erro** (`/403`, `/404`, `/500`)
 
 ### Fase 3 (Colaboração)
 - Comentários Ancorados
 - Reviews e Aprovação
 - Notificações
+- **Lixeira/Soft Delete** (`/trash`)
 
 ### Fase 4 (Rastreabilidade)
 - Evidências
@@ -925,6 +1212,8 @@ Processo (/processes/[id])
 - SSO, Integrações
 - Configurações Avançadas
 - Dashboards Executivos
+- **Monitoramento de Uso** (`/settings/usage`)
+- **Página de Manutenção** (`/maintenance`)
 
 ---
 

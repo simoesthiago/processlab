@@ -8,13 +8,14 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, ArrowLeft, X, FileText, Loader2 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Search, X, FileText, Loader2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -160,26 +161,16 @@ function CatalogContent() {
     const hasActiveFilters = statusFilter || projectFilter || searchTerm;
 
     return (
-        <div className="min-h-screen bg-background">
-            {/* Header */}
-            <header className="border-b bg-card">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">
-                                Process Catalog
-                            </h1>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                Browse and filter all processes in your organization
-                            </p>
-                        </div>
-                        <Link href="/dashboard">
-                            <Button variant="ghost" size="sm">
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Back to Dashboard
-                            </Button>
-                        </Link>
-                    </div>
+        <AppLayout>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <div className="mb-6">
+                    <h1 className="text-2xl font-bold tracking-tight">
+                        Process Catalog
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        Browse and filter all processes in your organization
+                    </p>
+                </div>
 
                     {/* Filters */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -252,31 +243,24 @@ function CatalogContent() {
                         </div>
                     )}
                 </div>
-            </header>
 
-            {/* Content */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Content */}
+                <div className="py-8">
                 {loading ? (
                     <div className="text-center py-12">
                         <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
                         <p className="text-muted-foreground">Loading processes...</p>
                     </div>
                 ) : processes.length === 0 ? (
-                    <Card className="text-center py-12">
+                    <Card>
                         <CardContent className="pt-6">
-                            <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                                <FileText className="h-6 w-6 text-muted-foreground" />
-                            </div>
-                            <h3 className="text-lg font-semibold mb-2">
-                                {hasActiveFilters
-                                    ? 'No processes found'
-                                    : 'No processes yet'}
-                            </h3>
-                            <p className="text-muted-foreground">
-                                {hasActiveFilters
+                            <EmptyState
+                                icon={FileText}
+                                title={hasActiveFilters ? 'No processes found' : 'No processes yet'}
+                                description={hasActiveFilters
                                     ? 'Try adjusting your filters to see more results.'
                                     : 'Create your first process to get started!'}
-                            </p>
+                            />
                         </CardContent>
                     </Card>
                 ) : (
@@ -285,9 +269,9 @@ function CatalogContent() {
                             <Link
                                 key={process.id}
                                 href={`/studio?process_id=${process.id}`}
-                                className="block group"
+                                className="block group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
                             >
-                                <Card className="h-full hover:border-primary/50 transition-colors">
+                                <Card className="h-full hover:border-primary/50 transition-all duration-200 group-hover:shadow-md">
                                     <CardHeader>
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="p-2 bg-primary/10 rounded-lg text-primary">
@@ -325,7 +309,7 @@ function CatalogContent() {
                         ))}
                     </div>
                 )}
-            </main>
-        </div>
+            </div>
+        </AppLayout>
     );
 }

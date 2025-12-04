@@ -8,6 +8,7 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -17,7 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Alert } from '@/components/ui/alert';
-import { ArrowLeft, FolderPlus } from 'lucide-react';
+import { FolderPlus } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -77,23 +78,8 @@ function NewProjectContent() {
     };
 
     return (
-        <div className="min-h-screen bg-background">
-            {/* Header */}
-            <header className="border-b bg-card">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center h-16">
-                        <Link href="/dashboard">
-                            <Button variant="ghost" size="sm">
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Back to Dashboard
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <AppLayout>
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <div className="mb-8 space-y-2">
                     <div className="flex items-center gap-2">
                         <FolderPlus className="h-6 w-6 text-primary" />
@@ -181,7 +167,7 @@ function NewProjectContent() {
                         </form>
                     </CardContent>
                 </Card>
-            </main>
-        </div>
+            </div>
+        </AppLayout>
     );
 }

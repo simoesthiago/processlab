@@ -18,7 +18,7 @@ const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
         ref={ref}
         role="alert"
         className={cn(
-          "relative w-full rounded-lg border p-4",
+          "relative w-full rounded-lg border p-4 shadow-sm transition-all duration-200",
           variants[variant],
           className
         )}
