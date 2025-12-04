@@ -40,6 +40,7 @@ class Organization(Base):
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False, unique=True)
+    slug = Column(String(255), nullable=False, unique=True, index=True)
     description = Column(Text, nullable=True)
     
     # Settings
@@ -57,20 +58,23 @@ class Organization(Base):
     users = relationship("User", back_populates="organization")
     
     def __repr__(self):
-        return f"<Organization(id={self.id}, name={self.name})>"
+        return f"<Organization(id={self.id}, name={self.name}, slug={self.slug})>"
 
 
 class Project(Base):
     """
     Project
     
-    Groups related processes together within an organization.
+    Groups related processes together within an organization or as personal projects.
     Hierarchy: Organization → Project → Process → Version
+    
+    For personal projects: organization_id is NULL, owner_id is set
+    For org projects: organization_id is set, owner_id can be NULL
     """
     __tablename__ = "projects"
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=False)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True)  # NULL for personal projects
     
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -79,8 +83,12 @@ class Project(Base):
     tags = Column(JSON, nullable=True)  # e.g., ["finance", "compliance"]
     settings = Column(JSON, nullable=True)  # Project-specific settings
     
+    # Visibility for personal projects
+    visibility = Column(String(20), nullable=True, default="organization")  # private, shared, public, organization
+    
     # Ownership
-    created_by = Column(String(255), nullable=True)  # User ID
+    owner_id = Column(String(36), ForeignKey("users.id"), nullable=True)  # For personal projects
+    created_by = Column(String(255), nullable=True)  # User ID who created it
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -91,10 +99,12 @@ class Project(Base):
     
     # Relationships
     organization = relationship("Organization", back_populates="projects")
+    owner = relationship("User", back_populates="owned_projects", foreign_keys=[owner_id])
     processes = relationship("ProcessModel", back_populates="project")
+    shares = relationship("ProjectShare", back_populates="project")
     
     def __repr__(self):
-        return f"<Project(id={self.id}, name={self.name}, org_id={self.organization_id})>"
+        return f"<Project(id={self.id}, name={self.name}, org_id={self.organization_id}, owner_id={self.owner_id})>"
 
 
 
@@ -327,6 +337,7 @@ class User(Base):
     User
     
     Application users who belong to an organization.
+    Can also have personal projects.
     """
     __tablename__ = "users"
 
@@ -348,8 +359,62 @@ class User(Base):
     
     # Relationships
     organization = relationship("Organization", back_populates="users")
+    owned_projects = relationship("Project", back_populates="owner", foreign_keys="Project.owner_id")
+    shared_projects = relationship("ProjectShare", back_populates="shared_with_user", foreign_keys="ProjectShare.shared_with_user_id")
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, org_id={self.organization_id})>"
+
+
+class ProjectShare(Base):
+    """
+    Project Share
+    
+    Manages sharing of personal projects with other users.
+    Supports both direct user sharing and public link sharing.
+    """
+    __tablename__ = "project_shares"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    owner_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Who it's shared with (mutually exclusive with public link)
+    shared_with_email = Column(String(255), nullable=True)  # Email for pending invites
+    shared_with_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    
+    # Public link sharing
+    share_token = Column(String(64), unique=True, nullable=True, index=True)
+    is_public_link = Column(Boolean, default=False)
+    
+    # Permission level
+    permission = Column(String(20), nullable=False)  # "viewer", "commenter", "editor"
+    
+    # Expiration
+    expires_at = Column(DateTime, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Soft delete / revocation
+    revoked_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    project = relationship("Project", back_populates="shares")
+    owner = relationship("User", foreign_keys=[owner_id])
+    shared_with_user = relationship("User", back_populates="shared_projects", foreign_keys=[shared_with_user_id])
+    
+    def __repr__(self):
+        return f"<ProjectShare(id={self.id}, project_id={self.project_id}, permission={self.permission})>"
+    
+    @property
+    def is_valid(self):
+        """Check if the share is still valid (not expired or revoked)"""
+        if self.revoked_at:
+            return False
+        if self.expires_at and self.expires_at < datetime.utcnow():
+            return False
+        return True
 
 

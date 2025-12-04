@@ -16,7 +16,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Alert } from '@/components/ui/alert';
-import { Loader2, Sparkles, Building2 } from 'lucide-react';
+import { Loader2, Building2 } from 'lucide-react';
+import { Logo } from '@/components/branding/Logo';
 
 export default function RegisterPage() {
     const { register, isAuthenticated, loading } = useAuth();
@@ -86,17 +87,15 @@ export default function RegisterPage() {
         <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 px-4 py-12">
             <div className="w-full max-w-md space-y-8">
                 {/* Logo/Title */}
-                <div className="text-center space-y-2">
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                            <Sparkles className="h-6 w-6 text-primary" />
-                        </div>
-                        <h1 className="text-4xl font-bold tracking-tight">
-                            ProcessLab
-                        </h1>
+                <div className="text-center space-y-4">
+                    <div className="flex items-center justify-center mb-2">
+                        <Logo variant="vertical" width={120} height={120} />
                     </div>
+                    <h1 className="text-3xl font-bold tracking-tight">
+                        Create your account
+                    </h1>
                     <p className="text-muted-foreground">
-                        Create your account to get started
+                        Get started with ProcessLab
                     </p>
                 </div>
 

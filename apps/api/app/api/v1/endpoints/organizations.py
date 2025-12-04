@@ -1,114 +1,272 @@
 """
-Organization endpoints for ProcessLab API
+Organizations API Endpoints
 
-Handles organization management.
+Handles organization management and membership.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
-from app.db.session import get_db
-from app.db.models import User, Organization
-from app.core.dependencies import get_current_user, require_organization_access
-from app.schemas.auth import OrganizationResponse, OrganizationCreate
-from app.core.exceptions import ResourceNotFoundError, AuthorizationError
-import logging
+from typing import List, Optional
+from pydantic import BaseModel
+from slugify import slugify
 
-logger = logging.getLogger(__name__)
+from app.db.session import get_db
+from app.db.models import Organization, User, Project
+from app.api.deps import get_current_user
+
 router = APIRouter()
 
 
-@router.get("", response_model=List[OrganizationResponse])
-def list_organizations(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+# Pydantic models
+class OrganizationBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class OrganizationCreate(OrganizationBase):
+    pass
+
+
+class OrganizationResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    description: Optional[str]
+    role: str  # User's role in this org
+    
+    class Config:
+        from_attributes = True
+
+
+class OrganizationsListResponse(BaseModel):
+    organizations: List[OrganizationResponse]
+
+
+class OrganizationDetailResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    description: Optional[str]
+    settings: Optional[dict]
+    created_at: str
+    
+    class Config:
+        from_attributes = True
+
+
+class ProjectListItem(BaseModel):
+    id: str
+    name: str
+    description: Optional[str]
+    process_count: int = 0
+    tags: Optional[List[str]]
+    created_at: str
+    updated_at: str
+    
+    class Config:
+        from_attributes = True
+
+
+class OrganizationProjectsResponse(BaseModel):
+    projects: List[ProjectListItem]
+    total_count: int
+
+
+@router.get("/me", response_model=OrganizationsListResponse)
+async def get_my_organizations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    List organizations accessible to the current user.
-    
-    - Regular users see only their organization
-    - Superusers see all organizations
+    Get all organizations the current user belongs to.
     """
-    if current_user.is_superuser:
-        # Superusers can see all organizations
-        organizations = db.query(Organization).filter(
-            Organization.deleted_at == None
-        ).all()
-    elif current_user.organization_id:
-        # Regular users see only their organization
-        organizations = db.query(Organization).filter(
+    organizations = []
+    
+    # Get user's primary organization
+    if current_user.organization_id:
+        org = db.query(Organization).filter(
             Organization.id == current_user.organization_id,
-            Organization.deleted_at == None
-        ).all()
-    else:
-        # User has no organization
-        organizations = []
+            Organization.deleted_at.is_(None)
+        ).first()
+        
+        if org:
+            organizations.append(OrganizationResponse(
+                id=org.id,
+                name=org.name,
+                slug=org.slug,
+                description=org.description,
+                role=current_user.role or "viewer"
+            ))
     
-    return [OrganizationResponse.from_orm(org) for org in organizations]
+    # TODO: In the future, support users belonging to multiple organizations
+    # through a separate membership table
+    
+    return OrganizationsListResponse(organizations=organizations)
 
 
-@router.get("/{organization_id}", response_model=OrganizationResponse)
-def get_organization(
-    organization_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+@router.get("/{org_id}", response_model=OrganizationDetailResponse)
+async def get_organization(
+    org_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Get details of a specific organization.
-    
-    Requires user to be member of the organization or superuser.
+    Get organization details by ID.
+    User must be a member of the organization.
     """
-    # Check access
-    require_organization_access(current_user, organization_id)
-    
-    # Fetch organization
-    organization = db.query(Organization).filter(
-        Organization.id == organization_id,
-        Organization.deleted_at == None
+    org = db.query(Organization).filter(
+        Organization.id == org_id,
+        Organization.deleted_at.is_(None)
     ).first()
     
-    if not organization:
-        raise ResourceNotFoundError("Organization", organization_id)
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found"
+        )
     
-    return OrganizationResponse.from_orm(organization)
+    # Check user has access
+    if current_user.organization_id != org_id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have access to this organization"
+        )
+    
+    return OrganizationDetailResponse(
+        id=org.id,
+        name=org.name,
+        slug=org.slug,
+        description=org.description,
+        settings=org.settings,
+        created_at=org.created_at.isoformat()
+    )
 
 
-@router.post("", response_model=OrganizationResponse, status_code=status.HTTP_201_CREATED)
-def create_organization(
+@router.get("/slug/{slug}", response_model=OrganizationDetailResponse)
+async def get_organization_by_slug(
+    slug: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get organization details by slug.
+    User must be a member of the organization.
+    """
+    org = db.query(Organization).filter(
+        Organization.slug == slug,
+        Organization.deleted_at.is_(None)
+    ).first()
+    
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found"
+        )
+    
+    # Check user has access
+    if current_user.organization_id != org.id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have access to this organization"
+        )
+    
+    return OrganizationDetailResponse(
+        id=org.id,
+        name=org.name,
+        slug=org.slug,
+        description=org.description,
+        settings=org.settings,
+        created_at=org.created_at.isoformat()
+    )
+
+
+@router.get("/{org_id}/projects", response_model=OrganizationProjectsResponse)
+async def get_organization_projects(
+    org_id: str,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get all projects in an organization.
+    User must be a member of the organization.
+    """
+    # Check user has access to org
+    if current_user.organization_id != org_id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have access to this organization"
+        )
+    
+    # Get projects
+    projects_query = db.query(Project).filter(
+        Project.organization_id == org_id,
+        Project.deleted_at.is_(None)
+    )
+    
+    total_count = projects_query.count()
+    projects = projects_query.order_by(Project.updated_at.desc()).offset(skip).limit(limit).all()
+    
+    project_list = []
+    for project in projects:
+        process_count = len(project.processes) if project.processes else 0
+        project_list.append(ProjectListItem(
+            id=project.id,
+            name=project.name,
+            description=project.description,
+            process_count=process_count,
+            tags=project.tags,
+            created_at=project.created_at.isoformat(),
+            updated_at=project.updated_at.isoformat()
+        ))
+    
+    return OrganizationProjectsResponse(
+        projects=project_list,
+        total_count=total_count
+    )
+
+
+@router.post("", response_model=OrganizationDetailResponse)
+async def create_organization(
     org_data: OrganizationCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Create a new organization.
-    
-    Only superusers can create organizations.
-    Regular users create organization during registration.
+    The creating user becomes the admin.
     """
-    if not current_user.is_superuser:
-        raise AuthorizationError("Only superusers can create organizations directly")
+    # Generate slug
+    base_slug = slugify(org_data.name)
+    slug = base_slug
+    counter = 1
     
-    # Check if name is already taken
-    existing = db.query(Organization).filter(
-        Organization.name == org_data.name
-    ).first()
-    
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Organization with name '{org_data.name}' already exists"
-        )
+    while db.query(Organization).filter(Organization.slug == slug).first():
+        slug = f"{base_slug}-{counter}"
+        counter += 1
     
     # Create organization
-    organization = Organization(
+    org = Organization(
         name=org_data.name,
+        slug=slug,
         description=org_data.description
     )
+    db.add(org)
+    db.flush()
     
-    db.add(organization)
+    # Update user to be admin of this organization
+    current_user.organization_id = org.id
+    current_user.role = "admin"
+    
     db.commit()
-    db.refresh(organization)
+    db.refresh(org)
     
-    logger.info(f"Created organization: {organization.name} (id: {organization.id})")
-    
-    return OrganizationResponse.from_orm(organization)
+    return OrganizationDetailResponse(
+        id=org.id,
+        name=org.name,
+        slug=org.slug,
+        description=org.description,
+        settings=org.settings,
+        created_at=org.created_at.isoformat()
+    )

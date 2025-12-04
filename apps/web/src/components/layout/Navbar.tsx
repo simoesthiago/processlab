@@ -2,8 +2,10 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Logo } from '@/components/branding/Logo';
 import { LogOut, User } from 'lucide-react';
 
 export function Navbar() {
@@ -33,6 +35,9 @@ export function Navbar() {
     return (
         <header className="flex h-16 items-center justify-between border-b bg-card px-6">
             <div className="flex items-center gap-4">
+                <Link href="/dashboard" className="flex items-center">
+                    <Logo variant="icon" width={32} height={32} className="mr-3" />
+                </Link>
                 <h2 className="text-lg font-semibold tracking-tight text-foreground">
                     {getBreadcrumbs()}
                 </h2>

@@ -51,3 +51,35 @@ def get_current_active_user(
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+
+# Optional OAuth2 scheme that doesn't require authentication
+optional_oauth2 = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/auth/login",
+    auto_error=False
+)
+
+
+def get_current_user_optional(
+    db: Session = Depends(get_db),
+    token: Optional[str] = Depends(optional_oauth2)
+) -> Optional[User]:
+    """
+    Get current user if authenticated, otherwise return None.
+    Used for endpoints that work with or without authentication.
+    """
+    if not token:
+        return None
+    
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        token_data = payload.get("sub")
+        if token_data is None:
+            return None
+    except (JWTError, ValidationError):
+        return None
+    
+    user = db.query(User).filter(User.id == token_data).first()
+    return user

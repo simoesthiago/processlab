@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,19 +15,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ProcessLab",
-  description: "AI-powered BPMN diagram generator and editor",
+  title: "ProcessLab - The GitHub for Process Modeling",
+  description: "AI-powered BPMN diagram generator and editor with version control and governance. Built for consultants, process owners, and compliance teams.",
   icons: {
     icon: [
+      { url: "/logo-icon.svg", type: "image/svg+xml" },
       { url: "/favicon.ico" },
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
     apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/logo-icon.svg", sizes: "180x180", type: "image/svg+xml" },
     ],
   },
   manifest: "/site.webmanifest",
+  openGraph: {
+    title: "ProcessLab - The GitHub for Process Modeling",
+    description: "AI-powered BPMN diagram generator and editor with version control and governance.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -41,7 +46,9 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          {children}
+          <WorkspaceProvider>
+            {children}
+          </WorkspaceProvider>
         </AuthProvider>
       </body>
     </html>
