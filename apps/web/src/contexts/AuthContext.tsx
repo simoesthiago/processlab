@@ -79,25 +79,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const response = await fetch(`${API_URL}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || 'Login failed');
+    try {
+      const response = await fetch(`${API_URL}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        let errorMessage = 'Login failed';
+        try {
+          const error = await response.json();
+          errorMessage = error.error?.message || error.message || errorMessage;
+        } catch (parseError) {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || `HTTP ${response.status}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      
+      // Validate response structure
+      if (!data.access_token || !data.user) {
+        throw new Error('Invalid response from server');
+      }
+      
+      // Store token
+      localStorage.setItem('auth_token', data.access_token);
+      setToken(data.access_token);
+      setUser(data.user);
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      
+      // Handle different error types
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout. Please check your connection and try again.');
+      } else if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Network error. Please check your connection and try again.');
+      } else if (error.message) {
+        throw error; // Re-throw with original message
+      } else {
+        throw new Error('An unexpected error occurred during login.');
+      }
     }
-
-    const data = await response.json();
-    
-    // Store token
-    localStorage.setItem('auth_token', data.access_token);
-    setToken(data.access_token);
-    setUser(data.user);
   };
 
   const register = async (
@@ -106,30 +140,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fullName: string,
     orgName?: string
   ) => {
-    const response = await fetch(`${API_URL}/api/v1/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        full_name: fullName,
-        organization_name: orgName || undefined,
-      }),
-    });
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || 'Registration failed');
+    try {
+      const response = await fetch(`${API_URL}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          full_name: fullName,
+          organization_name: orgName || undefined,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        let errorMessage = 'Registration failed';
+        try {
+          const error = await response.json();
+          errorMessage = error.error?.message || error.message || errorMessage;
+        } catch (parseError) {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || `HTTP ${response.status}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      
+      // Validate response structure
+      if (!data.access_token || !data.user) {
+        throw new Error('Invalid response from server');
+      }
+      
+      // Store token
+      localStorage.setItem('auth_token', data.access_token);
+      setToken(data.access_token);
+      setUser(data.user);
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      
+      // Handle different error types
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout. Please check your connection and try again.');
+      } else if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Network error. Please check your connection and try again.');
+      } else if (error.message) {
+        throw error; // Re-throw with original message
+      } else {
+        throw new Error('An unexpected error occurred during registration.');
+      }
     }
-
-    const data = await response.json();
-    
-    // Store token
-    localStorage.setItem('auth_token', data.access_token);
-    setToken(data.access_token);
-    setUser(data.user);
   };
 
   const logout = () => {

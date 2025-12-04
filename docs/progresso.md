@@ -1,10 +1,10 @@
 # ProcessLab - Progresso de Implementação
 
-**Última atualização**: 03 de dezembro de 2025
+**Última atualização**: Dezembro de 2025
 
 ## 📍 Posição Atual no Roadmap
 
-Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui hardening de backend, autenticação completa, gestão de projetos e integração total com o Studio. Estamos prontos para iniciar a **Fase 2 (Repositório + Versionamento Real)**.
+Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui hardening de backend, autenticação completa, gestão de projetos e integração total com o Studio. Estamos na **Fase 2 (Repositório + Versionamento Real)**, com o Sprint 4 concluído e o Sprint 5 em andamento (diff visual implementado).
 
 ---
 
