@@ -61,8 +61,9 @@ function NewProjectContent() {
 
             // Redirect to project's processes page
             router.push(`/projects/${project.id}/processes`);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to create project';
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }

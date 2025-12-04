@@ -7,7 +7,8 @@ Handles process management within projects.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
 from app.db.session import get_db
 from app.db.models import User, ProcessModel, ModelVersion
 from app.core.dependencies import get_current_user, require_organization_access, require_role
@@ -208,6 +209,54 @@ def list_process_versions(
     }
 
 
+@router.get("/processes/{process_id}/versions/{version_id}")
+def get_version(
+    process_id: str,
+    version_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get a specific version with its BPMN content.
+    """
+    # Fetch process
+    process = db.query(ProcessModel).filter(
+        ProcessModel.id == process_id,
+        ProcessModel.deleted_at == None
+    ).first()
+    
+    if not process:
+        raise ResourceNotFoundError("Process", process_id)
+    
+    # Check access
+    require_organization_access(current_user, process.organization_id)
+    
+    # Fetch version
+    version = db.query(ModelVersion).filter(
+        ModelVersion.id == version_id,
+        ModelVersion.process_id == process_id
+    ).first()
+    
+    if not version:
+        raise ResourceNotFoundError("Version", version_id)
+    
+    # Extract XML from bpmn_json
+    xml_content = version.bpmn_json.get('xml', '') if version.bpmn_json else ''
+    
+    return {
+        "id": version.id,
+        "version_number": version.version_number,
+        "version_label": version.version_label,
+        "commit_message": version.commit_message,
+        "created_at": version.created_at,
+        "created_by": version.created_by,
+        "change_type": version.change_type,
+        "is_active": (version.id == process.current_version_id),
+        "xml": xml_content,
+        "bpmn_json": version.bpmn_json
+    }
+
+
 @router.put("/processes/{process_id}/versions/{version_id}/activate")
 def activate_version(
     process_id: str,
@@ -255,6 +304,87 @@ def activate_version(
         "version_id": version_id,
         "version_number": version.version_number
     }
+
+
+class RestoreVersionRequest(BaseModel):
+    commit_message: Optional[str] = None
+
+
+@router.post("/processes/{process_id}/versions/{version_id}/restore", response_model=ModelVersionResponse)
+def restore_version(
+    process_id: str,
+    version_id: str,
+    request: RestoreVersionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Restore a process to a previous version.
+    
+    Creates a new version with the content of the specified version.
+    This preserves history while restoring the process state.
+    Requires editor or admin role.
+    """
+    # Fetch process
+    process = db.query(ProcessModel).filter(
+        ProcessModel.id == process_id,
+        ProcessModel.deleted_at == None
+    ).first()
+    
+    if not process:
+        raise ResourceNotFoundError("Process", process_id)
+    
+    # Check access
+    require_organization_access(current_user, process.organization_id)
+    require_role(current_user, ["editor", "admin"])
+    
+    # Fetch version to restore
+    source_version = db.query(ModelVersion).filter(
+        ModelVersion.id == version_id,
+        ModelVersion.process_id == process_id
+    ).first()
+    
+    if not source_version:
+        raise ResourceNotFoundError("Version", version_id)
+    
+    # Get current active version to use as parent
+    current_active_version_id = process.current_version_id
+    
+    # Get next version number
+    last_version = db.query(ModelVersion).filter(
+        ModelVersion.process_id == process_id
+    ).order_by(ModelVersion.version_number.desc()).first()
+    
+    next_version_number = (last_version.version_number + 1) if last_version else 1
+    
+    # Create new version with content from source version
+    restored_version = ModelVersion(
+        process_id=process_id,
+        version_number=next_version_number,
+        version_label=f"v{next_version_number}",
+        commit_message=request.commit_message or f"Restored to version {source_version.version_number}",
+        change_type="major",  # Restore is always a major change
+        parent_version_id=current_active_version_id,  # Link to current version
+        bpmn_json=dict(source_version.bpmn_json) if source_version.bpmn_json else {},  # Copy content (deep copy for dict)
+        generation_method="restored",
+        source_artifact_ids=source_version.source_artifact_ids,  # Preserve source artifacts
+        created_by=current_user.id,
+        status="ready",
+        is_active=True  # Auto-activate restored version
+    )
+    
+    db.add(restored_version)
+    db.flush()
+    
+    # Activate the restored version
+    process.current_version_id = restored_version.id
+    
+    db.commit()
+    db.refresh(restored_version)
+    
+    logger.info(f"Restored process {process_id} to version {source_version.version_number} (new version: {restored_version.version_number})")
+    
+    return restored_version
 
 
 from app.schemas.versioning import VersionDiffResponse

@@ -28,15 +28,15 @@ export default function VersionDiffViewer({
 }: VersionDiffViewerProps) {
     const baseContainerRef = useRef<HTMLDivElement>(null);
     const compareContainerRef = useRef<HTMLDivElement>(null);
-    const baseViewerRef = useRef<any>(null);
-    const compareViewerRef = useRef<any>(null);
+    const baseViewerRef = useRef<unknown>(null);
+    const compareViewerRef = useRef<unknown>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [diffResults, setDiffResults] = useState<any>(null);
+    const [diffResults, setDiffResults] = useState<unknown>(null);
 
     useEffect(() => {
-        let baseViewer: any = null;
-        let compareViewer: any = null;
+        let baseViewer: unknown = null;
+        let compareViewer: unknown = null;
 
         const initDiffViewer = async () => {
             try {
@@ -64,11 +64,14 @@ export default function VersionDiffViewer({
                 compareViewerRef.current = compareViewer;
 
                 // Load XMLs into viewers
-                await baseViewer.importXML(baseXml);
-                await compareViewer.importXML(compareXml);
+                const baseViewerTyped = baseViewer as { importXML: (xml: string) => Promise<unknown> };
+                const compareViewerTyped = compareViewer as { importXML: (xml: string) => Promise<unknown> };
+                await baseViewerTyped.importXML(baseXml);
+                await compareViewerTyped.importXML(compareXml);
 
                 // Calculate diff using moddle from viewers
-                const moddle = baseViewer.get('moddle');
+                const baseViewerWithGet = baseViewer as { get: (key: string) => { fromXML: (xml: string) => Promise<{ rootElement: unknown }> } };
+                const moddle = baseViewerWithGet.get('moddle');
                 
                 const baseDefinitions = await moddle.fromXML(baseXml);
                 const compareDefinitions = await moddle.fromXML(compareXml);
@@ -80,9 +83,10 @@ export default function VersionDiffViewer({
                 await highlightChanges(baseViewer, compareViewer, changes);
 
                 setIsLoading(false);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('Failed to initialize diff viewer:', err);
-                setError(err.message || 'Failed to load diff viewer');
+                const errorMessage = err instanceof Error ? err.message : 'Failed to load diff viewer';
+                setError(errorMessage);
                 setIsLoading(false);
             }
         };
@@ -90,24 +94,53 @@ export default function VersionDiffViewer({
         initDiffViewer();
 
         return () => {
-            if (baseViewer) baseViewer.destroy();
-            if (compareViewer) compareViewer.destroy();
+            if (baseViewer) {
+                const baseViewerTyped = baseViewer as { destroy: () => void };
+                baseViewerTyped.destroy();
+            }
+            if (compareViewer) {
+                const compareViewerTyped = compareViewer as { destroy: () => void };
+                compareViewerTyped.destroy();
+            }
         };
     }, [baseXml, compareXml]);
 
     const highlightChanges = async (
-        baseViewer: any,
-        compareViewer: any,
-        changes: any
+        baseViewer: unknown,
+        compareViewer: unknown,
+        changes: unknown
     ) => {
         try {
-            const modeling = baseViewer.get('modeling');
-            const compareModeling = compareViewer.get('modeling');
+            const baseViewerTyped = baseViewer as {
+                get: (key: string) => {
+                    setColor: (element: unknown, colors: { stroke: string; fill: string }) => void;
+                } | {
+                    get: (id: string) => unknown;
+                };
+            };
+            const compareViewerTyped = compareViewer as {
+                get: (key: string) => {
+                    setColor: (element: unknown, colors: { stroke: string; fill: string }) => void;
+                } | {
+                    get: (id: string) => unknown;
+                };
+            };
+
+            const modeling = baseViewerTyped.get('modeling') as { setColor: (element: unknown, colors: { stroke: string; fill: string }) => void };
+            const compareModeling = compareViewerTyped.get('modeling') as { setColor: (element: unknown, colors: { stroke: string; fill: string }) => void };
+            const baseElementRegistry = baseViewerTyped.get('elementRegistry') as { get: (id: string) => unknown };
+            const compareElementRegistry = compareViewerTyped.get('elementRegistry') as { get: (id: string) => unknown };
+
+            const changesTyped = changes as {
+                _removed?: Record<string, unknown>;
+                _added?: Record<string, unknown>;
+                _changed?: Record<string, unknown>;
+            };
 
             // Highlight removed elements (base viewer - red)
-            if (changes._removed) {
-                Object.keys(changes._removed).forEach((elementId: string) => {
-                    const element = baseViewer.get('elementRegistry').get(elementId);
+            if (changesTyped._removed) {
+                Object.keys(changesTyped._removed).forEach((elementId: string) => {
+                    const element = baseElementRegistry.get(elementId);
                     if (element) {
                         modeling.setColor(element, {
                             stroke: '#ef4444',
@@ -118,9 +151,9 @@ export default function VersionDiffViewer({
             }
 
             // Highlight added elements (compare viewer - green)
-            if (changes._added) {
-                Object.keys(changes._added).forEach((elementId: string) => {
-                    const element = compareViewer.get('elementRegistry').get(elementId);
+            if (changesTyped._added) {
+                Object.keys(changesTyped._added).forEach((elementId: string) => {
+                    const element = compareElementRegistry.get(elementId);
                     if (element) {
                         compareModeling.setColor(element, {
                             stroke: '#22c55e',
@@ -131,10 +164,10 @@ export default function VersionDiffViewer({
             }
 
             // Highlight modified elements (both - yellow)
-            if (changes._changed) {
-                Object.keys(changes._changed).forEach((elementId: string) => {
-                    const baseElement = baseViewer.get('elementRegistry').get(elementId);
-                    const compareElement = compareViewer.get('elementRegistry').get(elementId);
+            if (changesTyped._changed) {
+                Object.keys(changesTyped._changed).forEach((elementId: string) => {
+                    const baseElement = baseElementRegistry.get(elementId);
+                    const compareElement = compareElementRegistry.get(elementId);
                     
                     if (baseElement) {
                         modeling.setColor(baseElement, {

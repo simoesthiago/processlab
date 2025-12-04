@@ -6,6 +6,8 @@
 
 Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui hardening de backend, autenticação completa, gestão de projetos e integração total com o Studio. Estamos na **Fase 2 (Repositório + Versionamento Real)**, com o Sprint 4 concluído e o Sprint 5 em andamento (diff visual implementado).
 
+**Nota importante**: O **Sprint 2.5 (Design System & UI/UX para Conversão)** foi adicionado ao roadmap como prioridade alta. Este sprint foca em criar uma UI/UX que converta usuários e impressione empresas/consultores, incluindo design system completo, onboarding, microinterações e polimento visual.
+
 ---
 
 ## ✅ Sprints Concluídos
@@ -67,8 +69,6 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 
 ---
 
-## 🔄 Trabalho em Andamento
-
 ### Sprint 4 - Versionamento Real ✅
 **Status**: Concluído (Dezembro 2025)
 
@@ -80,17 +80,45 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 - ✅ UI de Histórico de Versões (Timeline Component)
 - ✅ Modal de "Save New Version" com metadados (commit, change type)
 - ✅ Integração completa no StudioPage
+- ✅ Schema `VersionDiffResponse` no backend
+
+---
+
+## 🔄 Trabalho em Andamento
+
+### Sprint 5 - UI de Versionamento Avançado 🔄
+**Status**: Em Andamento (Dezembro 2025)
+
+#### Implementado:
+- ✅ Componente `VersionDiffViewer` para comparação visual de versões
+- ✅ Integração com `bpmn-js-differ` para cálculo de diferenças semânticas
+- ✅ Visualização lado a lado com highlights (vermelho=removido, verde=adicionado, amarelo=modificado)
+- ✅ Interface completa com legendas e informações das versões
+- ✅ Dependências instaladas: `bpmn-js-differ` e `bpmn-moddle`
+
+#### Pendente:
+- [ ] Integração do botão "Compare" na Timeline de Versões
+- [ ] Catálogo de Processos com filtros avançados (status, área, dono, projeto)
+- [ ] Funcionalidade de reverter/restore para versão anterior
 
 ---
 
 ## 📋 Próximos Passos (Roadmap)
 
-### Fase 2 - Repositório + Versionamento Real (3-4 meses)
+#### Sprint 2.5 - Design System & UI/UX para Conversão 🎨
+**Status**: Planejado (Prioridade Alta - Fase 1)
+**Objetivo**: Criar uma UI/UX que converta usuários e impressione empresas/consultores
 
-#### Sprint 5 - UI de Versionamento Avançado 🔮
-- [ ] Diff visual (lado a lado ou overlay) usando `bpmn-js-differ`
-- [ ] Catálogo de Processos com filtros avançados
-- [ ] Reverter para versão anterior (restore)
+- [ ] Design system completo: tokens de design (cores, tipografia, espaçamento), componentes base reutilizáveis
+- [ ] Onboarding e primeira impressão: landing page, tour guiado, empty states atrativos
+- [ ] Navegação intuitiva: breadcrumbs, menus contextuais, hierarquia visual clara
+- [ ] Microinterações e feedback: loading states elegantes, animações sutis, toasts informativos
+- [ ] Responsividade e acessibilidade: mobile-first, contraste adequado, navegação por teclado
+- [ ] Polimento visual: espaçamento consistente, alinhamento, sombras/elevação, iconografia
+
+**Nota**: Este sprint foi adicionado ao roadmap para garantir que a UI/UX seja priorizada desde o início, focando em conversão de usuários e impressão positiva para empresas e consultores.
+
+---
 
 #### Sprint 6 - Segurança Organizacional 🔮
 - [ ] Separação estrita de dados (Row Level Security)
@@ -103,8 +131,10 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 
 ### Geral
 - **Fases Concluídas**: 1 / 5 (Fase 1 em 100%)
-- **Sprints Concluídos**: 4 / 15
-- **Progresso Global**: ~30%
+- **Sprints Concluídos**: 4 / 16 (incluindo Sprint 2.5 planejado)
+- **Sprints em Andamento**: 1 (Sprint 5 - ~33% concluído)
+- **Sprints Planejados**: 1 (Sprint 2.5 - Design System & UI/UX)
+- **Progresso Global**: ~32%
 
 ### Fase 1 (MVP Interno)
 - **Progresso**: 100% ✅
@@ -120,9 +150,11 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 | **Geração BPMN** | ✅ Completo | 100% |
 | **Editor BPMN** | ✅ Completo | 100% |
 | **Auto-layout** | 🟡 Em ajustes | 90% |
-| **Versionamento** | ✅ Completo | 100% |
+| **Versionamento** | 🟡 Em progresso | 90% |
+| **Diff Visual** | ✅ Completo | 100% |
 | **UI de Projetos** | ✅ Completo | 100% |
 | **Autenticação** | ✅ Completo | 100% |
+| **Design System / UI/UX** | 🟡 Planejado | 0% |
 | **Colaboração** | ❌ Não iniciado | 0% |
 | **Rastreabilidade** | ❌ Não iniciado | 0% |
 
@@ -135,11 +167,18 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 2. ✅ Implementar Autenticação (Backend + Frontend)
 3. ✅ Implementar UI de Projetos e Dashboard
 4. ✅ Integrar Studio com sistema de projetos
-5. ⏳ Iniciar Sprint 4 (Versionamento Real)
+5. ✅ Concluir Sprint 4 (Versionamento Real)
+6. 🔄 Em andamento: Sprint 5 - Diff Visual (implementado, falta integração UI)
+
+### Próximas Semanas (Prioridade)
+- 🎨 **Sprint 2.5 - Design System & UI/UX**: Iniciar implementação do design system e polimento visual para melhorar conversão de usuários e impressão para empresas/consultores.
 
 ---
 
 ## 🚧 Débitos Técnicos Conhecidos
+
+### Alta Prioridade
+- [ ] **Design System & UI/UX (Sprint 2.5)**: Implementar design system completo e polimento visual para conversão de usuários. Ver Sprint 2.5 nos Próximos Passos.
 
 ### Média Prioridade
 - [ ] **Testes**: Aumentar cobertura de testes automatizados (Backend/Frontend)
@@ -160,12 +199,17 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 - ✅ **Auth**: JWT com `AuthContext` no frontend e `Depends` no FastAPI.
 - ✅ **Multi-tenancy**: Implementado via `organization_id` em todas as tabelas principais.
 - ✅ **Integração**: Studio desacoplado, recebe contexto via URL params.
+- ✅ **Diff Visual**: Usa `bpmn-js-differ` para comparação semântica e moddle do bpmn-js para parsing.
+
+### Design & UI/UX
+- 🎨 **Design System (Sprint 2.5)**: Planejado para Fase 1, focado em conversão de usuários e impressão positiva para empresas/consultores. Inclui tokens de design, componentes reutilizáveis, onboarding, microinterações e polimento visual completo.
 
 ### Tecnologias Confirmadas
 - **Backend**: FastAPI, SQLAlchemy, Pydantic, Python-Jose (JWT)
 - **Frontend**: Next.js 15, TailwindCSS, Context API
 - **Banco**: PostgreSQL 15
 - **Storage**: MinIO
+- **BPMN Diff**: bpmn-js-differ, bpmn-moddle
 
 ---
 

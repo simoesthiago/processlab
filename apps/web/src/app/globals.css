@@ -24,3 +24,55 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Force BPMN palette to single column layout */
+.djs-palette {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.djs-palette .djs-palette-entries {
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+}
+
+.djs-palette .djs-palette-entry {
+  width: 100% !important;
+  max-width: 100% !important;
+  float: none !important;
+  clear: both !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  display: block !important;
+}
+
+/* Remove two-column layout from groups */
+.djs-palette .djs-palette-group {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+}
+
+.djs-palette .djs-palette-group .djs-palette-entry {
+  width: 100% !important;
+  max-width: 100% !important;
+  float: none !important;
+  clear: both !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  display: block !important;
+}
+
+/* Override two-column specific styles */
+.djs-palette.two-column,
+.djs-palette.two-column .djs-palette-entries,
+.djs-palette.two-column .djs-palette-entry,
+.djs-palette.two-column .djs-palette-group {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  float: none !important;
+  clear: both !important;
+}

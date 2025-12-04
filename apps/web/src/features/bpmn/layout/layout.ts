@@ -8,7 +8,7 @@
  */
 
 import ELK, { ElkNode } from 'elkjs/lib/elk.bundled';
-import { BPMN_JSON } from '@processlab/shared-schemas';
+import { BPMN_JSON, BPMNElement, Lane, SequenceFlow } from '@processlab/shared-schemas';
 
 const elk = new ELK();
 
@@ -37,42 +37,51 @@ function getElementDimensions(type: string): { width: number, height: number } {
     return { width: 100, height: 80 };
 }
 
+interface ExtendedElement extends Omit<BPMNElement, 'type'> {
+    parentId?: string;
+    type?: string | BPMNElement['type'];
+}
+
 export const applyLayout = async (bpmn: BPMN_JSON, options: { direction?: 'RIGHT' | 'DOWN', spacing?: number } = {}): Promise<BPMN_JSON> => {
     const direction = options.direction || 'RIGHT';
     const spacing = options.spacing || 100; // Increased default spacing
 
     // 1. Organize Elements into Hierarchy
     // Map: ContainerID -> Children Elements
-    const containerChildren = new Map<string, any[]>();
-    const roots: any[] = [];
-    const pools: any[] = [];
-    const lanes: any[] = [];
-    const elementsById = new Map<string, any>();
+    const containerChildren = new Map<string, ExtendedElement[]>();
+    const roots: ExtendedElement[] = [];
+    const pools: ExtendedElement[] = [];
+    const lanes: ExtendedElement[] = [];
+    const elementsById = new Map<string, ExtendedElement>();
 
-    bpmn.elements.forEach((el: any) => {
-        elementsById.set(el.id, el);
-        if (el.type === 'bpmn:Participant') {
-            pools.push(el);
-        } else if (el.type === 'bpmn:Lane') {
-            lanes.push(el);
+    bpmn.elements.forEach((el) => {
+        const extendedEl: ExtendedElement = { ...el, type: (el as { type?: string }).type || el.type };
+        elementsById.set(el.id, extendedEl);
+        const elType = extendedEl.type;
+        if (elType === 'bpmn:Participant') {
+            pools.push(extendedEl);
+        } else if (elType === 'bpmn:Lane') {
+            lanes.push(extendedEl);
         }
     });
 
     // Assign children to containers
-    bpmn.elements.forEach((el: any) => {
-        if (el.type !== 'bpmn:Participant' && el.type !== 'bpmn:Lane') {
-            const parentId = el.parentId;
+    bpmn.elements.forEach((el) => {
+        const extendedEl: ExtendedElement = { ...el, type: (el as { type?: string }).type || el.type };
+        const elType = extendedEl.type;
+        if (elType !== 'bpmn:Participant' && elType !== 'bpmn:Lane') {
+            const parentId = (el as { parentId?: string }).parentId;
             if (parentId) {
                 if (!containerChildren.has(parentId)) containerChildren.set(parentId, []);
-                containerChildren.get(parentId)?.push(el);
+                containerChildren.get(parentId)?.push(extendedEl);
             } else {
-                roots.push(el);
+                roots.push(extendedEl);
             }
-        } else if (el.type === 'bpmn:Lane') {
-            const parentId = el.parentId;
+        } else if (elType === 'bpmn:Lane') {
+            const parentId = (el as { parentId?: string }).parentId;
             if (parentId) {
                 if (!containerChildren.has(parentId)) containerChildren.set(parentId, []);
-                containerChildren.get(parentId)?.push(el);
+                containerChildren.get(parentId)?.push(extendedEl);
             }
         }
     });
@@ -80,21 +89,24 @@ export const applyLayout = async (bpmn: BPMN_JSON, options: { direction?: 'RIGHT
     // 2. Layout Logic
 
     // Helper: Layout a list of nodes (flat) using ELK
-    const layoutNodes = async (nodes: any[], edges: any[]): Promise<{ width: number, height: number, children: any[], edges: any[] }> => {
+    const layoutNodes = async (nodes: ExtendedElement[], edges: SequenceFlow[]): Promise<{ width: number, height: number, children: ElkNode[], edges: Array<{ id: string; sources: string[]; targets: string[]; sections?: unknown }> }> => {
         if (nodes.length === 0) return { width: 100, height: 100, children: [], edges: [] };
 
         const elkNodes: ElkNode[] = nodes.map(n => {
-            const dim = getElementDimensions(n.type);
-            return { id: n.id, width: dim.width, height: dim.height };
+            const dim = getElementDimensions(n.type || 'task');
+            const nodeId = typeof n.id === 'string' ? n.id : String(n.id);
+            return { id: nodeId, width: dim.width, height: dim.height };
         });
 
         // Filter edges to only those connecting nodes in this set
         const nodeIds = new Set(nodes.map(n => n.id));
-        const relevantEdges = edges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target)).map(e => ({
-            id: e.id,
-            sources: [e.source],
-            targets: [e.target]
-        }));
+        const relevantEdges = edges
+            .filter(e => e.id && nodeIds.has(e.source) && nodeIds.has(e.target))
+            .map(e => ({
+                id: e.id!,
+                sources: [e.source],
+                targets: [e.target]
+            }));
 
         const graph: ElkNode = {
             id: 'root',
@@ -139,8 +151,27 @@ export const applyLayout = async (bpmn: BPMN_JSON, options: { direction?: 'RIGHT
     // 2. Stack Lanes inside Pools
     // 3. Stack Pools and Root elements
 
-    const layoutedElements: any[] = [];
-    const layoutedEdges: any[] = []; // Store edges with waypoints
+    interface LayoutedElement extends ExtendedElement {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        parentId?: string;
+    }
+
+    interface LayoutedEdge {
+        id: string;
+        sections?: Array<{
+            startPoint: { x: number; y: number };
+            endPoint: { x: number; y: number };
+            bendPoints?: Array<{ x: number; y: number }>;
+        }>;
+        parentId?: string;
+        offsetY?: number;
+    }
+
+    const layoutedElements: LayoutedElement[] = [];
+    const layoutedEdges: LayoutedEdge[] = [];
 
     // A. Handle Pools (and their Lanes)
     let currentY = 0;
@@ -152,42 +183,55 @@ export const applyLayout = async (bpmn: BPMN_JSON, options: { direction?: 'RIGHT
         let laneY = 0;
 
         for (const lane of poolLanes) {
-            const laneChildren = containerChildren.get(lane.id) || [];
+            const laneId = typeof lane.id === 'string' ? lane.id : String(lane.id);
+            const laneChildren = containerChildren.get(laneId) || [];
             // Layout content of the lane
             const result = await layoutNodes(laneChildren, bpmn.flows);
 
             // Add layouted children
             result.children.forEach(child => {
-                layoutedElements.push({
-                    ...elementsById.get(child.id), // Get original properties
-                    x: child.x, // Relative to Lane (will be adjusted later)
-                    y: child.y,
-                    width: child.width,
-                    height: child.height,
-                    parentId: lane.id
-                });
+                const childId = typeof child.id === 'string' ? child.id : String(child.id);
+                const original = elementsById.get(childId);
+                if (original && child.x !== undefined && child.y !== undefined && child.width !== undefined && child.height !== undefined) {
+                    layoutedElements.push({
+                        ...original,
+                        x: child.x,
+                        y: child.y,
+                        width: child.width,
+                        height: child.height,
+                        parentId: laneId
+                    });
+                }
             });
 
             // Add layouted edges (relative to Lane)
-            result.edges.forEach(edge => {
-                layoutedEdges.push({
-                    id: edge.id,
-                    sections: edge.sections,
-                    parentId: lane.id // Mark as belonging to this lane for coordinate offset
+            if (result.edges) {
+                result.edges.forEach(edge => {
+                    const edgeId = typeof edge.id === 'string' ? edge.id : edge.id ? String(edge.id) : undefined;
+                    if (edgeId) {
+                        layoutedEdges.push({
+                            id: edgeId,
+                            sections: (edge as { sections?: LayoutedEdge['sections'] }).sections,
+                            parentId: laneId
+                        });
+                    }
                 });
-            });
+            }
 
             const laneWidth = Math.max(result.width + 100, 600); // Min width
             const laneHeight = Math.max(result.height + 40, 150); // Min height
 
-            layoutedElements.push({
-                ...lane, // Original lane properties
-                x: 30, // Header width
+            const laneElement: LayoutedElement = {
+                ...lane,
+                id: laneId,
+                type: 'bpmn:Lane',
+                x: 30,
                 y: laneY,
                 width: laneWidth,
                 height: laneHeight,
-                parentId: pool.id
-            });
+                parentId: typeof pool.id === 'string' ? pool.id : String(pool.id)
+            };
+            layoutedElements.push(laneElement);
 
             poolWidth = Math.max(poolWidth, laneWidth + 30);
             poolHeight += laneHeight;
@@ -196,35 +240,47 @@ export const applyLayout = async (bpmn: BPMN_JSON, options: { direction?: 'RIGHT
 
         if (poolLanes.length === 0) {
             // Empty pool or pool without lanes (treat pool as container)
-            const poolChildren = containerChildren.get(pool.id)?.filter(c => c.type !== 'bpmn:Lane') || [];
+            const poolId = typeof pool.id === 'string' ? pool.id : String(pool.id);
+            const poolChildren = containerChildren.get(poolId)?.filter(c => c.type !== 'bpmn:Lane') || [];
             const result = await layoutNodes(poolChildren, bpmn.flows);
 
             result.children.forEach(child => {
-                layoutedElements.push({
-                    ...elementsById.get(child.id),
-                    x: child.x,
-                    y: child.y,
-                    width: child.width,
-                    height: child.height,
-                    parentId: pool.id
-                });
+                const childId = typeof child.id === 'string' ? child.id : String(child.id);
+                const original = elementsById.get(childId);
+                if (original && child.x !== undefined && child.y !== undefined && child.width !== undefined && child.height !== undefined) {
+                    layoutedElements.push({
+                        ...original,
+                        x: child.x,
+                        y: child.y,
+                        width: child.width,
+                        height: child.height,
+                        parentId: poolId
+                    });
+                }
             });
 
             // Add layouted edges
-            result.edges.forEach(edge => {
-                layoutedEdges.push({
-                    id: edge.id,
-                    sections: edge.sections,
-                    parentId: pool.id
+            if (result.edges) {
+                result.edges.forEach(edge => {
+                    const edgeId = typeof edge.id === 'string' ? edge.id : edge.id ? String(edge.id) : undefined;
+                    if (edgeId) {
+                        layoutedEdges.push({
+                            id: edgeId,
+                            sections: (edge as { sections?: LayoutedEdge['sections'] }).sections,
+                            parentId: poolId
+                        });
+                    }
                 });
-            });
+            }
 
             poolWidth = Math.max(result.width + 100, 600);
             poolHeight = Math.max(result.height + 40, 200);
         }
 
+        const poolId = typeof pool.id === 'string' ? pool.id : String(pool.id);
         layoutedElements.push({
             ...pool,
+            id: poolId,
             x: 0,
             y: currentY,
             width: poolWidth,
@@ -239,37 +295,49 @@ export const applyLayout = async (bpmn: BPMN_JSON, options: { direction?: 'RIGHT
         const result = await layoutNodes(rootElements, bpmn.flows);
 
         result.children.forEach(child => {
-            layoutedElements.push({
-                ...elementsById.get(child.id),
-                x: child.x,
-                y: child.y + currentY, // Stack below pools
-                width: child.width,
-                height: child.height,
-                parentId: undefined
-            });
+            const childId = typeof child.id === 'string' ? child.id : String(child.id);
+            const original = elementsById.get(childId);
+            if (original && child.x !== undefined && child.y !== undefined && child.width !== undefined && child.height !== undefined) {
+                layoutedElements.push({
+                    ...original,
+                    x: child.x,
+                    y: child.y + currentY,
+                    width: child.width,
+                    height: child.height,
+                    parentId: undefined
+                });
+            }
         });
 
         // Add layouted edges
-        result.edges.forEach(edge => {
-            layoutedEdges.push({
-                id: edge.id,
-                sections: edge.sections,
-                offsetY: currentY // Add offset for root elements
+        if (result.edges) {
+            result.edges.forEach(edge => {
+                const edgeId = typeof edge.id === 'string' ? edge.id : edge.id ? String(edge.id) : undefined;
+                if (edgeId) {
+                    layoutedEdges.push({
+                        id: edgeId,
+                        sections: (edge as { sections?: LayoutedEdge['sections'] }).sections,
+                        offsetY: currentY
+                    });
+                }
             });
-        });
+        }
     }
 
     // 3. Coordinate Transformation (Relative -> Absolute)
     // We need to convert ELK's relative coordinates to absolute BPMN coordinates
 
     // First, map elements by ID for easy lookup
-    const elementMap = new Map<string, any>();
-    layoutedElements.forEach(el => elementMap.set(el.id, el));
+    const elementMap = new Map<string, LayoutedElement>();
+    layoutedElements.forEach(el => {
+        const elId = typeof el.id === 'string' ? el.id : String(el.id);
+        elementMap.set(elId, el);
+    });
 
     // Helper to get absolute position of a container
     const getAbsolutePosition = (elementId: string): { x: number, y: number } => {
         const element = elementMap.get(elementId);
-        if (!element) return { x: 0, y: 0 };
+        if (!element || element.x === undefined || element.y === undefined) return { x: 0, y: 0 };
 
         if (element.parentId) {
             const parentPos = getAbsolutePosition(element.parentId);
@@ -279,7 +347,7 @@ export const applyLayout = async (bpmn: BPMN_JSON, options: { direction?: 'RIGHT
     };
 
     const finalElements = layoutedElements.map(el => {
-        if (el.parentId) {
+        if (el.parentId && el.x !== undefined && el.y !== undefined) {
             const parentPos = getAbsolutePosition(el.parentId);
             return {
                 ...el,
@@ -322,7 +390,7 @@ export const applyLayout = async (bpmn: BPMN_JSON, options: { direction?: 'RIGHT
 
     return {
         ...bpmn,
-        elements: finalElements,
+        elements: finalElements as unknown as BPMNElement[],
         flows: finalFlows
     };
 };

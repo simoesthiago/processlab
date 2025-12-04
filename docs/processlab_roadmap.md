@@ -35,6 +35,13 @@ Objetivo: Consultores usam para mapear processos com IA e guardar versoes basica
 - Sprints sugeridos
   - S1: Autenticacao simples + models/org/project + API estavel (ingest/generate/edit/export).
   - S2: UI de projetos/processos + editor/copilot na mesma pagina + salvar/abrir.
+  - S2.5: **Design System & UI/UX para Conversao** (foco em converter usuarios e impressionar empresas/consultores)
+    - Design system completo: tokens de design (cores, tipografia, espacamento), componentes base reutilizaveis.
+    - Onboarding e primeira impressao: landing page, tour guiado, empty states atrativos.
+    - Navegação intuitiva: breadcrumbs, menus contextuais, hierarquia visual clara.
+    - Microinteracoes e feedback: loading states elegantes, animacoes sutis, toasts informativos.
+    - Responsividade e acessibilidade: mobile-first, contraste adequado, navegacao por teclado.
+    - Polimento visual: espacamento consistente, alinhamento, sombras/elevacao, iconografia.
   - S3: Hardening (erros, logs, BYOK seguro) + deploy dev (compose).
 
 ### Fase 2 - Repositorio + Versionamento real (3-4 meses)
@@ -46,6 +53,7 @@ Objetivo: Virar "Git de processos" inicial.
 - Frontend
   - Catalogo de processos: status, filtros por area/dono/projeto.
   - Linha do tempo de versoes; diff visual (highlight add/remove/rename).
+  - Refinamento de UI/UX: aplicar design system do S2.5 em todas as novas telas, garantir consistencia visual.
 - Seguranca
   - Separacao de dados por organizacao; papeis iniciais (viewer/editor/admin).
 - Sprints sugeridos
@@ -94,8 +102,9 @@ Objetivo: Escala, seguranca, extensoes setoriais e integracoes profundas.
   - Multi-tenant com isolamento forte; jobs assincronos para ingest/IA pesada.
   - Observabilidade avancada (tracing, metricas, alertas).
 - Editor / UX
-  - Paletas por setor, visoes por papel/sistema/risco, layout/alinhar/distribuir refinados.
+  - Evolucao do design system (Fase 1, S2.5): paletas por setor, visoes por papel/sistema/risco, layout/alinhar/distribuir refinados.
   - Comentarios e filtros avancados, modos macro/microprocesso.
+  - UX enterprise: temas customizaveis por organizacao, dashboards executivos, relatorios visuais.
 - Integracoes
   - Conectores com Jira/ServiceNow/ERP/CRM, webhooks, API publica.
 - Sprints sugeridos

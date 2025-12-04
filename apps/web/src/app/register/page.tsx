@@ -58,8 +58,9 @@ export default function RegisterPage() {
                 createOrg ? organizationName : undefined
             );
             router.push('/dashboard');
-        } catch (err: any) {
-            setError(err.message || 'Registration failed');
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Registration failed';
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }

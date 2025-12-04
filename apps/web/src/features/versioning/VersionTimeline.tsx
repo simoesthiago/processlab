@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface Version {
     id: string;
@@ -15,13 +15,19 @@ interface VersionTimelineProps {
     versions: Version[];
     selectedVersionId: string | null;
     onSelectVersion: (versionId: string) => void;
+    onCompareVersions?: (baseVersionId: string, compareVersionId: string) => void;
+    onRestoreVersion?: (versionId: string) => void;
 }
 
 export default function VersionTimeline({
     versions,
     selectedVersionId,
-    onSelectVersion
+    onSelectVersion,
+    onCompareVersions,
+    onRestoreVersion
 }: VersionTimelineProps) {
+    const [compareMode, setCompareMode] = useState(false);
+    const [baseVersionId, setBaseVersionId] = useState<string | null>(null);
 
     if (versions.length === 0) {
         return (
@@ -31,10 +37,51 @@ export default function VersionTimeline({
         );
     }
 
+    const handleCompareClick = (versionId: string) => {
+        if (!onCompareVersions) return;
+        
+        if (!compareMode) {
+            // Enter compare mode
+            setCompareMode(true);
+            setBaseVersionId(versionId);
+        } else {
+            // Compare with selected base version
+            if (baseVersionId && baseVersionId !== versionId) {
+                onCompareVersions(baseVersionId, versionId);
+                setCompareMode(false);
+                setBaseVersionId(null);
+            } else {
+                // Reset if clicking same version
+                setCompareMode(false);
+                setBaseVersionId(null);
+            }
+        }
+    };
+
+    const handleCancelCompare = () => {
+        setCompareMode(false);
+        setBaseVersionId(null);
+    };
+
     return (
         <div className="flex flex-col h-full overflow-y-auto">
             <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Version History</h3>
+                <div className="flex justify-between items-center">
+                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Version History</h3>
+                    {compareMode && (
+                        <button
+                            onClick={handleCancelCompare}
+                            className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                        >
+                            Cancel
+                        </button>
+                    )}
+                </div>
+                {compareMode && (
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                        Select a version to compare with v{versions.find(v => v.id === baseVersionId)?.version_number}
+                    </p>
+                )}
             </div>
 
             <div className="relative pl-6 pr-4 py-4 space-y-6">
@@ -90,19 +137,57 @@ export default function VersionTimeline({
                                     </p>
                                 )}
 
-                                <div className="flex items-center gap-2 text-xs text-zinc-500">
-                                    <span>{version.created_by || 'System'}</span>
-                                    {version.change_type && (
-                                        <>
-                                            <span>•</span>
-                                            <span className={`uppercase font-medium ${version.change_type === 'major' ? 'text-red-500' :
-                                                    version.change_type === 'minor' ? 'text-blue-500' :
-                                                        'text-zinc-500'
-                                                }`}>
-                                                {version.change_type}
-                                            </span>
-                                        </>
-                                    )}
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-xs text-zinc-500">
+                                        <span>{version.created_by || 'System'}</span>
+                                        {version.change_type && (
+                                            <>
+                                                <span>•</span>
+                                                <span className={`uppercase font-medium ${version.change_type === 'major' ? 'text-red-500' :
+                                                        version.change_type === 'minor' ? 'text-blue-500' :
+                                                            'text-zinc-500'
+                                                    }`}>
+                                                    {version.change_type}
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        {onCompareVersions && versions.length > 1 && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleCompareClick(version.id);
+                                                }}
+                                                className={`text-xs px-2 py-1 rounded transition-colors ${
+                                                    compareMode && baseVersionId === version.id
+                                                        ? 'bg-blue-600 text-white'
+                                                        : compareMode
+                                                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50'
+                                                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                                                }`}
+                                                title="Compare versions"
+                                            >
+                                                {compareMode && baseVersionId === version.id
+                                                    ? 'Base'
+                                                    : compareMode
+                                                    ? 'Compare'
+                                                    : 'Compare'}
+                                            </button>
+                                        )}
+                                        {onRestoreVersion && !isActive && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onRestoreVersion(version.id);
+                                                }}
+                                                className="text-xs px-2 py-1 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors"
+                                                title="Restore this version"
+                                            >
+                                                ↶ Restore
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>

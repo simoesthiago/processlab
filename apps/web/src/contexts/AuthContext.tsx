@@ -118,15 +118,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('auth_token', data.access_token);
       setToken(data.access_token);
       setUser(data.user);
-    } catch (error: any) {
+    } catch (error: unknown) {
       clearTimeout(timeoutId);
       
       // Handle different error types
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new Error('Request timeout. Please check your connection and try again.');
       } else if (error instanceof TypeError && error.message.includes('fetch')) {
         throw new Error('Network error. Please check your connection and try again.');
-      } else if (error.message) {
+      } else if (error instanceof Error && error.message) {
         throw error; // Re-throw with original message
       } else {
         throw new Error('An unexpected error occurred during login.');
@@ -184,15 +184,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('auth_token', data.access_token);
       setToken(data.access_token);
       setUser(data.user);
-    } catch (error: any) {
+    } catch (error: unknown) {
       clearTimeout(timeoutId);
       
       // Handle different error types
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new Error('Request timeout. Please check your connection and try again.');
       } else if (error instanceof TypeError && error.message.includes('fetch')) {
         throw new Error('Network error. Please check your connection and try again.');
-      } else if (error.message) {
+      } else if (error instanceof Error && error.message) {
         throw error; // Re-throw with original message
       } else {
         throw new Error('An unexpected error occurred during registration.');

@@ -2,11 +2,15 @@
 
 import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
 import VersionTimeline from '@/features/versioning/VersionTimeline';
 import SaveVersionModal from '@/features/versioning/SaveVersionModal';
+import RestoreVersionModal from '@/features/versioning/RestoreVersionModal';
+import VersionDiffViewer from '@/features/versioning/VersionDiffViewer';
 import BpmnEditor, { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
 import Copilot from '@/features/copiloto/Copilot';
 import Citations from '@/features/citations/Citations';
+import Toast, { ToastType } from '@/components/Toast';
 
 // Mock types if not available
 interface Process {
@@ -42,8 +46,25 @@ export default function StudioContent() {
     const [isSaving, setIsSaving] = useState(false);
     const [artifactId, setArtifactId] = useState('');
 
-    // Mock token
-    const token = 'mock-token';
+    // Diff viewer state
+    const [diffViewerOpen, setDiffViewerOpen] = useState(false);
+    const [baseVersion, setBaseVersion] = useState<Version | null>(null);
+    const [compareVersion, setCompareVersion] = useState<Version | null>(null);
+    const [baseXml, setBaseXml] = useState<string>('');
+    const [compareXml, setCompareXml] = useState<string>('');
+    const [isLoadingDiff, setIsLoadingDiff] = useState(false);
+
+    // Restore modal state
+    const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+    const [versionToRestore, setVersionToRestore] = useState<Version | null>(null);
+    const [isRestoring, setIsRestoring] = useState(false);
+    const [isLoadingVersion, setIsLoadingVersion] = useState(false);
+
+    // Toast state
+    const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+
+    // Get auth token
+    const { token } = useAuth();
 
     useEffect(() => {
         // Load initial data if needed
@@ -57,7 +78,8 @@ export default function StudioContent() {
             });
             if (res.ok) {
                 const data = await res.json();
-                setVersions(data);
+                // API returns { versions: [...], process_id, process_name, total_count }
+                setVersions(data.versions || []);
             }
         } catch (err) {
             console.error("Failed to load versions", err);
@@ -66,7 +88,7 @@ export default function StudioContent() {
 
     const handleSave = () => {
         if (!process) {
-            alert("No process loaded to save");
+            setToast({ message: 'No process loaded to save', type: 'warning' });
             return;
         }
         setIsSaveModalOpen(true);
@@ -110,11 +132,11 @@ export default function StudioContent() {
             await loadVersions(process.id);
             setSelectedVersionId(newVersion.id);
 
-            alert("Version saved successfully!");
+            setToast({ message: 'Version saved successfully!', type: 'success' });
             setIsSaveModalOpen(false);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Save failed:", error);
-            alert("Save failed. Check console.");
+            setToast({ message: `Save failed: ${error.message || 'Unknown error'}`, type: 'error' });
         } finally {
             setIsSaving(false);
         }
@@ -145,15 +167,165 @@ export default function StudioContent() {
             }
         } catch (err) {
             console.error("Generation error", err);
-            alert("Generation failed");
+            setToast({ message: 'Generation failed', type: 'error' });
         } finally {
             setIsGenerating(false);
         }
     };
 
     const handleActivateVersion = async (versionId: string) => {
-        // Implement activation logic
-        console.log("Activate version", versionId);
+        if (!process) return;
+        
+        try {
+            const response = await fetch(
+                `${API_URL}/api/v1/processes/${process.id}/versions/${versionId}/activate`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to activate version');
+            }
+
+            // Reload versions to get updated active status
+            await loadVersions(process.id);
+            
+            setToast({ message: 'Version activated successfully!', type: 'success' });
+        } catch (error: any) {
+            console.error('Activation failed:', error);
+            setToast({ message: `Failed to activate version: ${error.message || 'Unknown error'}`, type: 'error' });
+        }
+    };
+
+    const handleSelectVersion = async (versionId: string) => {
+        setSelectedVersionId(versionId);
+        
+        // If we have a process, load the version's XML into the editor
+        if (process) {
+            setIsLoadingVersion(true);
+            try {
+                const versionXml = await loadVersionXml(process.id, versionId);
+                if (versionXml) {
+                    setBpmnXml(versionXml);
+                }
+            } catch (error) {
+                console.error('Failed to load version XML:', error);
+                setToast({ message: 'Failed to load version', type: 'error' });
+            } finally {
+                setIsLoadingVersion(false);
+            }
+        }
+    };
+
+    const loadVersionXml = async (processId: string, versionId: string): Promise<string> => {
+        try {
+            const res = await fetch(`${API_URL}/api/v1/processes/${processId}/versions/${versionId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return data.xml || '';
+            }
+        } catch (err) {
+            console.error("Failed to load version XML", err);
+        }
+        return '';
+    };
+
+    const handleCompareVersions = async (baseVersionId: string, compareVersionId: string) => {
+        if (!process) return;
+
+        setIsLoadingDiff(true);
+        setDiffViewerOpen(true);
+
+        try {
+            // Find version objects
+            const base = versions.find(v => v.id === baseVersionId);
+            const compare = versions.find(v => v.id === compareVersionId);
+
+            if (!base || !compare) {
+                throw new Error("Versions not found");
+            }
+
+            setBaseVersion(base);
+            setCompareVersion(compare);
+
+            // Load XMLs
+            const [baseXmlData, compareXmlData] = await Promise.all([
+                loadVersionXml(process.id, baseVersionId),
+                loadVersionXml(process.id, compareVersionId)
+            ]);
+
+            setBaseXml(baseXmlData);
+            setCompareXml(compareXmlData);
+        } catch (error) {
+            console.error("Failed to load versions for comparison", error);
+            setToast({ message: 'Failed to load versions for comparison', type: 'error' });
+            setDiffViewerOpen(false);
+        } finally {
+            setIsLoadingDiff(false);
+        }
+    };
+
+    const handleRestoreVersion = async (commitMessage?: string) => {
+        if (!process || !versionToRestore) return;
+
+        setIsRestoring(true);
+        try {
+            const response = await fetch(
+                `${API_URL}/api/v1/processes/${process.id}/versions/${versionToRestore.id}/restore`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        commit_message: commitMessage
+                    }),
+                }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to restore version');
+            }
+
+            const restoredVersion = await response.json();
+
+            // Reload versions to get updated list
+            await loadVersions(process.id);
+            
+            // Set the restored version as selected
+            setSelectedVersionId(restoredVersion.id);
+
+            // Reload the editor with the restored version's XML
+            const versionData = await loadVersionXml(process.id, restoredVersion.id);
+            if (versionData) {
+                setBpmnXml(versionData);
+            }
+
+            setToast({ message: 'Version restored successfully!', type: 'success' });
+            setIsRestoreModalOpen(false);
+            setVersionToRestore(null);
+        } catch (error: any) {
+            console.error('Restore failed:', error);
+            setToast({ message: `Restore failed: ${error.message || 'Unknown error'}`, type: 'error' });
+        } finally {
+            setIsRestoring(false);
+        }
+    };
+
+    const handleOpenRestoreModal = (versionId: string) => {
+        const version = versions.find(v => v.id === versionId);
+        if (version) {
+            setVersionToRestore(version);
+            setIsRestoreModalOpen(true);
+        }
     };
 
     return (
@@ -194,16 +366,22 @@ export default function StudioContent() {
 
                     <div className="flex-1" />
 
-                    {/* Version Selector (Simplified) */}
-                    {versions.length > 0 && (
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                    {/* Version Selector */}
+                    {versions.length > 0 && selectedVersionId && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                            <span className="text-xs text-zinc-500 dark:text-zinc-400">Viewing:</span>
+                            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                                 v{versions.find(v => v.id === selectedVersionId)?.version_number}
                             </span>
+                            {versions.find(v => v.id === selectedVersionId)?.is_active && (
+                                <span className="text-xs px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded font-medium">
+                                    Active
+                                </span>
+                            )}
                             {selectedVersionId && !versions.find(v => v.id === selectedVersionId)?.is_active && (
                                 <button
                                     onClick={() => handleActivateVersion(selectedVersionId)}
-                                    className="px-3 py-1.5 text-xs bg-green-600 text-white hover:bg-green-700 rounded-md transition-colors"
+                                    className="px-2 py-1 text-xs bg-green-600 text-white hover:bg-green-700 rounded transition-colors"
                                 >
                                     Activate
                                 </button>
@@ -248,6 +426,14 @@ export default function StudioContent() {
 
                 {/* Editor Area */}
                 <div className="flex-1 bg-zinc-100 dark:bg-zinc-900 overflow-hidden relative">
+                    {isLoadingVersion && (
+                        <div className="absolute inset-0 bg-white/80 dark:bg-zinc-900/80 z-10 flex items-center justify-center">
+                            <div className="text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2" />
+                                <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading version...</p>
+                            </div>
+                        </div>
+                    )}
                     <BpmnEditor
                         ref={editorRef}
                         initialXml={bpmnXml}
@@ -296,7 +482,7 @@ export default function StudioContent() {
                             modelVersionId={selectedVersionId || undefined}
                             onEditApplied={(newBpmn, newVersionId) => {
                                 console.log("Edit applied", newVersionId);
-                                alert("Edit applied! (Reloading XML not yet implemented)");
+                                setToast({ message: 'Edit applied! Reloading...', type: 'info' });
                             }}
                         />
                     )}
@@ -305,7 +491,9 @@ export default function StudioContent() {
                         <VersionTimeline
                             versions={versions}
                             selectedVersionId={selectedVersionId}
-                            onSelectVersion={setSelectedVersionId}
+                            onSelectVersion={handleSelectVersion}
+                            onCompareVersions={handleCompareVersions}
+                            onRestoreVersion={handleOpenRestoreModal}
                         />
                     )}
                 </div>
@@ -317,6 +505,43 @@ export default function StudioContent() {
                 onSave={handleConfirmSave}
                 isSaving={isSaving}
             />
+
+            <RestoreVersionModal
+                isOpen={isRestoreModalOpen}
+                onClose={() => {
+                    setIsRestoreModalOpen(false);
+                    setVersionToRestore(null);
+                }}
+                onRestore={handleRestoreVersion}
+                isRestoring={isRestoring}
+                version={versionToRestore}
+            />
+
+            {diffViewerOpen && baseVersion && compareVersion && (
+                <VersionDiffViewer
+                    baseVersion={baseVersion}
+                    compareVersion={compareVersion}
+                    baseXml={baseXml}
+                    compareXml={compareXml}
+                    onClose={() => {
+                        setDiffViewerOpen(false);
+                        setBaseVersion(null);
+                        setCompareVersion(null);
+                        setBaseXml('');
+                        setCompareXml('');
+                    }}
+                />
+            )}
+
+            {/* Toast Notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    isVisible={!!toast}
+                    onClose={() => setToast(null)}
+                />
+            )}
         </div>
     );
 }
