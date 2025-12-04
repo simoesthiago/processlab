@@ -101,6 +101,7 @@ class ProcessResponse(BaseModel):
     created_at: str
     updated_at: str
     version_count: Optional[int] = Field(None, description="Number of versions")
+    status: Optional[str] = Field(None, description="Process status (derived from active version)")
     
     class Config:
         from_attributes = True

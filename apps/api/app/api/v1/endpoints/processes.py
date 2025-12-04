@@ -4,9 +4,9 @@ Process endpoints for ProcessLab API
 Handles process management within projects.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session, aliased
+from sqlalchemy import func, or_
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from app.db.session import get_db
@@ -55,6 +55,91 @@ def list_processes_in_project(
     for process, version_count in results:
         process_dict = ProcessResponse.from_orm(process).dict()
         process_dict['version_count'] = version_count
+        processes.append(ProcessResponse(**process_dict))
+    
+    return processes
+
+
+@router.get("/processes", response_model=List[ProcessResponse])
+def list_processes_catalog(
+    status: Optional[str] = Query(None, description="Filter by status: draft, active, archived"),
+    owner: Optional[str] = Query(None, description="Filter by owner (created_by user ID)"),
+    project_id: Optional[str] = Query(None, description="Filter by project ID"),
+    search: Optional[str] = Query(None, description="Search in name and description"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Catalog endpoint: List all processes in user's organization with advanced filters.
+    
+    - status: Filter by process status (derived from active version status)
+    - owner: Filter by process owner (created_by)
+    - project_id: Filter by project
+    - search: Search in process name and description
+    """
+    # Determine organization
+    if not current_user.organization_id:
+        return []
+    
+    # Check access
+    require_organization_access(current_user, current_user.organization_id)
+    
+    # Use aliases to join ModelVersion twice (once for count, once for active version)
+    VersionCount = aliased(ModelVersion)
+    ActiveVersion = aliased(ModelVersion)
+    
+    # Build base query with version count and active version info
+    query = db.query(
+        ProcessModel,
+        func.count(VersionCount.id).label('version_count'),
+        ActiveVersion.status.label('active_version_status')
+    ).outerjoin(
+        VersionCount,
+        VersionCount.process_id == ProcessModel.id
+    ).outerjoin(
+        ActiveVersion,
+        (ActiveVersion.id == ProcessModel.current_version_id)
+    ).filter(
+        ProcessModel.organization_id == current_user.organization_id,
+        ProcessModel.deleted_at == None
+    )
+    
+    # Apply filters
+    if project_id:
+        query = query.filter(ProcessModel.project_id == project_id)
+    
+    if owner:
+        query = query.filter(ProcessModel.created_by == owner)
+    
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                ProcessModel.name.ilike(search_term),
+                ProcessModel.description.ilike(search_term)
+            )
+        )
+    
+    # Group by process and active version status
+    query = query.group_by(ProcessModel.id, ActiveVersion.status)
+    
+    results = query.all()
+    
+    # Build response with status derivation
+    processes = []
+    for process, version_count, active_version_status in results:
+        # Derive status from active version
+        # If no active version, status is "draft"
+        # If active version exists, use its status
+        derived_status = active_version_status if active_version_status else "draft"
+        
+        # Apply status filter if provided
+        if status and derived_status != status:
+            continue
+        
+        process_dict = ProcessResponse.from_orm(process).dict()
+        process_dict['version_count'] = version_count or 0
+        process_dict['status'] = derived_status  # Add status to response
         processes.append(ProcessResponse(**process_dict))
     
     return processes
