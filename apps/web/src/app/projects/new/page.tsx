@@ -11,6 +11,13 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Alert } from '@/components/ui/alert';
+import { ArrowLeft, FolderPlus } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -70,16 +77,16 @@ function NewProjectContent() {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <div className="min-h-screen bg-background">
             {/* Header */}
-            <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+            <header className="border-b bg-card">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center h-16">
-                        <Link
-                            href="/dashboard"
-                            className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
-                        >
-                            ← Back to Dashboard
+                        <Link href="/dashboard">
+                            <Button variant="ghost" size="sm">
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Back to Dashboard
+                            </Button>
                         </Link>
                     </div>
                 </div>
@@ -87,86 +94,93 @@ function NewProjectContent() {
 
             {/* Main Content */}
             <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">
-                        Create New Project
-                    </h1>
-                    <p className="text-zinc-600 dark:text-zinc-400">
+                <div className="mb-8 space-y-2">
+                    <div className="flex items-center gap-2">
+                        <FolderPlus className="h-6 w-6 text-primary" />
+                        <h1 className="text-3xl font-bold tracking-tight">
+                            Create New Project
+                        </h1>
+                    </div>
+                    <p className="text-muted-foreground">
                         Projects help you organize related business processes
                     </p>
                 </div>
 
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-8">
-                    {error && (
-                        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-                        </div>
-                    )}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Project Details</CardTitle>
+                        <CardDescription>
+                            Fill in the information below to create a new project
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {error && (
+                            <Alert variant="destructive" className="mb-6">
+                                <p className="text-sm">{error}</p>
+                            </Alert>
+                        )}
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div>
-                            <label htmlFor="name" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                                Project Name *
-                            </label>
-                            <input
-                                id="name"
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                required
-                                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                                placeholder="e.g., Order Management"
-                            />
-                        </div>
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="name">
+                                    Project Name <span className="text-destructive">*</span>
+                                </Label>
+                                <Input
+                                    id="name"
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    required
+                                    placeholder="e.g., Order Management"
+                                    disabled={isLoading}
+                                />
+                            </div>
 
-                        <div>
-                            <label htmlFor="description" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                                Description
-                            </label>
-                            <textarea
-                                id="description"
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                rows={4}
-                                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition resize-none"
-                                placeholder="Describe this project..."
-                            />
-                        </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="description">Description</Label>
+                                <Textarea
+                                    id="description"
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    rows={4}
+                                    placeholder="Describe this project..."
+                                    disabled={isLoading}
+                                />
+                            </div>
 
-                        <div>
-                            <label htmlFor="tags" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                                Tags
-                            </label>
-                            <input
-                                id="tags"
-                                type="text"
-                                value={tags}
-                                onChange={(e) => setTags(e.target.value)}
-                                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                                placeholder="e.g., finance, compliance (comma-separated)"
-                            />
-                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                Separate multiple tags with commas
-                            </p>
-                        </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="tags">Tags</Label>
+                                <Input
+                                    id="tags"
+                                    type="text"
+                                    value={tags}
+                                    onChange={(e) => setTags(e.target.value)}
+                                    placeholder="e.g., finance, compliance (comma-separated)"
+                                    disabled={isLoading}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Separate multiple tags with commas
+                                </p>
+                            </div>
 
-                        <div className="flex gap-3 pt-4">
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
-                            >
-                                {isLoading ? 'Creating...' : 'Create Project'}
-                            </button>
-                            <Link
-                                href="/dashboard"
-                                className="px-6 py-3 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 font-medium rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition"
-                            >
-                                Cancel
-                            </Link>
-                        </div>
-                    </form>
-                </div>
+                            <div className="flex gap-3 pt-4">
+                                <Button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    isLoading={isLoading}
+                                    className="flex-1"
+                                >
+                                    {isLoading ? 'Creating...' : 'Create Project'}
+                                </Button>
+                                <Link href="/dashboard">
+                                    <Button type="button" variant="outline">
+                                        Cancel
+                                    </Button>
+                                </Link>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
             </main>
         </div>
     );

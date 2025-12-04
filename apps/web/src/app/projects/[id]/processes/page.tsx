@@ -11,6 +11,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { ArrowLeft, FileText, Loader2, Sparkles, Plus } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -87,20 +90,20 @@ function ProjectProcessesContent({ projectId }: { projectId: string }) {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <div className="min-h-screen bg-background">
             {/* Header */}
-            <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+            <header className="border-b bg-card">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-4">
-                            <Link
-                                href="/dashboard"
-                                className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
-                            >
-                                ← Dashboard
+                            <Link href="/dashboard">
+                                <Button variant="ghost" size="sm">
+                                    <ArrowLeft className="mr-2 h-4 w-4" />
+                                    Dashboard
+                                </Button>
                             </Link>
-                            <div className="h-6 w-px bg-zinc-300 dark:bg-zinc-700" />
-                            <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                            <div className="h-6 w-px bg-border" />
+                            <h1 className="text-lg font-semibold tracking-tight">
                                 {project?.name || 'Project'}
                             </h1>
                         </div>
@@ -111,7 +114,7 @@ function ProjectProcessesContent({ projectId }: { projectId: string }) {
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {project?.description && (
-                    <p className="text-zinc-600 dark:text-zinc-400 mb-8">
+                    <p className="text-muted-foreground mb-8">
                         {project.description}
                     </p>
                 )}
@@ -119,76 +122,74 @@ function ProjectProcessesContent({ projectId }: { projectId: string }) {
                 {/* Processes Section */}
                 <div>
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+                        <h2 className="text-2xl font-semibold tracking-tight">
                             Processes
                         </h2>
-                        <div className="flex gap-3">
-                            <Link
-                                href={`/studio?project_id=${projectId}`}
-                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition"
-                            >
+                        <Link href={`/studio?project_id=${projectId}`}>
+                            <Button>
+                                <Sparkles className="mr-2 h-4 w-4" />
                                 Generate with AI
-                            </Link>
-                        </div>
+                            </Button>
+                        </Link>
                     </div>
 
                     {loading ? (
                         <div className="flex items-center justify-center py-12">
-                            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
                     ) : processes.length === 0 ? (
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-12 text-center">
-                            <div className="text-4xl mb-4">📋</div>
-                            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2">
-                                No processes yet
-                            </h3>
-                            <p className="text-zinc-600 dark:text-zinc-400 mb-6">
-                                Create your first process diagram to get started
-                            </p>
-                            <Link
-                                href={`/studio?project_id=${projectId}`}
-                                className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition"
-                            >
-                                Create Process
-                            </Link>
-                        </div>
+                        <Card className="text-center py-12">
+                            <CardContent className="pt-6">
+                                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                                    <FileText className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                                <h3 className="text-lg font-semibold mb-2">
+                                    No processes yet
+                                </h3>
+                                <p className="text-muted-foreground mb-6">
+                                    Create your first process diagram to get started
+                                </p>
+                                <Link href={`/studio?project_id=${projectId}`}>
+                                    <Button>
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Create Process
+                                    </Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {processes.map((process) => (
-                                <div
-                                    key={process.id}
-                                    className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-lg transition group"
-                                >
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="text-3xl">🔄</div>
-                                        <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                                            {process.version_count || 0} versions
+                                <Card key={process.id} className="hover:border-primary/50 transition-colors group">
+                                    <CardHeader>
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                                <FileText className="h-5 w-5" />
+                                            </div>
+                                            <span className="text-sm text-muted-foreground">
+                                                {process.version_count || 0} versions
+                                            </span>
                                         </div>
-                                    </div>
-
-                                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2">
-                                        {process.name}
-                                    </h3>
-
-                                    {process.description && (
-                                        <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 mb-4">
-                                            {process.description}
-                                        </p>
-                                    )}
-
-                                    <div className="text-xs text-zinc-500 dark:text-zinc-500 mb-4">
-                                        Updated {new Date(process.updated_at).toLocaleDateString()}
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <Link
-                                            href={`/studio?process_id=${process.id}`}
-                                            className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition text-center"
-                                        >
-                                            Open in Studio
+                                        <CardTitle className="group-hover:text-primary transition-colors">
+                                            {process.name}
+                                        </CardTitle>
+                                        {process.description && (
+                                            <CardDescription className="line-clamp-2 mt-2">
+                                                {process.description}
+                                            </CardDescription>
+                                        )}
+                                    </CardHeader>
+                                    <CardFooter className="flex flex-col space-y-3">
+                                        <div className="text-xs text-muted-foreground w-full">
+                                            Updated {new Date(process.updated_at).toLocaleDateString()}
+                                        </div>
+                                        <Link href={`/studio?process_id=${process.id}`} className="w-full">
+                                            <Button className="w-full" variant="default">
+                                                Open in Studio
+                                            </Button>
                                         </Link>
-                                    </div>
-                                </div>
+                                    </CardFooter>
+                                </Card>
                             ))}
                         </div>
                     )}

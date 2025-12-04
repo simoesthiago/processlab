@@ -11,6 +11,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Alert } from '@/components/ui/alert';
+import { Loader2, Sparkles, Building2 } from 'lucide-react';
 
 export default function RegisterPage() {
     const { register, isAuthenticated, loading } = useAuth();
@@ -70,156 +76,159 @@ export default function RegisterPage() {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="text-center">
-                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950 px-4 py-12">
-            <div className="w-full max-w-md">
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 px-4 py-12">
+            <div className="w-full max-w-md space-y-8">
                 {/* Logo/Title */}
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">
-                        ProcessLab
-                    </h1>
-                    <p className="text-zinc-600 dark:text-zinc-400">
-                        Create your account
+                <div className="text-center space-y-2">
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                            <Sparkles className="h-6 w-6 text-primary" />
+                        </div>
+                        <h1 className="text-4xl font-bold tracking-tight">
+                            ProcessLab
+                        </h1>
+                    </div>
+                    <p className="text-muted-foreground">
+                        Create your account to get started
                     </p>
                 </div>
 
                 {/* Register Card */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-8 border border-zinc-200 dark:border-zinc-800">
-                    <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 mb-6">
-                        Register
-                    </h2>
+                <Card>
+                    <CardHeader className="space-y-1">
+                        <CardTitle className="text-2xl">Create an account</CardTitle>
+                        <CardDescription>
+                            Enter your information to create your account
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {error && (
+                            <Alert variant="destructive" className="mb-4">
+                                <p className="text-sm">{error}</p>
+                            </Alert>
+                        )}
 
-                    {error && (
-                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-                        </div>
-                    )}
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label htmlFor="fullName" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                                Full Name
-                            </label>
-                            <input
-                                id="fullName"
-                                type="text"
-                                value={fullName}
-                                onChange={(e) => setFullName(e.target.value)}
-                                required
-                                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                                placeholder="John Doe"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                                Email
-                            </label>
-                            <input
-                                id="email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                                placeholder="you@example.com"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                                Password
-                            </label>
-                            <input
-                                id="password"
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                minLength={8}
-                                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                                placeholder="••••••••"
-                            />
-                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                Minimum 8 characters
-                            </p>
-                        </div>
-
-                        <div>
-                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                                Confirm Password
-                            </label>
-                            <input
-                                id="confirmPassword"
-                                type="password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                required
-                                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                                placeholder="••••••••"
-                            />
-                        </div>
-
-                        {/* Organization Option */}
-                        <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                            <label className="flex items-center space-x-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={createOrg}
-                                    onChange={(e) => setCreateOrg(e.target.checked)}
-                                    className="w-4 h-4 text-blue-600 border-zinc-300 rounded focus:ring-2 focus:ring-blue-500"
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="fullName">Full Name</Label>
+                                <Input
+                                    id="fullName"
+                                    type="text"
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                    required
+                                    placeholder="John Doe"
+                                    disabled={isLoading}
                                 />
-                                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                                    Create a new organization
-                                </span>
-                            </label>
+                            </div>
 
-                            {createOrg && (
-                                <div className="mt-3">
-                                    <label htmlFor="orgName" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                                        Organization Name
-                                    </label>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                    placeholder="you@example.com"
+                                    disabled={isLoading}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Password</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    minLength={8}
+                                    placeholder="••••••••"
+                                    disabled={isLoading}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Minimum 8 characters
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                                <Input
+                                    id="confirmPassword"
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    required
+                                    placeholder="••••••••"
+                                    disabled={isLoading}
+                                />
+                            </div>
+
+                            {/* Organization Option */}
+                            <div className="pt-4 border-t space-y-4">
+                                <label className="flex items-center space-x-2 cursor-pointer">
                                     <input
-                                        id="orgName"
-                                        type="text"
-                                        value={organizationName}
-                                        onChange={(e) => setOrganizationName(e.target.value)}
-                                        required={createOrg}
-                                        className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                                        placeholder="My Company"
+                                        type="checkbox"
+                                        checked={createOrg}
+                                        onChange={(e) => setCreateOrg(e.target.checked)}
+                                        className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                        disabled={isLoading}
                                     />
-                                </div>
-                            )}
-                        </div>
+                                    <span className="text-sm font-medium">
+                                        Create a new organization
+                                    </span>
+                                </label>
 
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-lg transition-colors disabled:cursor-not-allowed mt-6"
-                        >
-                            {isLoading ? 'Creating account...' : 'Create Account'}
-                        </button>
-                    </form>
+                                {createOrg && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="orgName" className="flex items-center gap-2">
+                                            <Building2 className="h-4 w-4" />
+                                            Organization Name
+                                        </Label>
+                                        <Input
+                                            id="orgName"
+                                            type="text"
+                                            value={organizationName}
+                                            onChange={(e) => setOrganizationName(e.target.value)}
+                                            required={createOrg}
+                                            placeholder="My Company"
+                                            disabled={isLoading}
+                                        />
+                                    </div>
+                                )}
+                            </div>
 
-                    <div className="mt-6 text-center">
-                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                            <Button
+                                type="submit"
+                                className="w-full mt-6"
+                                disabled={isLoading}
+                                isLoading={isLoading}
+                            >
+                                {isLoading ? 'Creating account...' : 'Create Account'}
+                            </Button>
+                        </form>
+                    </CardContent>
+                    <CardFooter className="flex flex-col space-y-4">
+                        <div className="text-sm text-center text-muted-foreground">
                             Already have an account?{' '}
-                            <Link href="/login" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                            <Link href="/login" className="text-primary hover:underline font-medium">
                                 Login
                             </Link>
-                        </p>
-                    </div>
-                </div>
+                        </div>
+                    </CardFooter>
+                </Card>
 
                 {/* Footer */}
-                <div className="mt-8 text-center">
-                    <p className="text-xs text-zinc-500 dark:text-zinc-500">
+                <div className="text-center">
+                    <p className="text-xs text-muted-foreground">
                         ProcessLab © 2025
                     </p>
                 </div>
