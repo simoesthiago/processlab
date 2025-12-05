@@ -123,15 +123,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timeoutId);
       
       // Handle different error types
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Request timeout. Please check your connection and try again.');
-      } else if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Network error. Please check your connection and try again.');
-      } else if (error instanceof Error && error.message) {
-        throw error; // Re-throw with original message
-      } else {
-        throw new Error('An unexpected error occurred during login.');
+      if (error instanceof Error) {
+        // AbortError means the request was aborted (timeout)
+        if (error.name === 'AbortError') {
+          throw new Error('Request timeout. Please check your connection and try again.');
+        }
+        // TypeError is thrown for network errors (connection refused, CORS, etc.)
+        // Different browsers have different messages: "Failed to fetch", "NetworkError", "Load failed"
+        if (error instanceof TypeError) {
+          throw new Error('Unable to connect to the server. Please verify the API is running at ' + API_URL);
+        }
+        // Re-throw with original message if it exists
+        throw error;
       }
+      throw new Error('An unexpected error occurred during login.');
     }
   };
 
@@ -189,15 +194,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timeoutId);
       
       // Handle different error types
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Request timeout. Please check your connection and try again.');
-      } else if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Network error. Please check your connection and try again.');
-      } else if (error instanceof Error && error.message) {
-        throw error; // Re-throw with original message
-      } else {
-        throw new Error('An unexpected error occurred during registration.');
+      if (error instanceof Error) {
+        // AbortError means the request was aborted (timeout)
+        if (error.name === 'AbortError') {
+          throw new Error('Request timeout. Please check your connection and try again.');
+        }
+        // TypeError is thrown for network errors (connection refused, CORS, etc.)
+        // Different browsers have different messages: "Failed to fetch", "NetworkError", "Load failed"
+        if (error instanceof TypeError) {
+          throw new Error('Unable to connect to the server. Please verify the API is running at ' + API_URL);
+        }
+        // Re-throw with original message if it exists
+        throw error;
       }
+      throw new Error('An unexpected error occurred during registration.');
     }
   };
 

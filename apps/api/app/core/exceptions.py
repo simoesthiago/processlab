@@ -57,6 +57,18 @@ class AuthorizationError(ProcessLabException):
         super().__init__(message, status.HTTP_403_FORBIDDEN, details)
 
 
+class NotFoundError(ProcessLabException):
+    """Raised when a resource is not found"""
+    def __init__(self, message: str = "Resource not found", details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status.HTTP_404_NOT_FOUND, details)
+
+
+class ForbiddenError(ProcessLabException):
+    """Raised when access to a resource is forbidden"""
+    def __init__(self, message: str = "Access forbidden", details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status.HTTP_403_FORBIDDEN, details)
+
+
 class ExternalServiceError(ProcessLabException):
     """Raised when external service (MinIO, LLM, etc.) fails"""
     def __init__(self, service: str, message: str, details: Optional[Dict[str, Any]] = None):
