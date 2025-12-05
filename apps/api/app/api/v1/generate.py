@@ -8,7 +8,7 @@ from app.db.session import get_db
 from app.db.models import ProcessModel, ModelVersion, Project, User
 from app.core.dependencies import get_current_user
 from app.services.agents.pipeline import generate_process
-from app.services.bpmn.json_to_xml import bpmn_json_to_xml
+from app.services.bpmn.json_to_xml import to_bpmn_xml as bpmn_json_to_xml
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import logging

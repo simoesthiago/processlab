@@ -165,6 +165,9 @@ class ModelVersion(Base):
     commit_message = Column(String, nullable=True)  # Git-style commit message
     change_type = Column(String, default="minor")  # major, minor, patch
     
+    # Optimistic locking - for conflict detection
+    etag = Column(String(64), nullable=True)  # SHA256 hash of content for conflict detection
+    
     # Hierarchy
     parent_version_id = Column(String(36), ForeignKey("model_versions.id"), nullable=True)
     parent_version = relationship("ModelVersion", remote_side="ModelVersion.id", backref="child_versions")
@@ -416,5 +419,155 @@ class ProjectShare(Base):
         if self.expires_at and self.expires_at < datetime.utcnow():
             return False
         return True
+
+
+class Invitation(Base):
+    """
+    Organization Invitation
+    
+    Allows admins to invite users to join an organization.
+    Token-based system with expiration.
+    """
+    __tablename__ = "invitations"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
+    
+    # Invitation details
+    email = Column(String(255), nullable=False, index=True)
+    role = Column(String(50), nullable=False, default="viewer")  # viewer, editor, admin
+    
+    # Token for invitation link
+    token = Column(String(64), unique=True, nullable=False, index=True)
+    
+    # Status
+    status = Column(String(20), nullable=False, default="pending")  # pending, accepted, expired, revoked
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)  # Default 7 days from creation
+    accepted_at = Column(DateTime, nullable=True)
+    
+    # Who created/accepted
+    invited_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    accepted_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    
+    # Relationships
+    organization = relationship("Organization")
+    inviter = relationship("User", foreign_keys=[invited_by])
+    accepted_user = relationship("User", foreign_keys=[accepted_by_user_id])
+    
+    def __repr__(self):
+        return f"<Invitation(id={self.id}, email={self.email}, org_id={self.organization_id}, status={self.status})>"
+    
+    @property
+    def is_valid(self):
+        """Check if invitation is still valid (not expired, revoked, or already accepted)"""
+        if self.status != "pending":
+            return False
+        if self.expires_at and self.expires_at < datetime.utcnow():
+            return False
+        return True
+
+
+class ApiKey(Base):
+    """
+    API Key for external integrations
+    
+    Supports both BYOK (Bring Your Own Key) for LLM and 
+    API keys for external integrations.
+    
+    Security: Keys are hashed, only last 4 chars are stored for identification.
+    """
+    __tablename__ = "api_keys"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Key identification
+    name = Column(String(255), nullable=False)  # User-defined name for the key
+    key_type = Column(String(50), nullable=False)  # "integration", "llm_openai", "llm_anthropic", etc.
+    
+    # Security - only store hash and last 4 chars for display
+    key_hash = Column(String(255), nullable=False)  # SHA256 hash of the key
+    key_preview = Column(String(10), nullable=False)  # Last 4 characters: "...xxxx"
+    
+    # Permissions/Scopes
+    scopes = Column(JSON, nullable=True)  # e.g., ["read", "write", "admin"]
+    
+    # Status
+    is_active = Column(Boolean, default=True)
+    
+    # Usage tracking
+    last_used_at = Column(DateTime, nullable=True)
+    usage_count = Column(Integer, default=0)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=True)  # Optional expiration
+    revoked_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    organization = relationship("Organization")
+    user = relationship("User")
+    
+    def __repr__(self):
+        return f"<ApiKey(id={self.id}, name={self.name}, type={self.key_type}, preview={self.key_preview})>"
+    
+    @property
+    def is_valid(self):
+        """Check if API key is still valid"""
+        if not self.is_active or self.revoked_at:
+            return False
+        if self.expires_at and self.expires_at < datetime.utcnow():
+            return False
+        return True
+
+
+class SystemAuditLog(Base):
+    """
+    System Audit Log
+    
+    Immutable record of administrative actions for compliance.
+    Separate from AuditEntry which tracks resource-level changes.
+    """
+    __tablename__ = "system_audit_logs"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    
+    # Event details
+    event_type = Column(String(100), nullable=False, index=True)  # "user.invited", "user.removed", "permission.changed", etc.
+    event_category = Column(String(50), nullable=False)  # "user_management", "security", "billing", "export"
+    
+    # Actor (who performed the action)
+    actor_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    actor_email = Column(String(255), nullable=True)  # Preserved even if user is deleted
+    
+    # Target (what was affected)
+    target_type = Column(String(50), nullable=True)  # "user", "organization", "api_key", etc.
+    target_id = Column(String(36), nullable=True)
+    target_email = Column(String(255), nullable=True)  # For user targets, preserved
+    
+    # Request context
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    request_id = Column(String(100), nullable=True)
+    
+    # Change details
+    details = Column(JSON, nullable=True)  # Detailed info about the change
+    before_state = Column(JSON, nullable=True)  # State before change
+    after_state = Column(JSON, nullable=True)  # State after change
+    
+    # Timestamp (immutable)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    
+    # Relationships
+    organization = relationship("Organization")
+    actor = relationship("User", foreign_keys=[actor_user_id])
+    
+    def __repr__(self):
+        return f"<SystemAuditLog(id={self.id}, event_type={self.event_type}, actor={self.actor_email})>"
 
 
