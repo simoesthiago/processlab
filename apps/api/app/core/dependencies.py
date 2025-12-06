@@ -76,6 +76,39 @@ async def get_current_active_user(
     return current_user
 
 
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """
+    Optional dependency to get the current user if authenticated.
+    
+    Returns None if no token is provided or token is invalid.
+    Used for endpoints that work with or without authentication.
+    
+    Args:
+        credentials: HTTP Bearer credentials from header (optional)
+        db: Database session
+        
+    Returns:
+        User object if authenticated, None otherwise
+    """
+    if not credentials:
+        return None
+    
+    token = credentials.credentials
+    
+    user_id = get_user_id_from_token(token)
+    if not user_id:
+        return None
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.is_active:
+        return None
+    
+    return user
+
+
 async def get_current_superuser(
     current_user: User = Depends(get_current_user)
 ) -> User:

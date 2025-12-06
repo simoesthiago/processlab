@@ -125,9 +125,9 @@
 
   --radius: 0.5rem;
 
-  /* Typography Scale */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  /* Typography Scale - Clean Technical SaaS */
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-mono: var(--font-mono), 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
   /* Spacing Scale */
   --spacing-xs: 0.25rem;   /* 4px */
@@ -180,15 +180,59 @@
     --input: #27272a;
     --ring: #ec5140; /* ProcessLab brand */
   }
+
+  body {
+    color: #cbd5e1; /* slate-300 - suave para body text no dark mode */
+  }
 }
 
 body {
   background-color: var(--background);
-  color: var(--foreground);
+  color: #475569; /* slate-600 - suave para body text */
   font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 1.6; /* Generoso para facilitar leitura técnica */
   font-feature-settings: "rlig" 1, "calt" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings - Clean Technical SaaS */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  font-weight: 600; /* Semi-Bold para destaque sem excesso */
+  color: var(--foreground);
+  letter-spacing: -0.02em; /* Tracking tight para visual moderno e compacto */
+  line-height: 1.2;
+}
+
+h1 {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+h2 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+h3, h4, h5, h6 {
+  font-weight: 500; /* Medium para sub-títulos */
+  letter-spacing: -0.01em;
+}
+
+/* Code, Snippets, Logs - Dados Técnicos */
+code, pre, kbd, samp, .font-mono {
+  font-family: var(--font-mono);
+  font-weight: 400;
+}
+
+pre {
+  line-height: 1.5;
+}
+
+code {
+  font-size: 0.9em;
 }
 
 /* Typography Scale */

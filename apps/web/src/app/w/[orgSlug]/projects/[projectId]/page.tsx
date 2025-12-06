@@ -162,10 +162,10 @@ export default function ProjectDetailPage({ params }: PageProps) {
           
           {canEdit() && (
             <div className="flex gap-2">
-              <Link href={`${basePath}/studio?project_id=${projectId}`}>
+              <Link href={`${basePath}/projects/${projectId}/processes/new`}>
                 <Button>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Generate with AI
+                  New Process
                 </Button>
               </Link>
               <Button variant="outline" size="icon">
@@ -229,7 +229,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-semibold tracking-tight">Processes</h2>
             {canEdit() && (
-              <Link href={`${basePath}/studio?project_id=${projectId}`}>
+              <Link href={`${basePath}/projects/${projectId}/processes/new`}>
                 <Button variant="outline">
                   <Sparkles className="mr-2 h-4 w-4" />
                   New Process
@@ -251,7 +251,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                   }
                   action={canEdit() ? {
                     label: 'Create Process',
-                    href: `${basePath}/studio?project_id=${projectId}`
+                    href: `${basePath}/projects/${projectId}/processes/new`
                   } : undefined}
                 />
               </CardContent>
@@ -287,7 +287,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                     <div className="text-xs text-muted-foreground w-full">
                       Updated {new Date(process.updated_at || process.created_at).toLocaleDateString()}
                     </div>
-                    <Link href={`${basePath}/studio/${process.id}`} className="w-full">
+                    <Link href={`${basePath}/projects/${projectId}/processes/${process.id}`} className="w-full">
                       <Button className="w-full" variant="default">
                         Open in Studio
                       </Button>

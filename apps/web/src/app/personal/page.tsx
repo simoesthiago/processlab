@@ -114,96 +114,92 @@ export default function PersonalDashboardPage() {
   return (
     <WorkspaceLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
+        {/* Header with Stats */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <User className="h-6 w-6 text-primary" />
+          <div className="flex items-center justify-between gap-6 mb-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <User className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">
+                  Personal Workspace
+                </h1>
+                <p className="text-muted-foreground">
+                  Your private space for drafts and experiments
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                Personal Workspace
-              </h1>
-              <p className="text-muted-foreground">
-                Your private space for drafts and experiments
-              </p>
-            </div>
+
+            {/* Minimized Stats */}
+            {!loading && (
+              <div className="flex items-center gap-8 text-muted-foreground">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-foreground">
+                    <FolderOpen className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-lg font-semibold">{projects.length}</span>
+                  </div>
+                  <span className="hidden sm:inline">projects</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-foreground">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-lg font-semibold">
+                      {projects.reduce((sum, p) => sum + (p.process_count || 0), 0)}
+                    </span>
+                  </div>
+                  <span className="hidden sm:inline">processes</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-foreground">
+                    <Share2 className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-lg font-semibold">{sharedWithMe.length}</span>
+                  </div>
+                  <span className="hidden sm:inline">shared</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <FolderOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        {/* Quick Actions - Primary Focus */}
+        <div className="mb-12 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Link href={`${basePath}/projects/new`} className="block group">
+            <Card className="border-2 hover:border-primary hover:shadow-lg transition-all duration-200 h-full">
+              <CardHeader className="pb-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors">
+                    <PlusCircle className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-xl mb-2 group-hover:text-primary transition-colors">
+                      Create Personal Project
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                      Start a new private project for your experiments
+                    </CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{projects.length}</p>
-                  <p className="text-sm text-muted-foreground">My Projects</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                  <FileText className="h-5 w-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {projects.reduce((sum, p) => sum + (p.process_count || 0), 0)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Processes</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <Share2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{sharedWithMe.length}</p>
-                  <p className="text-sm text-muted-foreground">Shared with Me</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link href={`${basePath}/projects/new`} className="block">
-            <Card className="hover:bg-accent/50 transition-colors h-full">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <PlusCircle className="h-5 w-5 text-primary" />
-                  Create Personal Project
-                </CardTitle>
-                <CardDescription>
-                  Start a new private project for your experiments
-                </CardDescription>
               </CardHeader>
             </Card>
           </Link>
           
-          <Link href={`${basePath}/studio`} className="block">
-            <Card className="hover:bg-accent/50 transition-colors h-full">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  Quick Draft
-                </CardTitle>
-                <CardDescription>
-                  Open the Studio and start creating immediately
-                </CardDescription>
+          <Link href="/studio" className="block group">
+            <Card className="border-2 hover:border-primary hover:shadow-lg transition-all duration-200 h-full">
+              <CardHeader className="pb-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors">
+                    <Sparkles className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-xl mb-2 group-hover:text-primary transition-colors">
+                      Quick Draft
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                      Start a new process in your Drafts project
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
             </Card>
           </Link>

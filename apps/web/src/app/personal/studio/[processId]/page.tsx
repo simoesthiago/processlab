@@ -1,32 +1,75 @@
 'use client';
 
 /**
- * Studio Page with Process ID (Personal Workspace)
+ * Personal Studio Process Redirect Page
  * 
- * BPMN Editor for editing a specific personal process.
+ * Redirects to the proper project-based studio URL.
+ * Fetches the process to find its project and redirects accordingly.
  */
 
-import { use } from 'react';
+import { use, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
-import StudioContent from '@/features/bpmn/StudioContent';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface PageProps {
   params: Promise<{ processId: string }>;
 }
 
-export default function PersonalStudioProcessPage({ params }: PageProps) {
+export default function PersonalStudioProcessRedirectPage({ params }: PageProps) {
   const resolvedParams = use(params);
-  const { user } = useAuth();
-  const { getWorkspaceBasePath } = useWorkspace();
+  const router = useRouter();
+  const { token, isAuthenticated, loading } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!isAuthenticated) {
+      router.replace(`/login?redirect=/personal/studio/${resolvedParams.processId}`);
+      return;
+    }
+
+    fetchProcessAndRedirect();
+  }, [isAuthenticated, loading, token, resolvedParams.processId]);
+
+  const fetchProcessAndRedirect = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/v1/processes/${resolvedParams.processId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const process = await response.json();
+        router.replace(`/personal/projects/${process.project_id}/processes/${process.id}`);
+        return;
+      }
+
+      setError('Process not found');
+      setTimeout(() => router.replace('/personal/projects'), 2000);
+
+    } catch (err) {
+      console.error('Failed to fetch process:', err);
+      setError('Redirecting...');
+      setTimeout(() => router.replace('/personal/projects'), 2000);
+    }
+  };
 
   return (
-    <StudioContent
-      processId={resolvedParams.processId}
-      workspaceId={user?.id}
-      workspaceType="personal"
-      basePath={getWorkspaceBasePath()}
-    />
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <div className="text-center">
+        {error ? (
+          <p className="text-sm text-muted-foreground">{error}</p>
+        ) : (
+          <>
+            <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent mx-auto mb-4" />
+            <p className="text-sm text-muted-foreground">
+              Loading process...
+            </p>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

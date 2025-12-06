@@ -257,7 +257,7 @@ function DashboardContent() {
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link href="/personal/studio">
+            <Link href="/studio">
               <Card className="hover:bg-accent/50 transition-colors h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -265,7 +265,7 @@ function DashboardContent() {
                     Quick Draft
                   </CardTitle>
                   <CardDescription>
-                    Start a new BPMN diagram instantly
+                    Start a new BPMN diagram in your Drafts project
                   </CardDescription>
                 </CardHeader>
               </Card>

@@ -279,7 +279,7 @@ export default function OrganizationDashboardPage() {
 
         {/* Studio CTA */}
         <div className="mt-12">
-          <Link href={`${basePath}/studio`}>
+          <Link href={`${basePath}/projects`}>
             <Card className="bg-primary text-primary-foreground border-primary hover:bg-primary/90 transition-colors">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -287,7 +287,7 @@ export default function OrganizationDashboardPage() {
                   BPMN Studio
                 </CardTitle>
                 <CardDescription className="text-primary-foreground/80">
-                  Create and edit BPMN diagrams with AI assistance
+                  Select a project to create and edit BPMN diagrams with AI assistance
                 </CardDescription>
               </CardHeader>
             </Card>

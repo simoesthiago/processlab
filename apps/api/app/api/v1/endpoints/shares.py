@@ -13,7 +13,7 @@ import secrets
 
 from app.db.session import get_db
 from app.db.models import User, Project, ProjectShare
-from app.api.deps import get_current_user_optional, get_current_user
+from app.core.dependencies import get_current_user_optional, get_current_user
 
 router = APIRouter()
 

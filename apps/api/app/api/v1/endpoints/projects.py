@@ -84,7 +84,9 @@ def get_project(
     """
     Get details of a specific project.
     
-    Requires user to be member of the project's organization.
+    Requires user to be:
+    - Owner of the project (for personal projects), or
+    - Member of the project's organization (for org projects)
     """
     # Fetch project
     project = db.query(Project).filter(
@@ -96,7 +98,13 @@ def get_project(
         raise ResourceNotFoundError("Project", project_id)
     
     # Check access
-    require_organization_access(current_user, project.organization_id)
+    # Personal projects (no organization) - check if user is the owner
+    if project.organization_id is None:
+        if project.owner_id != current_user.id and not current_user.is_superuser:
+            raise AuthorizationError("You don't have access to this project")
+    else:
+        # Organization projects - check organization membership
+        require_organization_access(current_user, project.organization_id)
     
     # Get process count
     process_count = db.query(func.count(ProcessModel.id)).filter(
@@ -158,7 +166,9 @@ def update_project(
     """
     Update a project.
     
-    Requires user to be member of the organization with editor or admin role.
+    Requires user to be:
+    - Owner of the project (for personal projects), or
+    - Member of the organization with editor or admin role (for org projects)
     """
     # Fetch project
     project = db.query(Project).filter(
@@ -170,8 +180,14 @@ def update_project(
         raise ResourceNotFoundError("Project", project_id)
     
     # Check access
-    require_organization_access(current_user, project.organization_id)
-    require_role(current_user, ["editor", "admin"])
+    if project.organization_id is None:
+        # Personal project - only owner can update
+        if project.owner_id != current_user.id and not current_user.is_superuser:
+            raise AuthorizationError("You don't have access to this project")
+    else:
+        # Organization project
+        require_organization_access(current_user, project.organization_id)
+        require_role(current_user, ["editor", "admin"])
     
     # Update fields
     if project_data.name is not None:
@@ -207,7 +223,9 @@ def delete_project(
     """
     Delete a project (soft delete).
     
-    Requires user to be admin of the organization.
+    Requires user to be:
+    - Owner of the project (for personal projects), or
+    - Admin of the organization (for org projects)
     Note: Does NOT delete associated processes (they remain orphaned for safety).
     """
     # Fetch project
@@ -220,8 +238,14 @@ def delete_project(
         raise ResourceNotFoundError("Project", project_id)
     
     # Check access
-    require_organization_access(current_user, project.organization_id)
-    require_role(current_user, ["admin"])
+    if project.organization_id is None:
+        # Personal project - only owner can delete
+        if project.owner_id != current_user.id and not current_user.is_superuser:
+            raise AuthorizationError("You don't have access to this project")
+    else:
+        # Organization project
+        require_organization_access(current_user, project.organization_id)
+        require_role(current_user, ["admin"])
     
     # Soft delete
     from datetime import datetime

@@ -66,7 +66,7 @@ class Project(Base):
     Project
     
     Groups related processes together within an organization or as personal projects.
-    Hierarchy: Organization → Project → Process → Version
+    Hierarchy: Workspace (Org/Personal) → Project → Folders → Process → Version
     
     For personal projects: organization_id is NULL, owner_id is set
     For org projects: organization_id is set, owner_id can be NULL
@@ -86,6 +86,9 @@ class Project(Base):
     # Visibility for personal projects
     visibility = Column(String(20), nullable=True, default="organization")  # private, shared, public, organization
     
+    # Default project flag - for Quick Start drafts
+    is_default = Column(Boolean, default=False)  # True for the auto-created "Drafts" project
+    
     # Ownership
     owner_id = Column(String(36), ForeignKey("users.id"), nullable=True)  # For personal projects
     created_by = Column(String(255), nullable=True)  # User ID who created it
@@ -101,11 +104,56 @@ class Project(Base):
     organization = relationship("Organization", back_populates="projects")
     owner = relationship("User", back_populates="owned_projects", foreign_keys=[owner_id])
     processes = relationship("ProcessModel", back_populates="project")
+    folders = relationship("Folder", back_populates="project")
     shares = relationship("ProjectShare", back_populates="project")
     
     def __repr__(self):
         return f"<Project(id={self.id}, name={self.name}, org_id={self.organization_id}, owner_id={self.owner_id})>"
 
+
+
+class Folder(Base):
+    """
+    Folder
+    
+    Organizes processes within a project in a hierarchical structure.
+    Similar to directories in a file system.
+    Hierarchy: Project → Folder → Subfolder → Process
+    """
+    __tablename__ = "folders"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    parent_folder_id = Column(String(36), ForeignKey("folders.id"), nullable=True, index=True)
+    
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    
+    # Position for ordering
+    position = Column(Integer, default=0)
+    
+    # Metadata
+    color = Column(String(20), nullable=True)  # Optional color for UI
+    icon = Column(String(50), nullable=True)  # Optional icon name
+    
+    # Ownership
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Soft delete
+    deleted_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    project = relationship("Project", back_populates="folders")
+    parent_folder = relationship("Folder", remote_side="Folder.id", backref="subfolders")
+    processes = relationship("ProcessModel", back_populates="folder")
+    creator = relationship("User", foreign_keys=[created_by])
+    
+    def __repr__(self):
+        return f"<Folder(id={self.id}, name={self.name}, project_id={self.project_id})>"
 
 
 class ProcessModel(Base):
@@ -115,11 +163,13 @@ class ProcessModel(Base):
     Stores process definitions and their current version.
     Each process can have multiple versions (tracked in ModelVersion).
     Belongs to a Project within an Organization.
+    Can optionally be organized in Folders.
     """
     __tablename__ = "processes"
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    folder_id = Column(String(36), ForeignKey("folders.id"), nullable=True, index=True)  # Optional folder
     
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -127,9 +177,12 @@ class ProcessModel(Base):
     # Current active version
     current_version_id = Column(String(36), ForeignKey("model_versions.id"), nullable=True)
     
+    # Position for ordering within folder
+    position = Column(Integer, default=0)
+    
     # Ownership
     created_by = Column(String(255), nullable=True)  # User ID from auth system
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=False)  # Denormalized for easy filtering
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True)  # Denormalized for easy filtering (NULL for personal)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -140,10 +193,11 @@ class ProcessModel(Base):
     
     # Relationships
     project = relationship("Project", back_populates="processes")
+    folder = relationship("Folder", back_populates="processes")
     versions = relationship("ModelVersion", back_populates="process", foreign_keys="ModelVersion.process_id")
     
     def __repr__(self):
-        return f"<ProcessModel(id={self.id}, name={self.name}, project_id={self.project_id})>"
+        return f"<ProcessModel(id={self.id}, name={self.name}, project_id={self.project_id})"
 
 
 

@@ -12,7 +12,7 @@ from datetime import datetime
 
 from app.db.session import get_db
 from app.db.models import User, Project, ProjectShare, ProcessModel
-from app.api.deps import get_current_user
+from app.core.dependencies import get_current_user
 
 router = APIRouter()
 
@@ -301,4 +301,106 @@ async def get_my_activity(
     activities = activities[:limit]
     
     return UserActivityResponse(activities=activities)
+
+
+@router.get("/me/default-project", response_model=PersonalProjectResponse)
+async def get_default_project(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get the user's default personal project (Drafts).
+    Used for quick start / quick draft functionality.
+    Returns 404 if no default project exists.
+    """
+    default_project = db.query(Project).filter(
+        Project.owner_id == current_user.id,
+        Project.organization_id.is_(None),
+        Project.is_default == True,
+        Project.deleted_at.is_(None)
+    ).first()
+    
+    if not default_project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No default project found. Create one using POST /users/me/default-project"
+        )
+    
+    process_count = len(default_project.processes) if default_project.processes else 0
+    share_count = len([s for s in default_project.shares if not s.revoked_at]) if default_project.shares else 0
+    
+    return PersonalProjectResponse(
+        id=default_project.id,
+        name=default_project.name,
+        description=default_project.description,
+        visibility=default_project.visibility or "private",
+        process_count=process_count,
+        share_count=share_count,
+        tags=default_project.tags,
+        created_at=default_project.created_at.isoformat(),
+        updated_at=default_project.updated_at.isoformat()
+    )
+
+
+@router.post("/me/default-project", response_model=PersonalProjectResponse)
+async def create_default_project(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Create the user's default personal project (Drafts).
+    Used for quick start / quick draft functionality.
+    If a default project already exists, returns that one.
+    """
+    # Check if default project already exists
+    existing_default = db.query(Project).filter(
+        Project.owner_id == current_user.id,
+        Project.organization_id.is_(None),
+        Project.is_default == True,
+        Project.deleted_at.is_(None)
+    ).first()
+    
+    if existing_default:
+        process_count = len(existing_default.processes) if existing_default.processes else 0
+        share_count = len([s for s in existing_default.shares if not s.revoked_at]) if existing_default.shares else 0
+        
+        return PersonalProjectResponse(
+            id=existing_default.id,
+            name=existing_default.name,
+            description=existing_default.description,
+            visibility=existing_default.visibility or "private",
+            process_count=process_count,
+            share_count=share_count,
+            tags=existing_default.tags,
+            created_at=existing_default.created_at.isoformat(),
+            updated_at=existing_default.updated_at.isoformat()
+        )
+    
+    # Create the default "Drafts" project
+    default_project = Project(
+        name="Drafts",
+        description="Quick drafts and experiments. Your personal scratch pad for process ideas.",
+        tags=["drafts", "personal"],
+        visibility="private",
+        is_default=True,
+        owner_id=current_user.id,
+        created_by=current_user.id,
+        organization_id=None
+    )
+    
+    db.add(default_project)
+    db.commit()
+    db.refresh(default_project)
+    
+    return PersonalProjectResponse(
+        id=default_project.id,
+        name=default_project.name,
+        description=default_project.description,
+        visibility=default_project.visibility or "private",
+        process_count=0,
+        share_count=0,
+        tags=default_project.tags,
+        created_at=default_project.created_at.isoformat(),
+        updated_at=default_project.updated_at.isoformat()
+    )
 

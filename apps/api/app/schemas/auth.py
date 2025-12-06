@@ -2,7 +2,8 @@
 Pydantic schemas for authentication endpoints
 """
 
-from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional
 
 
@@ -76,32 +77,32 @@ class ProjectUpdate(BaseModel):
 class ProjectResponse(BaseModel):
     """Response schema for project"""
     id: str
-    organization_id: str
+    # Personal projects have no organization
+    organization_id: Optional[str] = None
     name: str
     description: Optional[str]
     tags: Optional[list[str]]
     created_by: Optional[str]
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
     process_count: Optional[int] = Field(None, description="Number of processes in project")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProcessResponse(BaseModel):
     """Response schema for process (basic info)"""
     id: str
     project_id: str
-    organization_id: str
+    # Personal projects' processes can have NULL organization_id
+    organization_id: Optional[str] = None
     name: str
     description: Optional[str]
     current_version_id: Optional[str]
     created_by: Optional[str]
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
     version_count: Optional[int] = Field(None, description="Number of versions")
     status: Optional[str] = Field(None, description="Process status (derived from active version)")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

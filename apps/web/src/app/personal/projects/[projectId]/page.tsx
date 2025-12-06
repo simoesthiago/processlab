@@ -255,10 +255,10 @@ export default function PersonalProjectDetailPage({ params }: PageProps) {
           </div>
           
           <div className="flex gap-2">
-            <Link href={`${basePath}/studio?project_id=${projectId}`}>
+            <Link href={`${basePath}/projects/${projectId}/processes/new`}>
               <Button>
                 <Sparkles className="mr-2 h-4 w-4" />
-                Generate with AI
+                New Process
               </Button>
             </Link>
             <Button variant="outline" size="icon">
@@ -284,7 +284,7 @@ export default function PersonalProjectDetailPage({ params }: PageProps) {
           <TabsContent value="processes" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Processes</h2>
-              <Link href={`${basePath}/studio?project_id=${projectId}`}>
+              <Link href={`${basePath}/projects/${projectId}/processes/new`}>
                 <Button variant="outline">
                   <Plus className="mr-2 h-4 w-4" />
                   New Process
@@ -302,7 +302,7 @@ export default function PersonalProjectDetailPage({ params }: PageProps) {
                     action={{
                       label: 'Create Process',
                       onClick: () => {},
-                      href: `${basePath}/studio?project_id=${projectId}`
+                      href: `${basePath}/projects/${projectId}/processes/new`
                     }}
                   />
                 </CardContent>
@@ -331,7 +331,7 @@ export default function PersonalProjectDetailPage({ params }: PageProps) {
                       <div className="text-xs text-muted-foreground w-full">
                         {process.version_count || 0} versions
                       </div>
-                      <Link href={`${basePath}/studio/${process.id}`} className="w-full">
+                      <Link href={`${basePath}/projects/${projectId}/processes/${process.id}`} className="w-full">
                         <Button className="w-full" size="sm">
                           Open in Studio
                         </Button>
