@@ -7,15 +7,16 @@
  * Opens the Studio with a blank canvas for the user to start creating.
  */
 
+import { use } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import StudioContent from '@/features/bpmn/StudioContent';
 
 interface PageProps {
-  params: { orgSlug: string; projectId: string };
+  params: Promise<{ orgSlug: string; projectId: string }>;
 }
 
 export default function NewOrganizationProcessPage({ params }: PageProps) {
-  const { projectId } = params;
+  const { projectId } = use(params);
   const { currentWorkspace, getWorkspaceBasePath } = useWorkspace();
 
   return (

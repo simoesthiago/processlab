@@ -7,16 +7,17 @@
  * Opens the Studio with a blank canvas for the user to start creating.
  */
 
+import { use } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import StudioContent from '@/features/bpmn/StudioContent';
 
 interface PageProps {
-  params: { projectId: string };
+  params: Promise<{ projectId: string }>;
 }
 
 export default function NewPersonalProcessPage({ params }: PageProps) {
-  const { projectId } = params;
+  const { projectId } = use(params);
   const { user } = useAuth();
   const { getWorkspaceBasePath } = useWorkspace();
 

@@ -7,7 +7,7 @@
  * Validates org access and provides workspace context.
  */
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -15,12 +15,12 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 
 interface WorkspaceLayoutProps {
   children: React.ReactNode;
-  params: { orgSlug: string };
+  params: Promise<{ orgSlug: string }>;
 }
 
 export default function WorkspaceLayout({ children, params }: WorkspaceLayoutProps) {
-  const { orgSlug } = params;
-  
+  const { orgSlug } = use(params);
+
   return (
     <ProtectedRoute>
       <WorkspaceLayoutContent orgSlug={orgSlug}>
@@ -30,11 +30,11 @@ export default function WorkspaceLayout({ children, params }: WorkspaceLayoutPro
   );
 }
 
-function WorkspaceLayoutContent({ 
-  children, 
-  orgSlug 
-}: { 
-  children: React.ReactNode; 
+function WorkspaceLayoutContent({
+  children,
+  orgSlug
+}: {
+  children: React.ReactNode;
   orgSlug: string;
 }) {
   const router = useRouter();
@@ -56,9 +56,9 @@ function WorkspaceLayoutContent({
     }
 
     // Update current workspace if needed
-    if (!currentWorkspace || 
-        currentWorkspace.type !== 'organization' || 
-        currentWorkspace.slug !== orgSlug) {
+    if (!currentWorkspace ||
+      currentWorkspace.type !== 'organization' ||
+      currentWorkspace.slug !== orgSlug) {
       setCurrentWorkspace({
         type: 'organization',
         id: org.id,
@@ -66,9 +66,10 @@ function WorkspaceLayoutContent({
         slug: org.slug,
         role: org.role,
       });
+    } else {
+      // Only stop validating when workspace is correctly set
+      setIsValidating(false);
     }
-
-    setIsValidating(false);
   }, [orgSlug, organizations, currentWorkspace, setCurrentWorkspace, loading, router]);
 
   // Show loading while validating

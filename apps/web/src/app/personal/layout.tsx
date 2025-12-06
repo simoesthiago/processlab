@@ -43,9 +43,10 @@ function PersonalLayoutContent({ children }: { children: React.ReactNode }) {
         slug: 'personal',
         role: 'owner',
       });
+    } else {
+      // Only set initialized when workspace is correctly set to personal
+      setIsInitialized(true);
     }
-
-    setIsInitialized(true);
   }, [user, currentWorkspace, setCurrentWorkspace, loading]);
 
   // Show loading while initializing

@@ -6,7 +6,7 @@
  * Shows project details, processes, and sharing settings.
  */
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,10 +17,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { EmptyState } from '@/components/ui/empty-state';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProjectHierarchy } from '@/features/projects/ProjectHierarchy';
-import { 
-  FileText, 
-  Loader2, 
-  Sparkles, 
+import {
+  FileText,
+  Loader2,
+  Sparkles,
   ArrowLeft,
   Share2,
   Lock,
@@ -55,15 +55,15 @@ interface Share {
 }
 
 interface PageProps {
-  params: { projectId: string };
+  params: Promise<{ projectId: string }>;
 }
 
 export default function PersonalProjectDetailPage({ params }: PageProps) {
-  const { projectId } = params;
+  const { projectId } = use(params);
   const { token, user } = useAuth();
   const { getWorkspaceBasePath } = useWorkspace();
   const router = useRouter();
-  
+
   const [project, setProject] = useState<Project | null>(null);
   const [shares, setShares] = useState<Share[]>([]);
   const [loading, setLoading] = useState(true);
@@ -203,7 +203,7 @@ export default function PersonalProjectDetailPage({ params }: PageProps) {
             description="The project you're looking for doesn't exist or you don't have access to it."
             action={{
               label: 'Back to Projects',
-              onClick: () => {},
+              onClick: () => { },
               href: `${basePath}/projects`
             }}
           />
@@ -247,7 +247,7 @@ export default function PersonalProjectDetailPage({ params }: PageProps) {
               </div>
             )}
           </div>
-          
+
           <div className="flex gap-2">
             <Link href={`${basePath}/projects/${projectId}/processes/new`}>
               <Button>
@@ -347,7 +347,7 @@ export default function PersonalProjectDetailPage({ params }: PageProps) {
                               {share.permission}
                             </span>
                           </div>
-                          
+
                           <div className="flex items-center gap-2 mb-3">
                             <code className="flex-1 text-xs bg-muted px-3 py-2 rounded font-mono truncate">
                               {share.share_url}

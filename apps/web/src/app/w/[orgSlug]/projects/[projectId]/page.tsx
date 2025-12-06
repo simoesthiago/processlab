@@ -6,7 +6,7 @@
  * Shows project details and list of processes.
  */
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,13 +16,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ProjectHierarchy } from '@/features/projects/ProjectHierarchy';
-import { 
-  FileText, 
-  Loader2, 
-  Sparkles, 
+import {
+  FileText,
+  Loader2,
+  Sparkles,
   ArrowLeft,
   Clock,
   User,
+  Trash,
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -38,15 +39,15 @@ interface Project {
 }
 
 interface PageProps {
-  params: { orgSlug: string; projectId: string };
+  params: Promise<{ orgSlug: string; projectId: string }>;
 }
 
 export default function ProjectDetailPage({ params }: PageProps) {
-  const { projectId } = params;
+  const { projectId } = use(params);
   const { token } = useAuth();
   const { currentWorkspace, canEdit, canAdmin, getWorkspaceBasePath } = useWorkspace();
   const router = useRouter();
-  
+
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -153,7 +154,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
               </div>
             )}
           </div>
-          
+
           {canEdit() && (
             <div className="flex gap-2">
               <Link href={`${basePath}/projects/${projectId}/processes/new`}>
