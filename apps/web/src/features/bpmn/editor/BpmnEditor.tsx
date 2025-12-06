@@ -59,9 +59,10 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
     initialXml,
     onChange,
     readOnly = false,
-    hidePalette = true,
+    hidePalette = false,
 }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
+    const wrapperRef = useRef<HTMLDivElement>(null);
     const modelerRef = useRef<unknown>(null);
     const [isReady, setIsReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -69,43 +70,61 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
 
     // Function to create an element at a specific position
     const createElementAtPosition = useCallback((element: DraggedElement, clientX: number, clientY: number) => {
-        if (!modelerRef.current || !containerRef.current) return;
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const modeler = modelerRef.current as any;
-        const canvas = modeler.get('canvas');
-        const elementFactory = modeler.get('elementFactory');
-        const modeling = modeler.get('modeling');
-        const elementRegistry = modeler.get('elementRegistry');
-
-        // Convert screen coordinates to canvas coordinates.
-        // viewbox.x/viewbox.y are already in canvas coords, so we add them after
-        // normalizing the mouse position by the current zoom scale.
-        const containerRect = containerRef.current.getBoundingClientRect();
-        const viewbox = canvas.viewbox();
-
-        const x = viewbox.x + ((clientX - containerRect.left) / viewbox.scale);
-        const y = viewbox.y + ((clientY - containerRect.top) / viewbox.scale);
-
-        // Get the process element to append new elements to
-        const rootElement = canvas.getRootElement();
-        const processElement =
-            rootElement?.type === 'bpmn:Process'
-                ? rootElement
-                : elementRegistry.getAll().find((el: { type?: string }) => el.type === 'bpmn:Process');
-
-        if (!processElement) {
-            console.error('Process element not found');
+        if (!modelerRef.current || !containerRef.current) {
+            console.error('[BpmnEditor] Modeler or container not ready');
             return;
         }
 
-        let newShape;
+        if (!isReady) {
+            console.error('[BpmnEditor] Modeler not initialized yet');
+            return;
+        }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const modeler = modelerRef.current as any;
+        
         try {
+            const canvas = modeler.get('canvas');
+            const elementFactory = modeler.get('elementFactory');
+            const modeling = modeler.get('modeling');
+            const elementRegistry = modeler.get('elementRegistry');
+
+            if (!canvas || !elementFactory || !modeling || !elementRegistry) {
+                console.error('[BpmnEditor] Required services not available', { canvas: !!canvas, elementFactory: !!elementFactory, modeling: !!modeling, elementRegistry: !!elementRegistry });
+                return;
+            }
+
+            // Convert screen coordinates to canvas coordinates.
+            // viewbox.x/viewbox.y are already in canvas coords, so we add them after
+            // normalizing the mouse position by the current zoom scale.
+            const containerRect = containerRef.current.getBoundingClientRect();
+            const viewbox = canvas.viewbox();
+
+            const x = viewbox.x + ((clientX - containerRect.left) / viewbox.scale);
+            const y = viewbox.y + ((clientY - containerRect.top) / viewbox.scale);
+
+            console.log('[BpmnEditor] Creating element', { element, x, y, viewbox, scale: viewbox.scale });
+
+            // Get the process element to append new elements to
+            const rootElement = canvas.getRootElement();
+            const processElement =
+                rootElement?.type === 'bpmn:Process'
+                    ? rootElement
+                    : elementRegistry.getAll().find((el: { type?: string }) => el.type === 'bpmn:Process');
+
+            if (!processElement) {
+                console.error('[BpmnEditor] Process element not found. Root element:', rootElement);
+                return;
+            }
+
+            console.log('[BpmnEditor] Process element found:', processElement.id);
+
+            let newShape;
+
             // Handle different element types
             if (element.type === 'bpmn:SequenceFlow' || element.type === 'bpmn:MessageFlow') {
                 // Connections require source and target - can't be dragged directly
-                console.warn('Connections must be created between elements');
+                console.warn('[BpmnEditor] Connections must be created between elements');
                 return;
             }
 
@@ -114,25 +133,70 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                 newShape = elementFactory.createParticipantShape({ type: 'bpmn:Participant' });
             } else if (element.type === 'bpmn:Lane') {
                 // Lanes need to be added to an existing pool
-                console.warn('Lanes must be added to an existing pool');
+                console.warn('[BpmnEditor] Lanes must be added to an existing pool');
                 return;
+            } else if (element.type === 'bpmn:IntermediateCatchEvent' && element.description) {
+                // Intermediate catch events with specific types (Timer, Message, etc.)
+                // Create the base event first
+                newShape = elementFactory.createShape({ type: element.type });
+                // The specific event type (timer, message) will be set via modeling after creation
             } else {
                 // Create regular shape (task, event, gateway, etc.)
                 newShape = elementFactory.createShape({ type: element.type });
             }
 
-            if (newShape) {
-                // Create the shape on the canvas
-                const parent = element.type === 'bpmn:Participant'
-                    ? rootElement
-                    : processElement;
+            if (!newShape) {
+                console.error('[BpmnEditor] Failed to create shape for type:', element.type);
+                return;
+            }
 
-                modeling.createShape(newShape, { x, y }, parent);
+            console.log('[BpmnEditor] Shape created:', newShape.id, newShape.type);
+
+            // Create the shape on the canvas
+            const parent = element.type === 'bpmn:Participant'
+                ? rootElement
+                : processElement;
+
+            const createdShape = modeling.createShape(newShape, { x, y }, parent);
+            
+            if (createdShape) {
+                console.log('[BpmnEditor] Element successfully created on canvas:', createdShape.id);
+                
+                // For intermediate catch events with specific types, update the event definition
+                if (element.type === 'bpmn:IntermediateCatchEvent' && element.description) {
+                    try {
+                        const bpmnFactory = modeler.get('bpmnFactory');
+                        const eventDefinitions = [];
+                        
+                        if (element.description.toLowerCase() === 'timer') {
+                            eventDefinitions.push(bpmnFactory.create('bpmn:TimerEventDefinition'));
+                        } else if (element.description.toLowerCase() === 'message') {
+                            eventDefinitions.push(bpmnFactory.create('bpmn:MessageEventDefinition'));
+                        }
+                        
+                        if (eventDefinitions.length > 0) {
+                            modeling.updateProperties(createdShape, {
+                                eventDefinitions: eventDefinitions
+                            });
+                            console.log('[BpmnEditor] Event definition added:', element.description);
+                        }
+                    } catch (err) {
+                        console.warn('[BpmnEditor] Failed to add event definition:', err);
+                    }
+                }
+                
+                // Ensure the element is visible by centering the viewport if needed
+                canvas.zoom('fit-viewport', 'auto');
+            } else {
+                console.error('[BpmnEditor] Failed to create shape on canvas');
             }
         } catch (err) {
-            console.error('Failed to create element:', err);
+            console.error('[BpmnEditor] Failed to create element:', err);
+            if (err instanceof Error) {
+                console.error('[BpmnEditor] Error details:', err.message, err.stack);
+            }
         }
-    }, []);
+    }, [isReady]);
 
     useImperativeHandle(ref, () => ({
         getXml: async () => {
@@ -143,39 +207,6 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
         },
         createElementAtPosition,
     }));
-
-    // Handle drag over
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
-        if (!isDraggingOver) {
-            setIsDraggingOver(true);
-        }
-    }, [isDraggingOver]);
-
-    // Handle drag leave
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        // Only set dragging to false if we're leaving the container entirely
-        if (!containerRef.current?.contains(e.relatedTarget as Node)) {
-            setIsDraggingOver(false);
-        }
-    }, []);
-
-    // Handle drop
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDraggingOver(false);
-
-        const elementData = e.dataTransfer.getData('application/bpmn-element');
-        if (!elementData) return;
-
-        try {
-            const element: DraggedElement = JSON.parse(elementData);
-            createElementAtPosition(element, e.clientX, e.clientY);
-        } catch (err) {
-            console.error('Failed to parse element data:', err);
-        }
-    }, [createElementAtPosition]);
 
     useEffect(() => {
         let modeler: unknown;
@@ -223,6 +254,12 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                 }
 
                 modelerRef.current = modeler;
+                
+                // Import minimal XML to ensure modeler is ready
+                const xmlToImport = initialXml || MINIMAL_BPMN_XML;
+                await modeler.importXML(xmlToImport);
+                
+                console.log('[BpmnEditor] Modeler initialized and XML imported');
                 setIsReady(true);
 
             } catch (err: unknown) {
@@ -249,19 +286,39 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
     }, [hidePalette]);
 
     useEffect(() => {
-        if (modelerRef.current && isReady) {
+        if (modelerRef.current && isReady && initialXml) {
+            // Only re-import if initialXml changes and is different from what's already loaded
             const modeler = modelerRef.current as { importXML: (xml: string) => Promise<unknown> };
-
-            // If initialXml is provided, use it; otherwise ensure minimal XML is loaded
-            const xmlToImport = initialXml || MINIMAL_BPMN_XML;
-
-            modeler.importXML(xmlToImport).catch((err: unknown) => {
-                console.error("Failed to import XML:", err);
+            
+            modeler.importXML(initialXml).catch((err: unknown) => {
+                console.error("[BpmnEditor] Failed to import XML:", err);
                 setError("Failed to render BPMN diagram");
             });
         }
     }, [initialXml, isReady]);
 
+
+    // Global drag detection to show overlay
+    useEffect(() => {
+        const handleGlobalDragEnter = (e: DragEvent) => {
+            // Check if it's a BPMN element being dragged
+            if (e.dataTransfer?.types.includes('application/bpmn-element')) {
+                setIsDraggingOver(true);
+            }
+        };
+
+        const handleGlobalDragEnd = () => {
+            setIsDraggingOver(false);
+        };
+
+        document.addEventListener('dragenter', handleGlobalDragEnter);
+        document.addEventListener('dragend', handleGlobalDragEnd);
+
+        return () => {
+            document.removeEventListener('dragenter', handleGlobalDragEnter);
+            document.removeEventListener('dragend', handleGlobalDragEnd);
+        };
+    }, []);
 
     if (error) {
         return (
@@ -273,10 +330,8 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
 
     return (
         <div
+            ref={wrapperRef}
             className={`relative w-full h-full ${hidePalette ? 'bpmn-editor-hide-palette' : ''}`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
             data-hide-palette={hidePalette}
         >
             {/* Editor Container */}
@@ -286,11 +341,55 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                 style={{ minHeight: '500px' }}
             />
 
-            {/* Drop Zone Indicator */}
+            {/* Transparent Drop Zone Overlay - appears when dragging BPMN elements */}
             {isDraggingOver && (
-                <div className="absolute inset-0 pointer-events-none z-20 border-2 border-dashed border-primary bg-primary/5 flex items-center justify-center">
-                    <div className="bg-card/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg border border-border">
-                        <p className="text-sm font-medium text-primary">Drop element here</p>
+                <div
+                    className="absolute inset-0 z-30 pointer-events-auto"
+                    onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.dataTransfer.dropEffect = 'copy';
+                    }}
+                    onDragLeave={(e) => {
+                        // Only hide if actually leaving the wrapper
+                        const rect = wrapperRef.current?.getBoundingClientRect();
+                        if (rect) {
+                            const { clientX, clientY } = e;
+                            if (
+                                clientX < rect.left ||
+                                clientX > rect.right ||
+                                clientY < rect.top ||
+                                clientY > rect.bottom
+                            ) {
+                                setIsDraggingOver(false);
+                            }
+                        }
+                    }}
+                    onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDraggingOver(false);
+
+                        const elementData = e.dataTransfer.getData('application/bpmn-element');
+                        if (!elementData) {
+                            console.warn('[BpmnEditor] No element data in drop event');
+                            return;
+                        }
+
+                        try {
+                            const element: DraggedElement = JSON.parse(elementData);
+                            console.log('[BpmnEditor] Drop event received:', element, { x: e.clientX, y: e.clientY });
+                            createElementAtPosition(element, e.clientX, e.clientY);
+                        } catch (err) {
+                            console.error('[BpmnEditor] Failed to parse element data:', err);
+                        }
+                    }}
+                >
+                    {/* Visual indicator */}
+                    <div className="absolute inset-0 pointer-events-none border-2 border-dashed border-primary bg-primary/5 flex items-center justify-center">
+                        <div className="bg-card/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg border border-border">
+                            <p className="text-sm font-medium text-primary">Drop element here</p>
+                        </div>
                     </div>
                 </div>
             )}
@@ -309,3 +408,4 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
 });
 
 export default BpmnEditor;
+
