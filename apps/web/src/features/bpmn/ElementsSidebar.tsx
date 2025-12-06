@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import type { DraggedElement } from './editor/BpmnEditor';
 import { 
   Circle, 
   Square, 
@@ -31,15 +32,12 @@ interface ElementCategory {
   id: string;
   name: string;
   icon: React.ReactNode;
-  elements: ElementItem[];
+  elements: SidebarElement[];
 }
 
-interface ElementItem {
-  id: string;
-  name: string;
+// Extended element with icon for display
+interface SidebarElement extends DraggedElement {
   icon: React.ReactNode;
-  type: string;
-  description?: string;
 }
 
 const ELEMENT_CATEGORIES: ElementCategory[] = [
@@ -98,7 +96,7 @@ const ELEMENT_CATEGORIES: ElementCategory[] = [
 ];
 
 interface ElementsSidebarProps {
-  onElementDragStart?: (element: ElementItem) => void;
+  onElementDragStart?: (element: DraggedElement) => void;
   className?: string;
 }
 
@@ -106,12 +104,17 @@ export function ElementsSidebar({ onElementDragStart, className }: ElementsSideb
   const [expandedCategories, setExpandedCategories] = useState<string[]>(['events', 'activities', 'gateways']);
   const [searchQuery, setSearchQuery] = useState('');
 
+  console.log('[ElementsSidebar] expandedCategories:', expandedCategories);
+
   const toggleCategory = (categoryId: string) => {
-    setExpandedCategories(prev =>
-      prev.includes(categoryId)
+    console.log('[ElementsSidebar] toggleCategory called with:', categoryId);
+    setExpandedCategories(prev => {
+      const next = prev.includes(categoryId)
         ? prev.filter(id => id !== categoryId)
-        : [...prev, categoryId]
-    );
+        : [...prev, categoryId];
+      console.log('[ElementsSidebar] new expandedCategories:', next);
+      return next;
+    });
   };
 
   const filteredCategories = searchQuery
@@ -123,10 +126,17 @@ export function ElementsSidebar({ onElementDragStart, className }: ElementsSideb
       })).filter(category => category.elements.length > 0)
     : ELEMENT_CATEGORIES;
 
-  const handleDragStart = (e: React.DragEvent, element: ElementItem) => {
-    e.dataTransfer.setData('application/bpmn-element', JSON.stringify(element));
+  const handleDragStart = (e: React.DragEvent, element: SidebarElement) => {
+    // Only pass the essential data (without the React icon)
+    const dragData: DraggedElement = {
+      id: element.id,
+      name: element.name,
+      type: element.type,
+      description: element.description,
+    };
+    e.dataTransfer.setData('application/bpmn-element', JSON.stringify(dragData));
     e.dataTransfer.effectAllowed = 'copy';
-    onElementDragStart?.(element);
+    onElementDragStart?.(dragData);
   };
 
   return (

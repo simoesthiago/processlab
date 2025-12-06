@@ -366,6 +366,16 @@ html {
   display: none !important;
 }
 
+/* Hide palette via data attribute */
+[data-hide-palette="true"] .djs-palette {
+  display: none !important;
+}
+
+/* Alternative: Hide palette globally and show only when needed */
+.bpmn-editor-hide-palette .djs-palette {
+  display: none !important;
+}
+
 /* Studio-specific canvas styling */
 .studio-canvas {
   background: 

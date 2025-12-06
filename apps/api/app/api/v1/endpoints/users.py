@@ -6,6 +6,7 @@ Handles user-specific resources like personal projects and shared items.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
@@ -102,9 +103,24 @@ async def get_my_personal_projects(
     total_count = projects_query.count()
     projects = projects_query.order_by(Project.updated_at.desc()).offset(skip).limit(limit).all()
     
+    project_ids = [project.id for project in projects]
+
+    process_counts = {}
+    if project_ids:
+        counts = (
+            db.query(ProcessModel.project_id, func.count(ProcessModel.id))
+            .filter(
+                ProcessModel.project_id.in_(project_ids),
+                ProcessModel.deleted_at.is_(None),
+            )
+            .group_by(ProcessModel.project_id)
+            .all()
+        )
+        process_counts = {project_id: count for project_id, count in counts}
+
     project_list = []
     for project in projects:
-        process_count = len(project.processes) if project.processes else 0
+        process_count = process_counts.get(project.id, 0)
         share_count = len([s for s in project.shares if not s.revoked_at]) if project.shares else 0
         
         project_list.append(PersonalProjectResponse(
@@ -326,7 +342,14 @@ async def get_default_project(
             detail="No default project found. Create one using POST /users/me/default-project"
         )
     
-    process_count = len(default_project.processes) if default_project.processes else 0
+    process_count = (
+        db.query(func.count(ProcessModel.id))
+        .filter(
+            ProcessModel.project_id == default_project.id,
+            ProcessModel.deleted_at.is_(None),
+        )
+        .scalar()
+    )
     share_count = len([s for s in default_project.shares if not s.revoked_at]) if default_project.shares else 0
     
     return PersonalProjectResponse(
