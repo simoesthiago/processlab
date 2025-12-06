@@ -25,10 +25,10 @@ import Copilot from '@/features/copiloto/Copilot';
 import Citations from '@/features/citations/Citations';
 import { Toast, ToastType } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
-import { 
-  Sparkles, 
-  FileText, 
-  Clock, 
+import {
+  Sparkles,
+  FileText,
+  Clock,
   ChevronDown,
   Wand2,
 } from 'lucide-react';
@@ -115,12 +115,12 @@ export default function StudioContent({
       const res = await fetch(`${API_URL}/api/v1/processes/${processId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         setProcess(data);
         await loadVersions(processId);
-        
+
         if (data.current_version_id) {
           const xml = await loadVersionXml(processId, data.current_version_id);
           setBpmnXml(xml);
@@ -272,7 +272,7 @@ export default function StudioContent({
 
   const handleActivateVersion = async (versionId: string) => {
     if (!process) return;
-    
+
     try {
       const response = await fetch(
         `${API_URL}/api/v1/processes/${process.id}/versions/${versionId}/activate`,
@@ -298,7 +298,7 @@ export default function StudioContent({
 
   const handleSelectVersion = async (versionId: string) => {
     setSelectedVersionId(versionId);
-    
+
     if (process) {
       setIsLoadingVersion(true);
       try {
@@ -439,9 +439,6 @@ export default function StudioContent({
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: Elements Sidebar */}
-        <ElementsSidebar className="hidden lg:flex" />
-
         {/* Center: Canvas Area */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Generation Bar (when no process) */}

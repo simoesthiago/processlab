@@ -3,41 +3,41 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  
+
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
-  
+
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
-  
+
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  
+
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  
+
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  
+
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-  
+
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  
+
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
-  
+
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
-  
+
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
-  
+
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
@@ -45,7 +45,8 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #09090b; /* zinc-950 */
+  --foreground: #09090b;
+  /* zinc-950 */
 
   --card: #ffffff;
   --card-foreground: #09090b;
@@ -54,7 +55,8 @@
   --popover-foreground: #09090b;
 
   /* Primary - Clean Grey (Zinc/Slate) */
-  --primary: #18181b; /* zinc-900 */
+  --primary: #18181b;
+  /* zinc-900 */
   --primary-foreground: #ffffff;
   --primary-50: #fafafa;
   --primary-100: #f4f4f5;
@@ -68,17 +70,24 @@
   --primary-900: #18181b;
   --primary-950: #09090b;
 
-  --secondary: #f4f4f5; /* zinc-100 */
-  --secondary-foreground: #18181b; /* zinc-900 */
+  --secondary: #f4f4f5;
+  /* zinc-100 */
+  --secondary-foreground: #18181b;
+  /* zinc-900 */
 
-  --muted: #f4f4f5; /* zinc-100 */
-  --muted-foreground: #71717a; /* zinc-500 */
+  --muted: #f4f4f5;
+  /* zinc-100 */
+  --muted-foreground: #71717a;
+  /* zinc-500 */
 
-  --accent: #f4f4f5; /* zinc-100 */
-  --accent-foreground: #18181b; /* zinc-900 */
+  --accent: #f4f4f5;
+  /* zinc-100 */
+  --accent-foreground: #18181b;
+  /* zinc-900 */
 
   /* Success - Muted Green */
-  --success: #10b981; /* emerald-500 */
+  --success: #10b981;
+  /* emerald-500 */
   --success-foreground: #ffffff;
   --success-50: #ecfdf5;
   --success-100: #d1fae5;
@@ -89,7 +98,8 @@
   --color-success-foreground: var(--success-foreground);
 
   /* Warning - Muted Amber */
-  --warning: #f59e0b; /* amber-500 */
+  --warning: #f59e0b;
+  /* amber-500 */
   --warning-foreground: #ffffff;
   --warning-50: #fffbeb;
   --warning-100: #fef3c7;
@@ -100,7 +110,8 @@
   --color-warning-foreground: var(--warning-foreground);
 
   /* Destructive - Muted Red */
-  --destructive: #ef4444; /* red-500 */
+  --destructive: #ef4444;
+  /* red-500 */
   --destructive-foreground: #ffffff;
   --destructive-50: #fef2f2;
   --destructive-100: #fee2e2;
@@ -109,7 +120,8 @@
   --destructive-700: #b91c1c;
 
   /* Info - Muted Cyan */
-  --info: #06b6d4; /* cyan-500 */
+  --info: #06b6d4;
+  /* cyan-500 */
   --info-foreground: #ffffff;
   --info-50: #ecfeff;
   --info-100: #cffafe;
@@ -119,9 +131,11 @@
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
 
-  --border: #e4e4e7; /* zinc-200 */
+  --border: #e4e4e7;
+  /* zinc-200 */
   --input: #e4e4e7;
-  --ring: #18181b; /* zinc-900 - matching primary */
+  --ring: #18181b;
+  /* zinc-900 - matching primary */
 
   --radius: 0.5rem;
 
@@ -130,14 +144,22 @@
   --font-mono: var(--font-mono), 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
   /* Spacing Scale */
-  --spacing-xs: 0.25rem;   /* 4px */
-  --spacing-sm: 0.5rem;    /* 8px */
-  --spacing-md: 1rem;      /* 16px */
-  --spacing-lg: 1.5rem;    /* 24px */
-  --spacing-xl: 2rem;      /* 32px */
-  --spacing-2xl: 3rem;     /* 48px */
-  --spacing-3xl: 4rem;     /* 64px */
-  --spacing-4xl: 6rem;     /* 96px */
+  --spacing-xs: 0.25rem;
+  /* 4px */
+  --spacing-sm: 0.5rem;
+  /* 8px */
+  --spacing-md: 1rem;
+  /* 16px */
+  --spacing-lg: 1.5rem;
+  /* 24px */
+  --spacing-xl: 2rem;
+  /* 32px */
+  --spacing-2xl: 3rem;
+  /* 48px */
+  --spacing-3xl: 4rem;
+  /* 64px */
+  --spacing-4xl: 6rem;
+  /* 96px */
 
   /* Shadow Scale */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -148,8 +170,10 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #09090b; /* zinc-950 */
-    --foreground: #fafafa; /* zinc-50 */
+    --background: #09090b;
+    /* zinc-950 */
+    --foreground: #fafafa;
+    /* zinc-50 */
 
     --card: #09090b;
     --card-foreground: #fafafa;
@@ -157,52 +181,75 @@
     --popover: #09090b;
     --popover-foreground: #fafafa;
 
-    --primary: #fafafa; /* zinc-50 - inverted for dark mode */
-    --primary-foreground: #18181b; /* zinc-900 */
+    --primary: #fafafa;
+    /* zinc-50 - inverted for dark mode */
+    --primary-foreground: #18181b;
+    /* zinc-900 */
 
-    --secondary: #27272a; /* zinc-800 */
+    --secondary: #27272a;
+    /* zinc-800 */
     --secondary-foreground: #fafafa;
 
-    --muted: #27272a; /* zinc-800 */
-    --muted-foreground: #a1a1aa; /* zinc-400 */
+    --muted: #27272a;
+    /* zinc-800 */
+    --muted-foreground: #a1a1aa;
+    /* zinc-400 */
 
-    --accent: #27272a; /* zinc-800 */
+    --accent: #27272a;
+    /* zinc-800 */
     --accent-foreground: #fafafa;
 
-    --destructive: #7f1d1d; /* red-900 */
-    --destructive-foreground: #fef2f2; /* red-50 */
+    --destructive: #7f1d1d;
+    /* red-900 */
+    --destructive-foreground: #fef2f2;
+    /* red-50 */
 
-    --success: #059669; /* emerald-600 */
-    --warning: #d97706; /* amber-600 */
-    --info: #0891b2; /* cyan-600 */
+    --success: #059669;
+    /* emerald-600 */
+    --warning: #d97706;
+    /* amber-600 */
+    --info: #0891b2;
+    /* cyan-600 */
 
-    --border: #27272a; /* zinc-800 */
+    --border: #27272a;
+    /* zinc-800 */
     --input: #27272a;
-    --ring: #fafafa; /* zinc-50 */
+    --ring: #fafafa;
+    /* zinc-50 */
   }
 
   body {
-    color: #a1a1aa; /* zinc-400 - softer body text for dark mode */
+    color: #a1a1aa;
+    /* zinc-400 - softer body text for dark mode */
   }
 }
 
 body {
   background-color: var(--background);
-  color: #475569; /* slate-600 - suave para body text */
+  color: #475569;
+  /* slate-600 - suave para body text */
   font-family: var(--font-sans);
   font-weight: 400;
-  line-height: 1.6; /* Generoso para facilitar leitura técnica */
+  line-height: 1.6;
+  /* Generoso para facilitar leitura técnica */
   font-feature-settings: "rlig" 1, "calt" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* Headings - Clean Technical SaaS */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-sans);
-  font-weight: 600; /* Semi-Bold para destaque sem excesso */
+  font-weight: 600;
+  /* Semi-Bold para destaque sem excesso */
   color: var(--foreground);
-  letter-spacing: -0.02em; /* Tracking tight para visual moderno e compacto */
+  letter-spacing: -0.02em;
+  /* Tracking tight para visual moderno e compacto */
   line-height: 1.2;
 }
 
@@ -216,13 +263,21 @@ h2 {
   letter-spacing: -0.02em;
 }
 
-h3, h4, h5, h6 {
-  font-weight: 500; /* Medium para sub-títulos */
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 500;
+  /* Medium para sub-títulos */
   letter-spacing: -0.01em;
 }
 
 /* Code, Snippets, Logs - Dados Técnicos */
-code, pre, kbd, samp, .font-mono {
+code,
+pre,
+kbd,
+samp,
+.font-mono {
   font-family: var(--font-mono);
   font-weight: 400;
 }
@@ -236,16 +291,55 @@ code {
 }
 
 /* Typography Scale */
-.text-xs { font-size: 0.75rem; line-height: 1rem; }
-.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
-.text-base { font-size: 1rem; line-height: 1.5rem; }
-.text-lg { font-size: 1.125rem; line-height: 1.75rem; }
-.text-xl { font-size: 1.25rem; line-height: 1.75rem; }
-.text-2xl { font-size: 1.5rem; line-height: 2rem; }
-.text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
-.text-4xl { font-size: 2.25rem; line-height: 2.5rem; }
-.text-5xl { font-size: 3rem; line-height: 1; }
-.text-6xl { font-size: 3.75rem; line-height: 1; }
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.text-base {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.text-lg {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+.text-xl {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+.text-2xl {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+.text-3xl {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+}
+
+.text-4xl {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+}
+
+.text-5xl {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.text-6xl {
+  font-size: 3.75rem;
+  line-height: 1;
+}
 
 /* Smooth transitions and animations */
 * {
@@ -270,6 +364,7 @@ html {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -280,6 +375,7 @@ html {
     transform: translateY(-10px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -291,6 +387,7 @@ html {
     transform: translateY(10px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -310,55 +407,92 @@ html {
 }
 
 /* Force BPMN palette to single column layout */
+/* Force BPMN palette to single column layout */
 .djs-palette {
+  width: 56px !important;
+  /* Slightly wider for better touch target */
   display: flex !important;
   flex-direction: column !important;
+  align-items: center !important;
+  /* Center elements horizontally */
+  left: 0 !important;
+  top: 0 !important;
+  height: 100% !important;
+  /* Full height */
+  max-height: 100% !important;
+  overflow-y: auto !important;
+  background: var(--card) !important;
+  border: none !important;
+  border-right: 1px solid var(--border) !important;
+  /* Separator line */
+  border-radius: 0 !important;
+  /* Remove rounded corners */
+  padding-top: 12px !important;
+  box-shadow: none !important;
+  /* Remove shadow */
 }
 
 .djs-palette .djs-palette-entries {
   display: flex !important;
   flex-direction: column !important;
-  flex-wrap: nowrap !important;
+  align-items: center !important;
   width: 100% !important;
 }
 
-.djs-palette .djs-palette-entry {
-  width: 100% !important;
-  max-width: 100% !important;
-  float: none !important;
-  clear: both !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  display: block !important;
-}
-
-/* Remove two-column layout from groups */
-.djs-palette .djs-palette-group {
+.djs-palette .group {
   display: flex !important;
   flex-direction: column !important;
+  align-items: center !important;
   width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
 }
 
-.djs-palette .djs-palette-group .djs-palette-entry {
-  width: 100% !important;
-  max-width: 100% !important;
+.djs-palette .entry {
+  width: 40px !important;
+  /* Fixed square size */
+  height: 40px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
   float: none !important;
-  clear: both !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  display: block !important;
+  margin: 2px 0 !important;
+  border-radius: var(--radius) !important;
+  cursor: grab !important;
+}
+
+.djs-palette .entry:hover {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+.djs-palette .separator {
+  width: 32px !important;
+  /* Shorter separator */
+  margin: 8px 0 !important;
+  border-top: 1px solid var(--border) !important;
 }
 
 /* Override two-column specific styles */
-.djs-palette.two-column,
-.djs-palette.two-column .djs-palette-entries,
-.djs-palette.two-column .djs-palette-entry,
-.djs-palette.two-column .djs-palette-group {
+/* Override two-column specific styles */
+.djs-palette.two-column {
+  width: 56px !important;
   display: flex !important;
   flex-direction: column !important;
+  align-items: center !important;
+}
+
+.djs-palette.two-column .djs-palette-entries,
+.djs-palette.two-column .entry,
+.djs-palette.two-column .group {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
   width: 100% !important;
   float: none !important;
   clear: both !important;
+  max-width: 100% !important;
 }
 
 /* Hide default bpmn-js palette when using custom Elements Sidebar */
@@ -378,7 +512,7 @@ html {
 
 /* Studio-specific canvas styling */
 .studio-canvas {
-  background: 
+  background:
     linear-gradient(90deg, var(--border) 1px, transparent 1px),
     linear-gradient(180deg, var(--border) 1px, transparent 1px);
   background-size: 20px 20px;
