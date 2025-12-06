@@ -66,12 +66,12 @@ export default function ForbiddenPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Go Back
           </Button>
-          <Button asChild>
-            <Link href="/dashboard">
+          <Link href="/dashboard">
+            <Button>
               <Home className="h-4 w-4 mr-2" />
               Dashboard
-            </Link>
-          </Button>
+            </Button>
+          </Link>
         </div>
 
         {/* Contact support */}
@@ -79,12 +79,12 @@ export default function ForbiddenPage() {
           <p className="text-sm text-muted-foreground mb-3">
             Need access? Contact your organization administrator.
           </p>
-          <Button variant="outline" size="sm" asChild>
-            <a href="mailto:support@processlab.app">
+          <a href="mailto:support@processlab.app">
+            <Button variant="outline" size="sm">
               <Mail className="h-4 w-4 mr-2" />
               Contact Support
-            </a>
-          </Button>
+            </Button>
+          </a>
         </div>
 
         {/* Footer */}

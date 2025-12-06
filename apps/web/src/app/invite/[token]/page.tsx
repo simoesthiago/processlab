@@ -198,9 +198,9 @@ export default function InviteAcceptPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardFooter className="flex flex-col space-y-4">
-                            <Button asChild className="w-full">
-                                <Link href="/login">Go to Login</Link>
-                            </Button>
+                            <Link href="/login" className="w-full">
+                                <Button className="w-full">Go to Login</Button>
+                            </Link>
                             <p className="text-xs text-muted-foreground text-center">
                                 If you believe this is an error, please contact your organization admin.
                             </p>

@@ -58,12 +58,12 @@ export default function NotFound() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Go Back
           </Button>
-          <Button asChild>
-            <Link href="/dashboard">
+          <Link href="/dashboard">
+            <Button>
               <Home className="h-4 w-4 mr-2" />
               Dashboard
-            </Link>
-          </Button>
+            </Button>
+          </Link>
         </div>
 
         {/* Footer */}

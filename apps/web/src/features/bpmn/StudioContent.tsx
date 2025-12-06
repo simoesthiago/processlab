@@ -3,13 +3,19 @@
 /**
  * Studio Content Component
  * 
- * Shared BPMN Editor content component used across workspace types.
- * Handles process loading, editing, and version management.
+ * Redesigned BPMN Editor workspace with:
+ * - Professional navbar integrated with app design
+ * - Separate elements sidebar (not overlapping canvas)
+ * - Collapsible and resizable Copilot panel (like Cursor)
+ * - Consistent color palette with ProcessLab design system
  */
 
 import { useRef, useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { WorkspaceType } from '@/contexts/WorkspaceContext';
+import { StudioNavbar } from '@/components/layout/StudioNavbar';
+import { ResizablePanel } from '@/components/ui/resizable-panel';
+import { ElementsSidebar } from '@/features/bpmn/ElementsSidebar';
 import VersionTimeline from '@/features/versioning/VersionTimeline';
 import SaveVersionModal from '@/features/versioning/SaveVersionModal';
 import RestoreVersionModal from '@/features/versioning/RestoreVersionModal';
@@ -18,7 +24,14 @@ import BpmnEditor, { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
 import Copilot from '@/features/copiloto/Copilot';
 import Citations from '@/features/citations/Citations';
 import { Toast, ToastType } from '@/components/ui/toast';
-import { WorkspaceType } from '@/contexts/WorkspaceContext';
+import { cn } from '@/lib/utils';
+import { 
+  Sparkles, 
+  FileText, 
+  Clock, 
+  ChevronDown,
+  Wand2,
+} from 'lucide-react';
 
 interface Process {
   id: string;
@@ -47,6 +60,8 @@ interface StudioContentProps {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+type RightPanelTab = 'copilot' | 'citations' | 'history';
+
 export default function StudioContent({
   processId: initialProcessId,
   projectId,
@@ -56,7 +71,8 @@ export default function StudioContent({
 }: StudioContentProps) {
   const editorRef = useRef<BpmnEditorRef>(null);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'copilot' | 'citations' | 'history'>('copilot');
+  const [activeTab, setActiveTab] = useState<RightPanelTab>('copilot');
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
 
   // State
   const [process, setProcess] = useState<Process | null>(null);
@@ -105,7 +121,6 @@ export default function StudioContent({
         setProcess(data);
         await loadVersions(processId);
         
-        // Load active version's XML
         if (data.current_version_id) {
           const xml = await loadVersionXml(processId, data.current_version_id);
           setBpmnXml(xml);
@@ -181,6 +196,27 @@ export default function StudioContent({
       setToast({ message: `Save failed: ${error.message || 'Unknown error'}`, type: 'error' });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const xml = await editorRef.current?.getXml();
+      if (xml) {
+        const blob = new Blob([xml], { type: 'application/xml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${process?.name || 'process'}.bpmn`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setToast({ message: 'Process exported successfully!', type: 'success' });
+      }
+    } catch (err) {
+      console.error('Export failed:', err);
+      setToast({ message: 'Export failed', type: 'error' });
     }
   };
 
@@ -361,177 +397,132 @@ export default function StudioContent({
     }
   };
 
+  // Tab buttons config
+  const tabs: { id: RightPanelTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'copilot', label: 'Copilot', icon: <Sparkles className="h-3.5 w-3.5" /> },
+    { id: 'citations', label: 'Citations', icon: <FileText className="h-3.5 w-3.5" /> },
+    { id: 'history', label: 'History', icon: <Clock className="h-3.5 w-3.5" /> },
+  ];
+
   return (
-    <div className="flex h-screen w-full bg-zinc-50 dark:bg-zinc-900">
-      {/* Left Panel - BPMN Editor */}
-      <div className="flex-1 flex flex-col border-r border-zinc-200 dark:border-zinc-800">
-        {/* Toolbar */}
-        <div className="h-14 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-4 gap-4">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-            <Link href={basePath} className="hover:text-zinc-900 dark:hover:text-zinc-100">
-              Dashboard
-            </Link>
-            {process && (
-              <>
-                <span>/</span>
-                <Link
-                  href={`${basePath}/projects/${process.project_id}`}
-                  className="hover:text-zinc-900 dark:hover:text-zinc-100"
-                >
-                  Project
-                </Link>
-                <span>/</span>
-                <span className="text-zinc-900 dark:text-zinc-100 font-medium">
-                  {process.name}
-                </span>
-              </>
-            )}
-            {!process && (
-              <>
-                <span>/</span>
-                <span className="text-zinc-900 dark:text-zinc-100 font-medium">
-                  New Process
-                </span>
-              </>
-            )}
-          </div>
+    <div className="flex flex-col h-screen w-full bg-background">
+      {/* Professional Navbar */}
+      <StudioNavbar
+        process={process}
+        versions={versions}
+        selectedVersionId={selectedVersionId}
+        basePath={basePath}
+        isSaving={isSaving}
+        isGenerating={isGenerating}
+        onSave={handleSave}
+        onExport={handleExport}
+        onActivateVersion={handleActivateVersion}
+      />
 
-          <div className="flex-1" />
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left: Elements Sidebar */}
+        <ElementsSidebar className="hidden lg:flex" />
 
-          {/* Version Selector */}
-          {versions.length > 0 && selectedVersionId && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">Viewing:</span>
-              <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                v{versions.find(v => v.id === selectedVersionId)?.version_number}
-              </span>
-              {versions.find(v => v.id === selectedVersionId)?.is_active && (
-                <span className="text-xs px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded font-medium">
-                  Active
-                </span>
-              )}
-              {selectedVersionId && !versions.find(v => v.id === selectedVersionId)?.is_active && (
-                <button
-                  onClick={() => handleActivateVersion(selectedVersionId)}
-                  className="px-2 py-1 text-xs bg-green-600 text-white hover:bg-green-700 rounded transition-colors"
-                >
-                  Activate
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Actions */}
+        {/* Center: Canvas Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Generation Bar (when no process) */}
           {!process && (
-            <div className="flex items-center gap-2">
+            <div className="h-12 bg-card border-b border-border flex items-center px-4 gap-3 shrink-0">
+              <Wand2 className="h-4 w-4 text-primary" />
+              <span className="text-sm text-muted-foreground">Generate from artifact:</span>
               <input
                 type="text"
                 value={artifactId}
                 onChange={(e) => setArtifactId(e.target.value)}
-                placeholder="Artifact ID"
-                className="px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter Artifact ID"
+                className="px-3 py-1.5 text-sm border border-input rounded-md bg-background w-64 focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <button
                 onClick={handleGenerate}
-                disabled={isGenerating}
-                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isGenerating || !artifactId}
+                className={cn(
+                  'px-4 py-1.5 text-sm rounded-md font-medium transition-colors',
+                  'bg-primary text-primary-foreground hover:bg-primary/90',
+                  'disabled:opacity-50 disabled:cursor-not-allowed'
+                )}
               >
-                {isGenerating ? "Generating..." : "Generate"}
+                {isGenerating ? 'Generating...' : 'Generate'}
               </button>
             </div>
           )}
 
-          {process && (
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {isSaving ? 'Saving...' : 'Save New Version'}
-            </button>
-          )}
-
-          <button className="px-3 py-1.5 text-sm bg-zinc-600 text-white rounded-md hover:bg-zinc-700 transition-colors">
-            Export
-          </button>
-        </div>
-
-        {/* Editor Area */}
-        <div className="flex-1 bg-zinc-100 dark:bg-zinc-900 overflow-hidden relative">
-          {isLoadingVersion && (
-            <div className="absolute inset-0 bg-white/80 dark:bg-zinc-900/80 z-10 flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2" />
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading version...</p>
+          {/* BPMN Editor Canvas */}
+          <div className="flex-1 bg-muted/30 overflow-hidden relative">
+            {isLoadingVersion && (
+              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">Loading version...</p>
+                </div>
               </div>
+            )}
+            <BpmnEditor
+              ref={editorRef}
+              initialXml={bpmnXml}
+            />
+          </div>
+        </div>
+
+        {/* Right: Collapsible & Resizable Panel */}
+        <ResizablePanel
+          defaultWidth={380}
+          minWidth={320}
+          maxWidth={560}
+          defaultCollapsed={rightPanelCollapsed}
+          position="right"
+          onCollapsedChange={setRightPanelCollapsed}
+          headerContent={
+            <div className="flex items-center gap-1">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+                    activeTab === tab.id
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  )}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
             </div>
-          )}
-          <BpmnEditor
-            ref={editorRef}
-            initialXml={bpmnXml}
-          />
-        </div>
+          }
+        >
+          <div className="h-full overflow-hidden">
+            {activeTab === 'copilot' && (
+              <Copilot
+                bpmnXml={bpmnXml || ''}
+                modelVersionId={selectedVersionId || undefined}
+                onEditApplied={(newBpmn, newVersionId) => {
+                  console.log("Edit applied", newVersionId);
+                  setToast({ message: 'Edit applied! Reloading...', type: 'info' });
+                }}
+              />
+            )}
+            {activeTab === 'citations' && <Citations />}
+            {activeTab === 'history' && (
+              <VersionTimeline
+                versions={versions}
+                selectedVersionId={selectedVersionId}
+                onSelectVersion={handleSelectVersion}
+                onCompareVersions={handleCompareVersions}
+                onRestoreVersion={handleOpenRestoreModal}
+              />
+            )}
+          </div>
+        </ResizablePanel>
       </div>
 
-      {/* Right Panel - Copilot & Citations & History */}
-      <div className="w-96 bg-white dark:bg-zinc-950 flex flex-col border-l border-zinc-200 dark:border-zinc-800">
-        {/* Tabs */}
-        <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-4 gap-2 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('copilot')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${activeTab === 'copilot'
-              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50'
-              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-              }`}
-          >
-            Copilot
-          </button>
-          <button
-            onClick={() => setActiveTab('citations')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${activeTab === 'citations'
-              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50'
-              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-              }`}
-          >
-            Citations
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${activeTab === 'history'
-              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50'
-              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-              }`}
-          >
-            History
-          </button>
-        </div>
-
-        {/* Panel Content */}
-        <div className="flex-1 overflow-hidden">
-          {activeTab === 'copilot' && (
-            <Copilot
-              bpmnXml={bpmnXml || ''}
-              modelVersionId={selectedVersionId || undefined}
-              onEditApplied={(newBpmn, newVersionId) => {
-                console.log("Edit applied", newVersionId);
-                setToast({ message: 'Edit applied! Reloading...', type: 'info' });
-              }}
-            />
-          )}
-          {activeTab === 'citations' && <Citations />}
-          {activeTab === 'history' && (
-            <VersionTimeline
-              versions={versions}
-              selectedVersionId={selectedVersionId}
-              onSelectVersion={handleSelectVersion}
-              onCompareVersions={handleCompareVersions}
-              onRestoreVersion={handleOpenRestoreModal}
-            />
-          )}
-        </div>
-      </div>
-
+      {/* Modals */}
       <SaveVersionModal
         isOpen={isSaveModalOpen}
         onClose={() => setIsSaveModalOpen(false)}
@@ -578,4 +569,3 @@ export default function StudioContent({
     </div>
   );
 }
-

@@ -10,12 +10,12 @@ Este documento define o design system do ProcessLab, incluindo identidade visual
 
 ### Logo
 
-O logo ProcessLab é composto por um ícone de fluxo de processo (círculos conectados com efeitos de brilho) e a marca textual "ProcessLab".
+O logo ProcessLab é composto por um círculo vermilion orange com um ícone BPMN em branco representando um fluxo de processo (diamante de decisão conectado a retângulos de tarefa) e a marca textual "ProcessLab".
 
 **Variantes disponíveis:**
-- **Horizontal**: Logo completo com ícone e texto lado a lado (`/logo-horizontal.svg`)
-- **Vertical**: Logo empilhado com ícone acima do texto (`/logo-vertical.svg`)
-- **Icon**: Apenas o ícone do fluxo de processo (`/logo-icon.svg`)
+- **Horizontal**: Logo completo com ícone e texto lado a lado
+- **Vertical**: Logo empilhado com ícone acima do texto
+- **Icon**: Apenas o ícone circular do fluxo de processo
 
 **Uso:**
 ```tsx
@@ -32,9 +32,8 @@ import { Logo } from '@/components/branding/Logo';
 ```
 
 **Cores do logo:**
-- Primária: `#2563eb` (blue-600)
-- Secundária: `#60a5fa` (blue-400)
-- Destaque: `#3b82f6` (blue-500)
+- Fundo do círculo: `#E54C2E` (Vermilion Orange)
+- Ícone interno: `#FFFFFF` (White)
 
 ---
 
@@ -42,20 +41,21 @@ import { Logo } from '@/components/branding/Logo';
 
 ### Cores Primárias
 
-A paleta principal do ProcessLab é baseada em azul, representando confiança, profissionalismo e tecnologia.
+A paleta principal do ProcessLab é baseada em Vermilion Orange, representando energia, inovação e dinamismo.
 
 | Nome | Hex | Uso |
 |------|-----|-----|
-| Primary 50 | `#eff6ff` | Backgrounds muito suaves |
-| Primary 100 | `#dbeafe` | Backgrounds suaves |
-| Primary 200 | `#bfdbfe` | Borders suaves |
-| Primary 300 | `#93c5fd` | Elementos secundários |
-| Primary 400 | `#60a5fa` | Hover states |
-| Primary 500 | `#3b82f6` | Ações secundárias |
-| **Primary 600** | `#2563eb` | **Cor principal** |
-| Primary 700 | `#1d4ed8` | Hover estados escuros |
-| Primary 800 | `#1e40af` | Estados pressionados |
-| Primary 900 | `#1e3a8a` | Texto em backgrounds claros |
+| Primary 50 | `#fef3f2` | Backgrounds muito suaves |
+| Primary 100 | `#fee4e1` | Backgrounds suaves |
+| Primary 200 | `#fdcdc8` | Borders suaves |
+| Primary 300 | `#fba9a1` | Elementos secundários |
+| Primary 400 | `#f67a6b` | Hover states |
+| Primary 500 | `#ec5140` | Ações secundárias |
+| **Primary 600** | `#E54C2E` | **Cor principal (Brand)** |
+| Primary 700 | `#c62f1a` | Hover estados escuros |
+| Primary 800 | `#a42a19` | Estados pressionados |
+| Primary 900 | `#88291c` | Texto em backgrounds claros |
+| Primary 950 | `#4a1109` | Tom mais escuro |
 
 ### Cores Semânticas
 

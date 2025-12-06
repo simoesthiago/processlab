@@ -78,12 +78,12 @@ export default function Error({
             <RotateCw className="h-4 w-4 mr-2" />
             Try Again
           </Button>
-          <Button asChild>
-            <Link href="/dashboard">
+          <Link href="/dashboard">
+            <Button>
               <Home className="h-4 w-4 mr-2" />
               Dashboard
-            </Link>
-          </Button>
+            </Button>
+          </Link>
         </div>
 
         {/* Help text */}

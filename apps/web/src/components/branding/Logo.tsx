@@ -1,7 +1,7 @@
 'use client';
 
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 interface LogoProps {
   variant?: 'horizontal' | 'vertical' | 'icon';
@@ -18,35 +18,49 @@ export function Logo({
   height,
   showText = true 
 }: LogoProps) {
-  const getLogoPath = () => {
-    switch (variant) {
-      case 'vertical':
-        return '/logo-vertical.svg';
-      case 'icon':
-        return '/logo-icon.svg';
-      case 'horizontal':
-      default:
-        return '/logo-horizontal.svg';
-    }
-  };
-
+  
+  // Default dimensions based on variant
   const defaultDimensions = {
-    horizontal: { width: width || 200, height: height || 40 },
-    vertical: { width: width || 120, height: height || 120 },
-    icon: { width: width || 40, height: height || 40 },
+    horizontal: { width: 180, height: 40 },
+    vertical: { width: 120, height: 120 },
+    icon: { width: 40, height: 40 },
   };
+  
+  // Use provided dimensions or defaults
+  const finalWidth = width || defaultDimensions[variant]?.width || 40;
+  const finalHeight = height || defaultDimensions[variant]?.height || 40;
 
-  const dimensions = defaultDimensions[variant];
+  const iconSize = variant === 'icon' ? finalHeight : finalHeight;
+  const textSize = finalHeight * 0.7;
 
   return (
-    <Image
-      src={getLogoPath()}
-      alt="ProcessLab Logo"
-      width={dimensions.width}
-      height={dimensions.height}
-      className={cn('object-contain', className)}
-      priority
-    />
+    <div 
+      className={cn(
+        'flex items-center gap-3 select-none',
+        variant === 'vertical' && 'flex-col text-center gap-4',
+        className
+      )}
+      style={{ width: variant === 'icon' ? iconSize : 'auto' }}
+    >
+      {/* ProcessLab Logo Image */}
+      <Image
+        src="/processlab_logo.png"
+        alt="ProcessLab Logo"
+        width={iconSize}
+        height={iconSize}
+        className="shrink-0"
+        priority
+      />
+
+      {/* Text Part */}
+      {variant !== 'icon' && showText && (
+        <span 
+          className="font-semibold tracking-tight text-foreground"
+          style={{ fontSize: textSize, lineHeight: 1 }}
+        >
+          ProcessLab
+        </span>
+      )}
+    </div>
   );
 }
-
