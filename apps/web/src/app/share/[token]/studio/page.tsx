@@ -6,7 +6,7 @@
  * BPMN Editor for viewing/editing a shared project.
  */
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import StudioContent from '@/features/bpmn/StudioContent';
@@ -25,19 +25,17 @@ interface SharedProjectInfo {
 }
 
 interface PageProps {
-  params: Promise<{ token: string }>;
+  params: { token: string };
 }
 
 export default function SharedStudioPage({ params }: PageProps) {
-  const resolvedParams = use(params);
+  const shareToken = params.token;
   const router = useRouter();
   const { token: authToken, loading: authLoading } = useAuth();
   
   const [shareInfo, setShareInfo] = useState<SharedProjectInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const shareToken = resolvedParams.token;
 
   useEffect(() => {
     if (!authLoading) {

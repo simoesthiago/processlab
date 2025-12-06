@@ -7,18 +7,18 @@
  * Fetches the process to find its project and redirects accordingly.
  */
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface PageProps {
-  params: Promise<{ processId: string }>;
+  params: { processId: string };
 }
 
 export default function PersonalStudioProcessRedirectPage({ params }: PageProps) {
-  const resolvedParams = use(params);
+  const { processId } = params;
   const router = useRouter();
   const { token, isAuthenticated, loading } = useAuth();
   const [error, setError] = useState<string | null>(null);
@@ -26,16 +26,16 @@ export default function PersonalStudioProcessRedirectPage({ params }: PageProps)
   useEffect(() => {
     if (loading) return;
     if (!isAuthenticated) {
-      router.replace(`/login?redirect=/personal/studio/${resolvedParams.processId}`);
+      router.replace(`/login?redirect=/personal/studio/${processId}`);
       return;
     }
 
     fetchProcessAndRedirect();
-  }, [isAuthenticated, loading, token, resolvedParams.processId]);
+  }, [isAuthenticated, loading, token, processId]);
 
   const fetchProcessAndRedirect = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/v1/processes/${resolvedParams.processId}`, {
+      const response = await fetch(`${API_URL}/api/v1/processes/${processId}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 

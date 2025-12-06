@@ -6,7 +6,7 @@
  * Shows project details and list of processes.
  */
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,11 +38,11 @@ interface Project {
 }
 
 interface PageProps {
-  params: Promise<{ orgSlug: string; projectId: string }>;
+  params: { orgSlug: string; projectId: string };
 }
 
 export default function ProjectDetailPage({ params }: PageProps) {
-  const resolvedParams = use(params);
+  const { projectId } = params;
   const { token } = useAuth();
   const { currentWorkspace, canEdit, canAdmin, getWorkspaceBasePath } = useWorkspace();
   const router = useRouter();
@@ -51,7 +51,6 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
 
   const basePath = getWorkspaceBasePath();
-  const projectId = resolvedParams.projectId;
 
   useEffect(() => {
     fetchProjectData();

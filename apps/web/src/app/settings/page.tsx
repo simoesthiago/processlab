@@ -28,16 +28,16 @@ function SettingsContent() {
     const [defaultVisibility, setDefaultVisibility] = useState<'private' | 'shared' | 'public'>('private');
 
     return (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-                <p className="text-muted-foreground">
+        <div className="px-8 py-10 space-y-6">
+            <div className="mb-8">
+                <h1 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">Settings</h1>
+                <p className="text-base text-gray-500 max-w-2xl">
                     Configure dados pessoais, notificações e preferências de trabalho.
                 </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
+                <Card className="h-full">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <UserCog className="h-5 w-5 text-primary" />
@@ -64,7 +64,7 @@ function SettingsContent() {
                     </CardFooter>
                 </Card>
 
-                <Card>
+                <Card className="h-full">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <ShieldCheck className="h-5 w-5 text-primary" />
@@ -100,7 +100,7 @@ function SettingsContent() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
+                <Card className="h-full">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Bell className="h-5 w-5 text-primary" />
@@ -127,7 +127,7 @@ function SettingsContent() {
                     </CardFooter>
                 </Card>
 
-                <Card>
+                <Card className="h-full">
                     <CardHeader>
                         <CardTitle>Preferências de workspace</CardTitle>
                         <CardDescription>Configurações padrão para novos itens.</CardDescription>
@@ -141,11 +141,10 @@ function SettingsContent() {
                                         key={option}
                                         type="button"
                                         onClick={() => setDefaultVisibility(option)}
-                                        className={`rounded-lg border p-3 text-sm capitalize transition-colors ${
-                                            defaultVisibility === option
-                                                ? 'border-primary bg-primary/5 text-foreground'
-                                                : 'border-border hover:border-primary/60 text-muted-foreground'
-                                        }`}
+                                        className={`rounded-lg border p-3 text-sm capitalize transition-colors ${defaultVisibility === option
+                                            ? 'border-primary bg-primary/5 text-foreground'
+                                            : 'border-border hover:border-primary/60 text-muted-foreground'
+                                            }`}
                                     >
                                         {option}
                                     </button>

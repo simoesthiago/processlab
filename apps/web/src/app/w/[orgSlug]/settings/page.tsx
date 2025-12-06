@@ -28,11 +28,11 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="px-8 py-10 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Organization Settings</h1>
-        <p className="text-muted-foreground">
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">Organization Settings</h1>
+        <p className="text-base text-gray-500 max-w-2xl">
           Manage your organization's general settings and information.
         </p>
       </div>
@@ -68,8 +68,8 @@ export default function SettingsPage() {
                 disabled
                 className="bg-muted font-mono"
               />
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="icon"
                 onClick={handleCopySlug}
               >

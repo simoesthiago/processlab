@@ -20,7 +20,7 @@ export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
       <WorkspaceSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <WorkspaceNavbar />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto bg-white">
           {children}
         </main>
       </div>

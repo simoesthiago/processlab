@@ -7,7 +7,7 @@
  * Validates org access and provides workspace context.
  */
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -15,15 +15,15 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 
 interface WorkspaceLayoutProps {
   children: React.ReactNode;
-  params: Promise<{ orgSlug: string }>;
+  params: { orgSlug: string };
 }
 
 export default function WorkspaceLayout({ children, params }: WorkspaceLayoutProps) {
-  const resolvedParams = use(params);
+  const { orgSlug } = params;
   
   return (
     <ProtectedRoute>
-      <WorkspaceLayoutContent orgSlug={resolvedParams.orgSlug}>
+      <WorkspaceLayoutContent orgSlug={orgSlug}>
         {children}
       </WorkspaceLayoutContent>
     </ProtectedRoute>

@@ -166,11 +166,11 @@ function CatalogContent() {
 
     return (
         <AppLayout>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div className="flex items-center justify-between mb-6 gap-4">
+            <div className="px-8 py-10">
+                <div className="flex items-center justify-between mb-8 gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Process Catalog</h1>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <h1 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">Process Catalog</h1>
+                        <p className="text-base text-gray-500 max-w-2xl">
                             Lista única com todos os processos que você consegue acessar — pessoais, do workspace e compartilhados.
                         </p>
                     </div>
@@ -194,8 +194,8 @@ function CatalogContent() {
                         <p className="text-muted-foreground">Carregando processos...</p>
                     </div>
                 ) : rows.length === 0 ? (
-                    <Card>
-                        <CardContent className="pt-6">
+                    <Card className="rounded-xl border border-gray-200">
+                        <CardContent className="p-12">
                             <EmptyState
                                 icon={FileText}
                                 title="Nenhum processo disponível"

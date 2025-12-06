@@ -15,10 +15,10 @@ import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { 
-  PlusCircle, 
-  FileText, 
-  FolderOpen, 
+import {
+  PlusCircle,
+  FileText,
+  FolderOpen,
   BarChart,
   User,
   Sparkles,
@@ -113,53 +113,15 @@ export default function PersonalDashboardPage() {
 
   return (
     <WorkspaceLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header with Stats */}
+      <div className="px-8 py-10">
+        {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between gap-6 mb-2">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <User className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight">
-                  Personal Workspace
-                </h1>
-                <p className="text-muted-foreground">
-                  Your private space for drafts and experiments
-                </p>
-              </div>
-            </div>
-
-            {/* Minimized Stats */}
-            {!loading && (
-              <div className="flex items-center gap-8 text-muted-foreground">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 text-foreground">
-                    <FolderOpen className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-lg font-semibold">{projects.length}</span>
-                  </div>
-                  <span className="hidden sm:inline">projects</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 text-foreground">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-lg font-semibold">
-                      {projects.reduce((sum, p) => sum + (p.process_count || 0), 0)}
-                    </span>
-                  </div>
-                  <span className="hidden sm:inline">processes</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 text-foreground">
-                    <Share2 className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-lg font-semibold">{sharedWithMe.length}</span>
-                  </div>
-                  <span className="hidden sm:inline">shared</span>
-                </div>
-              </div>
-            )}
-          </div>
+          <h1 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">
+            Overview
+          </h1>
+          <p className="text-base text-gray-500 max-w-2xl">
+            Welcome back, {user?.full_name?.split(' ')[0] || 'User'}
+          </p>
         </div>
 
         {/* Quick Actions - Primary Focus */}
@@ -183,7 +145,7 @@ export default function PersonalDashboardPage() {
               </CardHeader>
             </Card>
           </Link>
-          
+
           <Link href="/studio" className="block group">
             <Card className="border-2 hover:border-primary hover:shadow-lg transition-all duration-200 h-full">
               <CardHeader className="pb-6">
@@ -208,7 +170,7 @@ export default function PersonalDashboardPage() {
         {/* My Projects Section */}
         <div className="mb-12">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold tracking-tight">
+            <h2 className="text-lg font-medium text-gray-900 tracking-tight">
               My Projects
             </h2>
             <Link href={`${basePath}/projects/new`}>
@@ -288,7 +250,7 @@ export default function PersonalDashboardPage() {
         {/* Shared with Me Section */}
         <div>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold tracking-tight">
+            <h2 className="text-lg font-medium text-gray-900 tracking-tight">
               Shared with Me
             </h2>
             <Link href={`${basePath}/shared`}>

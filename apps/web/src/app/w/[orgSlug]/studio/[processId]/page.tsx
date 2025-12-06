@@ -7,7 +7,7 @@
  * Fetches the process to find its project and redirects accordingly.
  */
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -15,11 +15,11 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface PageProps {
-  params: Promise<{ orgSlug: string; processId: string }>;
+  params: { orgSlug: string; processId: string };
 }
 
 export default function OrganizationStudioProcessRedirectPage({ params }: PageProps) {
-  const resolvedParams = use(params);
+  const { orgSlug, processId } = params;
   const router = useRouter();
   const { token, isAuthenticated, loading: authLoading } = useAuth();
   const { getWorkspaceBasePath, loading: workspaceLoading } = useWorkspace();
@@ -28,18 +28,18 @@ export default function OrganizationStudioProcessRedirectPage({ params }: PagePr
   useEffect(() => {
     if (authLoading || workspaceLoading) return;
     if (!isAuthenticated) {
-      router.replace(`/login?redirect=/w/${resolvedParams.orgSlug}/studio/${resolvedParams.processId}`);
+      router.replace(`/login?redirect=/w/${orgSlug}/studio/${processId}`);
       return;
     }
 
     fetchProcessAndRedirect();
-  }, [isAuthenticated, authLoading, workspaceLoading, token, resolvedParams.processId]);
+  }, [isAuthenticated, authLoading, workspaceLoading, token, processId, orgSlug]);
 
   const fetchProcessAndRedirect = async () => {
     const basePath = getWorkspaceBasePath();
     
     try {
-      const response = await fetch(`${API_URL}/api/v1/processes/${resolvedParams.processId}`, {
+      const response = await fetch(`${API_URL}/api/v1/processes/${processId}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 

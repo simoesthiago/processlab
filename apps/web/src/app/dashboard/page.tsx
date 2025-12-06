@@ -17,11 +17,11 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { 
-  Building2, 
-  User, 
-  FolderOpen, 
-  FileText, 
+import {
+  Building2,
+  User,
+  FolderOpen,
+  FileText,
   ArrowRight,
   Plus,
   PlusCircle,
@@ -70,7 +70,7 @@ function DashboardContent() {
   const router = useRouter();
   const { user, token } = useAuth();
   const { organizations, loading: workspaceLoading, setCurrentWorkspace } = useWorkspace();
-  
+
   const [personalStats, setPersonalStats] = useState<PersonalStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [sharedWithMe, setSharedWithMe] = useState<SharedWithMeItem[]>([]);
@@ -145,26 +145,26 @@ function DashboardContent() {
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="px-8 py-10">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight mb-2">
-            Welcome back, {user?.full_name?.split(' ')[0] || 'there'}!
+          <h1 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">
+            Overview
           </h1>
-          <p className="text-muted-foreground">
-            Select a workspace to start working on your process models
+          <p className="text-base text-gray-500 max-w-2xl">
+            Welcome back, {user?.full_name?.split(' ')[0] || 'there'}
           </p>
         </div>
 
         {/* Workspaces Grid */}
         <div className="mb-12">
-          <h2 className="text-xl font-semibold tracking-tight mb-6">
+          <h2 className="text-lg font-medium text-gray-900 tracking-tight mb-4">
             Your Workspaces
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Personal Workspace Card */}
-            <Card 
+            <Card
               className="hover:border-primary/50 transition-all duration-200 cursor-pointer group hover:shadow-md"
               onClick={handleSelectPersonal}
             >
@@ -210,7 +210,7 @@ function DashboardContent() {
               </Card>
             ) : (
               organizations.map((org) => (
-                <Card 
+                <Card
                   key={org.id}
                   className="hover:border-primary/50 transition-all duration-200 cursor-pointer group hover:shadow-md"
                   onClick={() => handleSelectOrganization(org)}
@@ -240,13 +240,12 @@ function DashboardContent() {
                     </div>
                   </CardContent>
                   <CardFooter>
-                    <span className={`text-xs px-2 py-1 rounded-full capitalize ${
-                      org.role === 'admin' 
-                        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
-                        : org.role === 'editor'
+                    <span className={`text-xs px-2 py-1 rounded-full capitalize ${org.role === 'admin'
+                      ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                      : org.role === 'editor'
                         ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                    }`}>
+                      }`}>
                       {org.role}
                     </span>
                   </CardFooter>
@@ -273,11 +272,11 @@ function DashboardContent() {
 
         {/* Quick Actions */}
         <div className="mb-12">
-          <h2 className="text-xl font-semibold tracking-tight mb-6">
+          <h2 className="text-lg font-medium text-gray-900 tracking-tight mb-4">
             Quick Actions
           </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Link href="/personal/studio">
               <Card className="hover:bg-accent/50 transition-colors h-full">
                 <CardHeader>
@@ -311,7 +310,7 @@ function DashboardContent() {
         {/* Shared with me */}
         <div className="mb-12">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold tracking-tight">Compartilhados com você</h2>
+            <h2 className="text-lg font-medium text-gray-900 tracking-tight">Compartilhados com você</h2>
             <Link href="/personal/shared">
               <Button variant="outline" size="sm">
                 Ver todos
@@ -368,10 +367,10 @@ function DashboardContent() {
 
         {/* Recent Activity */}
         <div>
-          <h2 className="text-xl font-semibold tracking-tight mb-6">
+          <h2 className="text-lg font-medium text-gray-900 tracking-tight mb-4">
             Recent Activity
           </h2>
-          
+
           {loading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
@@ -393,35 +392,31 @@ function DashboardContent() {
               <CardContent className="pt-6">
                 <div className="space-y-4">
                   {recentActivity.slice(0, 5).map((activity) => (
-                    <div 
+                    <div
                       key={activity.id}
                       className="flex items-center gap-4 p-3 rounded-lg hover:bg-accent/50 transition-colors"
                     >
-                      <div className={`p-2 rounded-lg ${
-                        activity.workspace_type === 'personal'
-                          ? 'bg-purple-100 dark:bg-purple-900/30'
-                          : 'bg-blue-100 dark:bg-blue-900/30'
-                      }`}>
+                      <div className={`p-2 rounded-lg ${activity.workspace_type === 'personal'
+                        ? 'bg-purple-100 dark:bg-purple-900/30'
+                        : 'bg-blue-100 dark:bg-blue-900/30'
+                        }`}>
                         {activity.type === 'process_created' && (
-                          <FileText className={`h-4 w-4 ${
-                            activity.workspace_type === 'personal'
-                              ? 'text-purple-600 dark:text-purple-400'
-                              : 'text-blue-600 dark:text-blue-400'
-                          }`} />
+                          <FileText className={`h-4 w-4 ${activity.workspace_type === 'personal'
+                            ? 'text-purple-600 dark:text-purple-400'
+                            : 'text-blue-600 dark:text-blue-400'
+                            }`} />
                         )}
                         {activity.type === 'version_saved' && (
-                          <Clock className={`h-4 w-4 ${
-                            activity.workspace_type === 'personal'
-                              ? 'text-purple-600 dark:text-purple-400'
-                              : 'text-blue-600 dark:text-blue-400'
-                          }`} />
+                          <Clock className={`h-4 w-4 ${activity.workspace_type === 'personal'
+                            ? 'text-purple-600 dark:text-purple-400'
+                            : 'text-blue-600 dark:text-blue-400'
+                            }`} />
                         )}
                         {activity.type === 'project_created' && (
-                          <FolderOpen className={`h-4 w-4 ${
-                            activity.workspace_type === 'personal'
-                              ? 'text-purple-600 dark:text-purple-400'
-                              : 'text-blue-600 dark:text-blue-400'
-                          }`} />
+                          <FolderOpen className={`h-4 w-4 ${activity.workspace_type === 'personal'
+                            ? 'text-purple-600 dark:text-purple-400'
+                            : 'text-blue-600 dark:text-blue-400'
+                            }`} />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">

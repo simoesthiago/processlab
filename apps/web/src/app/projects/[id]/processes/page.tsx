@@ -6,7 +6,6 @@
  * Lists all processes within a project
  */
 
-import { use } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -37,13 +36,13 @@ interface Project {
 export default function ProjectProcessesPage({
     params,
 }: {
-    params: Promise<{ id: string }>;
+    params: { id: string };
 }) {
-    const resolvedParams = use(params);
+    const { id } = params;
 
     return (
         <ProtectedRoute>
-            <ProjectProcessesContent projectId={resolvedParams.id} />
+            <ProjectProcessesContent projectId={id} />
         </ProtectedRoute>
     );
 }

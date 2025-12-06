@@ -6,7 +6,7 @@
  * Allows viewing/editing a shared project via share token or direct share.
  */
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,19 +35,17 @@ interface SharedProjectInfo {
 }
 
 interface PageProps {
-  params: Promise<{ token: string }>;
+  params: { token: string };
 }
 
 export default function SharedProjectPage({ params }: PageProps) {
-  const resolvedParams = use(params);
+  const shareToken = params.token;
   const router = useRouter();
   const { isAuthenticated, token: authToken, loading: authLoading } = useAuth();
   
   const [shareInfo, setShareInfo] = useState<SharedProjectInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const shareToken = resolvedParams.token;
 
   useEffect(() => {
     if (!authLoading) {

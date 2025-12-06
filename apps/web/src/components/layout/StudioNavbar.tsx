@@ -14,10 +14,10 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Logo } from '@/components/branding/Logo';
-import { 
-  ChevronRight, 
-  Save, 
-  Download, 
+import {
+  ChevronRight,
+  Save,
+  Download,
   MoreHorizontal,
   GitBranch,
   Clock,
@@ -26,6 +26,9 @@ import {
   LogOut,
   Settings,
   ArrowLeft,
+  LayoutDashboard,
+  FolderKanban,
+  FileText,
 } from 'lucide-react';
 
 interface Process {
@@ -67,7 +70,7 @@ export function StudioNavbar({
   const { user, logout } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const router = useRouter();
-  
+
   const selectedVersion = versions.find(v => v.id === selectedVersionId);
 
   const handleLogout = () => {
@@ -81,11 +84,11 @@ export function StudioNavbar({
       <div className="flex items-center gap-3">
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-2 pr-3 border-r border-border">
-          <Logo variant="icon" width={28} height={28} />
+          <Logo variant="horizontal" height={24} />
         </Link>
 
         {/* Back to Workspace */}
-        <Link 
+        <Link
           href={basePath}
           className="p-1.5 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
           title="Back to workspace"
@@ -95,25 +98,28 @@ export function StudioNavbar({
 
         {/* Breadcrumbs */}
         <nav className="flex items-center gap-1.5 text-sm">
-          <Link 
+          <Link
             href={basePath}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
           >
+            <LayoutDashboard className="h-3.5 w-3.5" />
             {currentWorkspace?.name || 'Workspace'}
           </Link>
-          
+
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-          
+
           {process ? (
             <>
-              <Link 
+              <Link
                 href={`${basePath}/projects/${process.project_id}`}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
               >
+                <FolderKanban className="h-3.5 w-3.5" />
                 Project
               </Link>
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-              <span className="font-medium text-foreground truncate max-w-[200px]">
+              <span className="flex items-center gap-1.5 font-medium text-foreground truncate max-w-[200px]">
+                <FileText className="h-3.5 w-3.5" />
                 {process.name}
               </span>
             </>
@@ -139,9 +145,9 @@ export function StudioNavbar({
                 Active
               </Badge>
             ) : onActivateVersion && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="h-5 px-2 text-xs"
                 onClick={() => onActivateVersion(selectedVersionId!)}
               >
@@ -149,7 +155,7 @@ export function StudioNavbar({
               </Button>
             )}
           </div>
-          
+
           {versions.length > 1 && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
@@ -198,10 +204,10 @@ export function StudioNavbar({
               {user?.full_name?.split(' ')[0] || user?.email?.split('@')[0]}
             </span>
           </div>
-          
-          <Button 
-            variant="ghost" 
-            size="icon" 
+
+          <Button
+            variant="ghost"
+            size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
             onClick={handleLogout}
             title="Logout"

@@ -15,11 +15,11 @@ import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { 
-  PlusCircle, 
-  FileText, 
-  FolderOpen, 
-  BarChart, 
+import {
+  PlusCircle,
+  FileText,
+  FolderOpen,
+  BarChart,
   Users,
   Sparkles,
   Building2,
@@ -78,7 +78,7 @@ export default function OrganizationDashboardPage() {
 
       // TODO: Fetch stats when endpoint is available
       // const statsResponse = await fetch(...)
-      
+
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
@@ -88,22 +88,15 @@ export default function OrganizationDashboardPage() {
 
   return (
     <WorkspaceLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="px-8 py-10">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Building2 className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                {currentWorkspace?.name}
-              </h1>
-              <p className="text-muted-foreground">
-                Organization workspace
-              </p>
-            </div>
-          </div>
+          <h1 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">
+            Overview
+          </h1>
+          <p className="text-base text-gray-500 max-w-2xl">
+            Welcome back, {user?.full_name?.split(' ')[0] || 'User'}
+          </p>
         </div>
 
         {/* Stats Grid */}
@@ -182,7 +175,7 @@ export default function OrganizationDashboardPage() {
               </CardHeader>
             </Card>
           </Link>
-          
+
           {canEdit() && (
             <Link href={`${basePath}/projects/new`} className="block">
               <Card className="hover:bg-accent/50 transition-colors h-full">
@@ -203,7 +196,7 @@ export default function OrganizationDashboardPage() {
         {/* Projects Section */}
         <div>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold tracking-tight">
+            <h2 className="text-lg font-medium text-gray-900 tracking-tight">
               Projects
             </h2>
             {canEdit() && (
@@ -227,7 +220,7 @@ export default function OrganizationDashboardPage() {
                   icon={FolderOpen}
                   title="No projects yet"
                   description={
-                    canEdit() 
+                    canEdit()
                       ? "Create your first project to get started with process modeling"
                       : "No projects have been created in this organization yet"
                   }

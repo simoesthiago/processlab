@@ -10,11 +10,11 @@ export default function AnalyticsPage() {
     return (
         <ProtectedRoute>
             <AppLayout>
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-                    <div className="flex items-center justify-between gap-4">
+                <div className="px-8 py-10 space-y-6">
+                    <div className="flex items-center justify-between mb-8 gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-                            <p className="text-muted-foreground">
+                            <h1 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">Analytics</h1>
+                            <p className="text-base text-gray-500 max-w-2xl">
                                 Área reservada para métricas e insights. Em breve você verá gráficos sobre uso, qualidade e colaboração.
                             </p>
                         </div>
