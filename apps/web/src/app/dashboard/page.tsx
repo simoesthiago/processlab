@@ -170,8 +170,8 @@ function DashboardContent() {
             >
               <CardHeader>
                 <div className="flex items-start justify-between mb-2">
-                  <div className="p-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl">
-                    <User className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  <div className="p-3 bg-orange-50 rounded-xl">
+                    <User className="h-6 w-6 text-orange-600 dark:text-orange-400" />
                   </div>
                   <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
@@ -195,7 +195,7 @@ function DashboardContent() {
                 </div>
               </CardContent>
               <CardFooter>
-                <span className="text-xs px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                <span className="text-xs px-2 py-1 rounded-full bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300">
                   Owner
                 </span>
               </CardFooter>

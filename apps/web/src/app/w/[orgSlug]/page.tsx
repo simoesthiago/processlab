@@ -92,7 +92,7 @@ export default function OrganizationDashboardPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">
-            Overview
+            Dashboard
           </h1>
           <p className="text-base text-gray-500 max-w-2xl">
             Welcome back, {user?.full_name?.split(' ')[0] || 'User'}

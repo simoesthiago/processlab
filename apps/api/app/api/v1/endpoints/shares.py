@@ -201,7 +201,7 @@ async def create_share(
     db.refresh(share)
     
     # Generate share URL
-    base_url = "http://localhost:3000"  # TODO: Get from config
+    base_url = "http://localhost:3004"  # TODO: Get from config
     share_url = f"{base_url}/share/{share_token}"
     
     return ShareResponse(
@@ -249,7 +249,7 @@ async def get_project_shares(
         ProjectShare.revoked_at.is_(None)
     ).order_by(ProjectShare.created_at.desc()).all()
     
-    base_url = "http://localhost:3000"  # TODO: Get from config
+    base_url = "http://localhost:3004"  # TODO: Get from config
     
     share_list = []
     for share in shares:

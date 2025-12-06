@@ -31,7 +31,7 @@ export default function SettingsPage() {
     <div className="px-8 py-10 space-y-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">Organization Settings</h1>
+        <h1 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">Settings</h1>
         <p className="text-base text-gray-500 max-w-2xl">
           Manage your organization's general settings and information.
         </p>

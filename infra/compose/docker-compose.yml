@@ -19,8 +19,8 @@ services:
       - "/srv/node_modules"
       - "/srv/apps/web/node_modules"
     # Adicionamos --force para garantir que ele não peça confirmação
-    command: sh -lc "npm install -g pnpm && pnpm install --force && pnpm dev --port 3000 --hostname 0.0.0.0"
-    ports: [ "3000:3000" ]
+    command: sh -lc "npm install -g pnpm && pnpm install --force && pnpm dev --port 3004 --hostname 0.0.0.0"
+    ports: [ "3004:3004" ]
     depends_on: [ api ]
   worker:
     image: python:3.11-slim

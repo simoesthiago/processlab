@@ -9,7 +9,7 @@
 3. Validacao de entrada
    - Validar inputs com Pydantic; limite de upload 30MB; validar MIME types.
 4. CORS e TrustedHost
-   - Dev: localhost:3000; Prod: dominios especificos; usar middlewares FastAPI.
+   - Dev: localhost:3004; Prod: dominios especificos; usar middlewares FastAPI.
 5. RBAC e multi-tenant
    - Escopo por organizacao; roles (viewer/editor/reviewer/admin). SSO (SAML/OIDC) em fases avançadas.
 
