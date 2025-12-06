@@ -94,6 +94,7 @@ class ProcessResponse(BaseModel):
     """Response schema for process (basic info)"""
     id: str
     project_id: str
+    folder_id: Optional[str] = Field(None, description="Folder containing the process (optional)")
     # Personal projects' processes can have NULL organization_id
     organization_id: Optional[str] = None
     name: str

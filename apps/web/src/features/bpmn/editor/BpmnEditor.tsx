@@ -78,12 +78,14 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
         const modeling = modeler.get('modeling');
         const elementRegistry = modeler.get('elementRegistry');
 
-        // Convert screen coordinates to canvas coordinates
+        // Convert screen coordinates to canvas coordinates.
+        // viewbox.x/viewbox.y are already in canvas coords, so we add them after
+        // normalizing the mouse position by the current zoom scale.
         const containerRect = containerRef.current.getBoundingClientRect();
         const viewbox = canvas.viewbox();
-        
-        const x = (clientX - containerRect.left - viewbox.x) / viewbox.scale;
-        const y = (clientY - containerRect.top - viewbox.y) / viewbox.scale;
+
+        const x = viewbox.x + ((clientX - containerRect.left) / viewbox.scale);
+        const y = viewbox.y + ((clientY - containerRect.top) / viewbox.scale);
 
         // Get the process element to append new elements to
         const rootElement = canvas.getRootElement();
@@ -195,7 +197,7 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                 // Hide the default palette if hidePalette is true
                 const hidePaletteElement = () => {
                     if (!hidePalette) return;
-                    
+
                     const palette = containerRef.current?.querySelector('.djs-palette');
                     if (palette) {
                         (palette as HTMLElement).style.display = 'none';
@@ -249,10 +251,10 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
     useEffect(() => {
         if (modelerRef.current && isReady) {
             const modeler = modelerRef.current as { importXML: (xml: string) => Promise<unknown> };
-            
+
             // If initialXml is provided, use it; otherwise ensure minimal XML is loaded
             const xmlToImport = initialXml || MINIMAL_BPMN_XML;
-            
+
             modeler.importXML(xmlToImport).catch((err: unknown) => {
                 console.error("Failed to import XML:", err);
                 setError("Failed to render BPMN diagram");
@@ -263,14 +265,14 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
 
     if (error) {
         return (
-            <div className="flex items-center justify-center h-full bg-red-50 text-red-600 p-4">
+            <div className="flex items-center justify-center h-full bg-destructive-50 text-destructive p-4">
                 <p>Error: {error}</p>
             </div>
         );
     }
 
     return (
-        <div 
+        <div
             className={`relative w-full h-full ${hidePalette ? 'bpmn-editor-hide-palette' : ''}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -295,10 +297,10 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
 
             {/* Loading State */}
             {!isReady && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+                <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-                        <p className="text-gray-600">Loading BPMN Editor...</p>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+                        <p className="text-muted-foreground">Loading BPMN Editor...</p>
                     </div>
                 </div>
             )}

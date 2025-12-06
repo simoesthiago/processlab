@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/branding/Logo';
-import { 
-  ArrowRight, 
-  CheckCircle2, 
-  Github, 
-  Twitter, 
+import {
+  ArrowRight,
+  CheckCircle2,
+  Github,
+  Twitter,
   Linkedin,
   Menu,
   X,
@@ -111,7 +111,7 @@ export default function LandingPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary/20">
-      
+
       {/* Navigation */}
       <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -167,7 +167,7 @@ export default function LandingPage() {
       </nav>
 
       <main className="flex-1">
-        
+
         {/* Hero Section */}
         <section className="relative pt-20 pb-32 overflow-hidden">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -210,7 +210,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 items-center opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i} className="flex justify-center">
-                   <Placeholder title={`Logo ${i}`} height="h-12" className="w-32 border-none bg-transparent" />
+                  <Placeholder title={`Logo ${i}`} height="h-12" className="w-32 border-none bg-transparent" />
                 </div>
               ))}
             </div>
@@ -233,34 +233,34 @@ export default function LandingPage() {
               {features.map((feature, index) => {
                 const Icon = feature.icon;
                 return (
-                <div key={index} className={`grid lg:grid-cols-2 gap-16 items-center ${index % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}>
-                  <div className={index % 2 === 1 ? 'lg:order-2' : ''}>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-6">
-                      <Icon className="h-6 w-6 text-primary" />
+                  <div key={index} className={`grid lg:grid-cols-2 gap-16 items-center ${index % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}>
+                    <div className={index % 2 === 1 ? 'lg:order-2' : ''}>
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-6">
+                        <Icon className="h-6 w-6 text-primary" />
+                      </div>
+                      <h3 className="text-2xl font-bold mb-4">{feature.title}</h3>
+                      <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
+                        {feature.description}
+                      </p>
+                      <ul className="space-y-3 mb-8">
+                        <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <CheckCircle2 className="h-4 w-4 text-primary" />
+                          <span>High accuracy parsing</span>
+                        </li>
+                        <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <CheckCircle2 className="h-4 w-4 text-primary" />
+                          <span>Standard BPMN 2.0 output</span>
+                        </li>
+                        <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <CheckCircle2 className="h-4 w-4 text-primary" />
+                          <span>Enterprise governance</span>
+                        </li>
+                      </ul>
                     </div>
-                    <h3 className="text-2xl font-bold mb-4">{feature.title}</h3>
-                    <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
-                      {feature.description}
-                    </p>
-                    <ul className="space-y-3 mb-8">
-                      <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                        <span>High accuracy parsing</span>
-                      </li>
-                      <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                        <span>Standard BPMN 2.0 output</span>
-                      </li>
-                      <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                        <span>Enterprise governance</span>
-                      </li>
-                    </ul>
+                    <div className={index % 2 === 1 ? 'lg:order-1' : ''}>
+                      <Placeholder title={feature.visual} height="h-[400px]" className="shadow-lg bg-card" />
+                    </div>
                   </div>
-                  <div className={index % 2 === 1 ? 'lg:order-1' : ''}>
-                    <Placeholder title={feature.visual} height="h-[400px]" className="shadow-lg bg-card" />
-                  </div>
-                </div>
                 );
               })}
             </div>
@@ -268,13 +268,13 @@ export default function LandingPage() {
         </section>
 
         {/* Use Cases */}
-        <section className="py-24 sm:py-32 bg-slate-900 text-slate-50">
+        <section className="py-24 sm:py-32 bg-primary text-primary-foreground">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl mb-16">
               <h2 className="text-4xl font-bold tracking-tight mb-6">
                 Powering the world's best process teams.
               </h2>
-              <p className="text-xl text-slate-400">
+              <p className="text-xl text-primary-foreground/80">
                 Trusted across industries where accuracy matters—consulting, finance, healthcare, and more.
               </p>
             </div>
@@ -294,10 +294,10 @@ export default function LandingPage() {
                   desc: 'Model complex approval chains and regulatory reporting processes with audit trails.'
                 }
               ].map((useCase, i) => (
-                <Card key={i} className="bg-slate-800 border-slate-700 p-8 hover:bg-slate-750 transition-colors">
-                  <h3 className="text-xl font-bold mb-3 text-white">{useCase.title}</h3>
-                  <p className="text-slate-400 mb-6">{useCase.desc}</p>
-                  <Button variant="link" className="text-primary hover:text-primary/80 p-0 h-auto">
+                <Card key={i} className="bg-primary-800 border-primary-700 p-8 hover:bg-primary-700 transition-colors">
+                  <h3 className="text-xl font-bold mb-3 text-primary-foreground">{useCase.title}</h3>
+                  <p className="text-primary-foreground/70 mb-6">{useCase.desc}</p>
+                  <Button variant="link" className="text-primary-foreground hover:text-primary-foreground/80 p-0 h-auto">
                     Get started <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Card>
@@ -336,7 +336,7 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-            
+
             <div className="mt-20">
               <Placeholder title="Interactive How-it-Works Visualization" height="h-[400px]" />
             </div>
@@ -358,11 +358,11 @@ export default function LandingPage() {
                   {enterpriseFeatures.map((feat, i) => {
                     const Icon = feat.icon;
                     return (
-                    <div key={i}>
-                      <Icon className="h-6 w-6 text-primary mb-3" />
-                      <h4 className="font-semibold mb-2">{feat.title}</h4>
-                      <p className="text-sm text-muted-foreground">{feat.description}</p>
-                    </div>
+                      <div key={i}>
+                        <Icon className="h-6 w-6 text-primary mb-3" />
+                        <h4 className="font-semibold mb-2">{feat.title}</h4>
+                        <p className="text-sm text-muted-foreground">{feat.description}</p>
+                      </div>
                     );
                   })}
                 </div>
@@ -398,12 +398,12 @@ export default function LandingPage() {
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-4xl font-bold mb-8">Get started in minutes.</h2>
             <div className="flex justify-center gap-4">
-               <Link href="/register">
+              <Link href="/register">
                 <Button size="lg" className="h-12 px-8">Try for free</Button>
-               </Link>
-               <Link href="/demo">
+              </Link>
+              <Link href="/demo">
                 <Button variant="outline" size="lg" className="h-12 px-8">Request a demo</Button>
-               </Link>
+              </Link>
             </div>
           </div>
         </section>

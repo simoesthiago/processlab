@@ -7,40 +7,31 @@
  */
 
 import { use, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ProjectHierarchy } from '@/features/projects/ProjectHierarchy';
 import { 
   FileText, 
   Loader2, 
   Sparkles, 
   ArrowLeft,
-  Settings,
   Share2,
   Lock,
   Globe,
   Clock,
-  MoreHorizontal,
   Plus,
   Copy,
   Trash,
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-interface Process {
-  id: string;
-  name: string;
-  description?: string;
-  version_count?: number;
-  created_at: string;
-  updated_at: string;
-}
 
 interface Project {
   id: string;
@@ -69,11 +60,11 @@ interface PageProps {
 
 export default function PersonalProjectDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { getWorkspaceBasePath } = useWorkspace();
+  const router = useRouter();
   
   const [project, setProject] = useState<Project | null>(null);
-  const [processes, setProcesses] = useState<Process[]>([]);
   const [shares, setShares] = useState<Share[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
@@ -97,19 +88,6 @@ export default function PersonalProjectDetailPage({ params }: PageProps) {
       if (projectResponse.ok) {
         const projectData = await projectResponse.json();
         setProject(projectData);
-      }
-
-      // Fetch processes
-      const processesResponse = await fetch(
-        `${API_URL}/api/v1/projects/${projectId}/processes`,
-        {
-          headers: { 'Authorization': `Bearer ${token}` },
-        }
-      );
-
-      if (processesResponse.ok) {
-        const processesData = await processesResponse.json();
-        setProcesses(processesData.processes || processesData || []);
       }
 
       // Fetch shares
@@ -173,6 +151,23 @@ export default function PersonalProjectDetailPage({ params }: PageProps) {
       await fetchProjectData(); // Refresh shares
     } catch (error) {
       console.error('Failed to revoke share:', error);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!token || !project) return;
+    const confirmed = confirm('Apagar este projeto e todos os seus artefatos?');
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`${API_URL}/api/v1/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) {
+        router.push(`${basePath}/projects`);
+      }
+    } catch (error) {
+      console.error('Failed to delete project:', error);
     }
   };
 
@@ -261,8 +256,9 @@ export default function PersonalProjectDetailPage({ params }: PageProps) {
                 New Process
               </Button>
             </Link>
-            <Button variant="outline" size="icon">
-              <Settings className="h-4 w-4" />
+            <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
+              <Trash className="h-4 w-4 mr-2" />
+              Delete Project
             </Button>
           </div>
         </div>
@@ -292,55 +288,13 @@ export default function PersonalProjectDetailPage({ params }: PageProps) {
               </Link>
             </div>
 
-            {processes.length === 0 ? (
-              <Card>
-                <CardContent className="pt-6">
-                  <EmptyState
-                    icon={FileText}
-                    title="No processes yet"
-                    description="Create your first process diagram to get started"
-                    action={{
-                      label: 'Create Process',
-                      onClick: () => {},
-                      href: `${basePath}/projects/${projectId}/processes/new`
-                    }}
-                  />
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {processes.map((process) => (
-                  <Card key={process.id} className="hover:border-primary/50 transition-colors">
-                    <CardHeader>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                          <FileText className="h-5 w-5" />
-                        </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <CardTitle className="text-base">{process.name}</CardTitle>
-                      {process.description && (
-                        <CardDescription className="line-clamp-2">
-                          {process.description}
-                        </CardDescription>
-                      )}
-                    </CardHeader>
-                    <CardFooter className="flex-col gap-3">
-                      <div className="text-xs text-muted-foreground w-full">
-                        {process.version_count || 0} versions
-                      </div>
-                      <Link href={`${basePath}/projects/${projectId}/processes/${process.id}`} className="w-full">
-                        <Button className="w-full" size="sm">
-                          Open in Studio
-                        </Button>
-                      </Link>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            )}
+            <ProjectHierarchy
+              projectId={projectId}
+              workspaceType="personal"
+              workspaceId={user?.id}
+              basePath={getWorkspaceBasePath()}
+              canEdit
+            />
           </TabsContent>
 
           {/* Sharing Tab */}

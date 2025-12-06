@@ -224,25 +224,43 @@ export default function StudioContent({
     if (!artifactId) return;
     setIsGenerating(true);
     try {
+      const payload = {
+        artifact_ids: [artifactId],
+        process_name: 'Generated Process',
+        project_id: projectId,
+        // options can include org context in the future; keep payload minimal for now
+      };
+
       const res = await fetch(`${API_URL}/api/v1/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          artifact_id: artifactId,
-          project_id: projectId,
-          organization_id: workspaceType === 'organization' ? workspaceId : undefined,
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) throw new Error("Generation failed");
 
       const data = await res.json();
-      if (data.xml) {
-        setBpmnXml(data.xml);
-        if (data.process) setProcess(data.process);
+      const xml =
+        data.preview_xml ||
+        data.bpmn_json?.xml ||
+        data.bpmn_json?.bpmn_xml;
+      if (xml) {
+        setBpmnXml(xml);
+      }
+
+      if (data.process_id) {
+        // Reload from API to ensure local state has project/process metadata
+        await loadProcess(data.process_id);
+      } else if (projectId) {
+        // Keep minimal local process state so the user can keep editing
+        setProcess({
+          id: data.process_id || 'temporary',
+          name: payload.process_name,
+          project_id: projectId,
+        });
       }
     } catch (err) {
       console.error("Generation error", err);

@@ -7,35 +7,25 @@
  */
 
 import { use, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ProjectHierarchy } from '@/features/projects/ProjectHierarchy';
 import { 
   FileText, 
   Loader2, 
   Sparkles, 
   ArrowLeft,
-  Settings,
-  MoreHorizontal,
   Clock,
   User,
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-interface Process {
-  id: string;
-  name: string;
-  description?: string;
-  version_count?: number;
-  created_at: string;
-  updated_at: string;
-  created_by?: string;
-}
 
 interface Project {
   id: string;
@@ -44,6 +34,7 @@ interface Project {
   tags?: string[];
   created_at: string;
   updated_at: string;
+  process_count?: number;
 }
 
 interface PageProps {
@@ -53,10 +44,10 @@ interface PageProps {
 export default function ProjectDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const { token } = useAuth();
-  const { currentWorkspace, canEdit, getWorkspaceBasePath } = useWorkspace();
+  const { currentWorkspace, canEdit, canAdmin, getWorkspaceBasePath } = useWorkspace();
+  const router = useRouter();
   
   const [project, setProject] = useState<Project | null>(null);
-  const [processes, setProcesses] = useState<Process[]>([]);
   const [loading, setLoading] = useState(true);
 
   const basePath = getWorkspaceBasePath();
@@ -79,23 +70,27 @@ export default function ProjectDetailPage({ params }: PageProps) {
         const projectData = await projectResponse.json();
         setProject(projectData);
       }
-
-      // Fetch processes
-      const processesResponse = await fetch(
-        `${API_URL}/api/v1/projects/${projectId}/processes`,
-        {
-          headers: { 'Authorization': `Bearer ${token}` },
-        }
-      );
-
-      if (processesResponse.ok) {
-        const processesData = await processesResponse.json();
-        setProcesses(processesData.processes || processesData || []);
-      }
     } catch (error) {
       console.error('Failed to fetch project data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!token || !canAdmin()) return;
+    const confirmed = confirm('Apagar este projeto? Os processos serão removidos do workspace.');
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`${API_URL}/api/v1/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        router.push(`${basePath}/projects`);
+      }
+    } catch (error) {
+      console.error('Failed to delete project:', error);
     }
   };
 
@@ -168,9 +163,12 @@ export default function ProjectDetailPage({ params }: PageProps) {
                   New Process
                 </Button>
               </Link>
-              <Button variant="outline" size="icon">
-                <Settings className="h-4 w-4" />
-              </Button>
+              {canAdmin() && (
+                <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
+                  <Trash className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -184,7 +182,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                   <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{processes.length}</p>
+                  <p className="text-2xl font-bold">{project.process_count ?? 0}</p>
                   <p className="text-sm text-muted-foreground">Processes</p>
                 </div>
               </div>
@@ -238,65 +236,13 @@ export default function ProjectDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          {processes.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <EmptyState
-                  icon={FileText}
-                  title="No processes yet"
-                  description={
-                    canEdit()
-                      ? "Create your first process diagram to get started"
-                      : "No processes have been created in this project yet"
-                  }
-                  action={canEdit() ? {
-                    label: 'Create Process',
-                    href: `${basePath}/projects/${projectId}/processes/new`
-                  } : undefined}
-                />
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {processes.map((process) => (
-                <Card key={process.id} className="hover:border-primary/50 transition-colors group">
-                  <CardHeader>
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                        <FileText className="h-5 w-5" />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm text-muted-foreground">
-                          {process.version_count || 0} versions
-                        </span>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <CardTitle className="group-hover:text-primary transition-colors">
-                      {process.name}
-                    </CardTitle>
-                    {process.description && (
-                      <CardDescription className="line-clamp-2 mt-2">
-                        {process.description}
-                      </CardDescription>
-                    )}
-                  </CardHeader>
-                  <CardFooter className="flex flex-col space-y-3">
-                    <div className="text-xs text-muted-foreground w-full">
-                      Updated {new Date(process.updated_at || process.created_at).toLocaleDateString()}
-                    </div>
-                    <Link href={`${basePath}/projects/${projectId}/processes/${process.id}`} className="w-full">
-                      <Button className="w-full" variant="default">
-                        Open in Studio
-                      </Button>
-                    </Link>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          )}
+          <ProjectHierarchy
+            projectId={projectId}
+            workspaceType="organization"
+            workspaceId={currentWorkspace?.id}
+            basePath={basePath}
+            canEdit={canEdit()}
+          />
         </div>
       </div>
     </WorkspaceLayout>

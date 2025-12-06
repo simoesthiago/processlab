@@ -5,8 +5,8 @@ Generate endpoint for BPMN creation from artifacts
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.db.models import ProcessModel, ModelVersion, Project, User
-from app.core.dependencies import get_current_user
+from app.db.models import ProcessModel, ModelVersion, Project, User, Folder
+from app.core.dependencies import get_current_user, require_organization_access
 from app.services.agents.pipeline import generate_process
 from app.services.bpmn.json_to_xml import to_bpmn_xml as bpmn_json_to_xml
 from pydantic import BaseModel, Field
@@ -22,6 +22,7 @@ class GenerateRequest(BaseModel):
     artifact_ids: List[str] = Field(..., description="List of artifact IDs to use as context")
     process_name: str = Field(default="Untitled Process", description="Name for the generated process")
     project_id: Optional[str] = Field(None, description="Project ID to associate the process with")
+    folder_id: Optional[str] = Field(None, description="Folder inside the project (optional)")
     options: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Generation options")
 
 
@@ -80,13 +81,32 @@ async def generate_bpmn(
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        # Check user has access to project's organization
-        if not current_user.is_superuser and current_user.organization_id != project.organization_id:
-            raise HTTPException(status_code=403, detail="Access denied to this project")
+        # Check user has access
+        if project.organization_id:
+            # Organization project - require org access
+            require_organization_access(current_user, project.organization_id)
+        else:
+            # Personal project - must be the owner (unless superuser)
+            if not current_user.is_superuser and project.owner_id != current_user.id:
+                raise HTTPException(status_code=403, detail="Access denied to this personal project")
+
+        # Validate optional folder
+        target_folder_id = None
+        if request.folder_id:
+            folder = db.query(Folder).filter(
+                Folder.id == request.folder_id,
+                Folder.deleted_at == None  # noqa: E711
+            ).first()
+            if not folder:
+                raise HTTPException(status_code=404, detail="Folder not found")
+            if folder.project_id != project.id:
+                raise HTTPException(status_code=400, detail="Folder must belong to the same project")
+            target_folder_id = folder.id
         
         # Create ProcessModel
         process = ProcessModel(
             project_id=request.project_id,
+            folder_id=target_folder_id,
             organization_id=project.organization_id,
             name=request.process_name,
             description=f"Generated from artifacts: {', '.join(request.artifact_ids)}",

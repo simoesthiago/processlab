@@ -24,6 +24,7 @@ import {
   FileText, 
   ArrowRight,
   Plus,
+  PlusCircle,
   Sparkles,
   Share2,
   Clock,
@@ -48,6 +49,15 @@ interface PersonalStats {
   shared_with_me: number;
 }
 
+interface SharedWithMeItem {
+  id: string;
+  project_id: string;
+  project_name: string;
+  owner_name: string;
+  permission: 'viewer' | 'editor';
+  shared_at: string;
+}
+
 export default function DashboardPage() {
   return (
     <ProtectedRoute>
@@ -63,6 +73,7 @@ function DashboardContent() {
   
   const [personalStats, setPersonalStats] = useState<PersonalStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [sharedWithMe, setSharedWithMe] = useState<SharedWithMeItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -81,6 +92,16 @@ function DashboardContent() {
       if (statsResponse.ok) {
         const data = await statsResponse.json();
         setPersonalStats(data);
+      }
+
+      // Fetch items shared with the user
+      const sharedResponse = await fetch(`${API_URL}/api/v1/users/me/shared`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (sharedResponse.ok) {
+        const data = await sharedResponse.json();
+        setSharedWithMe(data.shared || data || []);
       }
 
       // Fetch recent activity
@@ -256,16 +277,16 @@ function DashboardContent() {
             Quick Actions
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link href="/studio">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Link href="/personal/studio">
               <Card className="hover:bg-accent/50 transition-colors h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Sparkles className="h-5 w-5 text-primary" />
-                    Quick Draft
+                    Criar processo rápido
                   </CardTitle>
                   <CardDescription>
-                    Start a new BPMN diagram in your Drafts project
+                    Abre o estúdio e cria um processo no seu espaço pessoal (Drafts).
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -275,35 +296,74 @@ function DashboardContent() {
               <Card className="hover:bg-accent/50 transition-colors h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <FolderOpen className="h-5 w-5 text-primary" />
-                    New Project
+                    <PlusCircle className="h-5 w-5 text-primary" />
+                    Criar projeto pessoal
                   </CardTitle>
                   <CardDescription>
-                    Create a new personal project
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-
-            <Link href="/personal/shared">
-              <Card className="hover:bg-accent/50 transition-colors h-full">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Share2 className="h-5 w-5 text-primary" />
-                    Shared with Me
-                    {personalStats?.shared_with_me && personalStats.shared_with_me > 0 && (
-                      <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-primary text-primary-foreground">
-                        {personalStats.shared_with_me}
-                      </span>
-                    )}
-                  </CardTitle>
-                  <CardDescription>
-                    View projects shared by others
+                    Cria um novo projeto diretamente na sua pasta pessoal.
                   </CardDescription>
                 </CardHeader>
               </Card>
             </Link>
           </div>
+        </div>
+
+        {/* Shared with me */}
+        <div className="mb-12">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold tracking-tight">Compartilhados com você</h2>
+            <Link href="/personal/shared">
+              <Button variant="outline" size="sm">
+                Ver todos
+              </Button>
+            </Link>
+          </div>
+
+          {sharedWithMe.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <EmptyState
+                  icon={Share2}
+                  title="Nada compartilhado ainda"
+                  description="Quando alguém compartilhar um projeto ou pasta com você, ele aparecerá aqui."
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sharedWithMe.slice(0, 6).map((shared) => (
+                <Link
+                  key={shared.id}
+                  href={`/share/${shared.project_id}`}
+                  className="block group"
+                >
+                  <Card className="h-full hover:border-primary/50 transition-colors">
+                    <CardHeader>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <Share2 className="h-5 w-5 text-primary" />
+                        </div>
+                        <span className="text-xs px-2 py-1 rounded-full bg-muted capitalize">
+                          {shared.permission}
+                        </span>
+                      </div>
+                      <CardTitle className="group-hover:text-primary transition-colors">
+                        {shared.project_name}
+                      </CardTitle>
+                      <CardDescription>
+                        Compartilhado por {shared.owner_name}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardFooter>
+                      <span className="text-xs text-muted-foreground">
+                        Desde {new Date(shared.shared_at).toLocaleDateString()}
+                      </span>
+                    </CardFooter>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Recent Activity */}

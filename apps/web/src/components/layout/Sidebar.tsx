@@ -5,20 +5,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-    LayoutDashboard,
-    FileText,
-    FolderKanban,
-    Sparkles,
-    Settings,
-    BarChart,
-    Menu,
-    X,
-} from 'lucide-react';
+import { LayoutDashboard, FileText, Sparkles, Settings, BarChart, Menu, X } from 'lucide-react';
 
 const navigation = [
     {
-        name: 'Dashboard',
+        name: 'Overview',
         href: '/dashboard',
         icon: LayoutDashboard,
     },
@@ -28,29 +19,14 @@ const navigation = [
         icon: FileText,
     },
     {
-        name: 'Projects',
-        href: '/dashboard', // Will be enhanced later
-        icon: FolderKanban,
-    },
-    {
-        name: 'Studio',
-        href: '/studio',
-        icon: Sparkles,
-    },
-];
-
-const secondaryNavigation = [
-    {
         name: 'Analytics',
-        href: '#',
+        href: '/analytics',
         icon: BarChart,
-        disabled: true,
     },
     {
         name: 'Settings',
-        href: '#',
+        href: '/settings',
         icon: Settings,
-        disabled: true,
     },
 ];
 
@@ -124,26 +100,6 @@ export function Sidebar() {
                     })}
                 </nav>
 
-                {/* Secondary Navigation */}
-                <div className="border-t px-3 py-4">
-                    <nav className="space-y-1">
-                        {secondaryNavigation.map((item) => (
-                            <button
-                                key={item.name}
-                                disabled={item.disabled}
-                                className={cn(
-                                    'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                                    item.disabled
-                                        ? 'cursor-not-allowed text-muted-foreground opacity-50'
-                                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                                )}
-                            >
-                                <item.icon className="h-5 w-5" />
-                                {item.name}
-                            </button>
-                        ))}
-                    </nav>
-                </div>
             </div>
         </>
     );

@@ -20,8 +20,10 @@ export function Navbar() {
 
     // Generate breadcrumbs based on pathname
     const getBreadcrumbs = () => {
-        if (pathname === '/dashboard') return 'Dashboard';
+        if (pathname === '/dashboard') return 'Overview';
         if (pathname === '/catalog') return 'Process Catalog';
+        if (pathname === '/analytics') return 'Analytics';
+        if (pathname === '/settings') return 'Settings';
         if (pathname?.startsWith('/projects/')) {
             const parts = pathname.split('/');
             if (parts.length === 3 && parts[2] === 'new') return 'New Project';

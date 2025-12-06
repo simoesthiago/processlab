@@ -10,10 +10,11 @@ from sqlalchemy import func, or_
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from app.db.session import get_db
-from app.db.models import User, ProcessModel, ModelVersion
+from app.db.models import User, ProcessModel, ModelVersion, Project, Folder
 from app.core.dependencies import get_current_user, require_organization_access, require_role
 from app.schemas.auth import ProcessResponse
-from app.core.exceptions import ResourceNotFoundError, AuthorizationError
+from app.core.exceptions import ResourceNotFoundError, AuthorizationError, ValidationError
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,21 @@ def list_processes_in_project(
     
     Requires user to have access to the project's organization.
     """
+    # Validate project and access
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.deleted_at == None
+    ).first()
+
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    if project.organization_id:
+        require_organization_access(current_user, project.organization_id)
+    else:
+        if not current_user.is_superuser and project.owner_id != current_user.id:
+            raise AuthorizationError("Access denied to this personal project")
+
     # Fetch processes with version count
     query = db.query(
         ProcessModel,
@@ -44,11 +60,6 @@ def list_processes_in_project(
     ).group_by(ProcessModel.id)
     
     results = query.all()
-    
-    # Check access to first process (they all have same org)
-    if results:
-        first_process = results[0][0]
-        require_organization_access(current_user, first_process.organization_id)
     
     # Build response
     processes = []
@@ -563,3 +574,114 @@ def get_version_diff(
         removed_elements=removed[:5],
         modified_elements=[]
     )
+
+
+class ProcessMoveRequest(BaseModel):
+    """Request payload to move a process between folders/projects."""
+
+    project_id: Optional[str] = None
+    folder_id: Optional[str] = None
+    position: Optional[int] = None
+
+
+@router.put("/processes/{process_id}/move", response_model=ProcessResponse)
+def move_process(
+    process_id: str,
+    payload: ProcessMoveRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Move a process to another folder or project.
+
+    - Validates workspace permissions
+    - Ensures folder belongs to the target project
+    - Updates optional ordering position
+    """
+    process = db.query(ProcessModel).filter(
+        ProcessModel.id == process_id,
+        ProcessModel.deleted_at == None  # noqa: E711
+    ).first()
+
+    if not process:
+        raise ResourceNotFoundError("Process", process_id)
+
+    # Verify current access
+    if process.organization_id:
+        require_organization_access(current_user, process.organization_id)
+    else:
+        if not current_user.is_superuser and process.project.owner_id != current_user.id:
+            raise AuthorizationError("Access denied to this personal project")
+    require_role(current_user, ["editor", "admin"])
+
+    target_project = process.project
+
+    # If switching projects, validate target
+    if payload.project_id and payload.project_id != process.project_id:
+        target_project = db.query(Project).filter(
+            Project.id == payload.project_id,
+            Project.deleted_at == None  # noqa: E711
+        ).first()
+        if not target_project:
+            raise ResourceNotFoundError("Project", payload.project_id)
+
+        # Access rules
+        if target_project.organization_id:
+            require_organization_access(current_user, target_project.organization_id)
+        else:
+            if not current_user.is_superuser and target_project.owner_id != current_user.id:
+                raise AuthorizationError("Access denied to the target project")
+
+        process.project_id = target_project.id
+        process.organization_id = target_project.organization_id
+
+    # Validate folder (optional)
+    if payload.folder_id:
+        folder = db.query(Folder).filter(
+            Folder.id == payload.folder_id,
+            Folder.deleted_at == None  # noqa: E711
+        ).first()
+        if not folder:
+            raise ResourceNotFoundError("Folder", payload.folder_id)
+        if folder.project_id != process.project_id:
+            raise ValidationError("Folder must belong to the same project as the process")
+        process.folder_id = folder.id
+    else:
+        process.folder_id = None
+
+    if payload.position is not None:
+        process.position = payload.position
+
+    db.commit()
+    db.refresh(process)
+
+    return ProcessResponse.from_orm(process)
+
+
+@router.delete("/processes/{process_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_process(
+    process_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Soft delete a process and its versions remain for auditing.
+    """
+    process = db.query(ProcessModel).filter(
+        ProcessModel.id == process_id,
+        ProcessModel.deleted_at == None  # noqa: E711
+    ).first()
+
+    if not process:
+        raise ResourceNotFoundError("Process", process_id)
+
+    if process.organization_id:
+        require_organization_access(current_user, process.organization_id)
+    else:
+        if not current_user.is_superuser and process.project.owner_id != current_user.id:
+            raise AuthorizationError("Access denied to this personal project")
+    require_role(current_user, ["editor", "admin"])
+
+    process.deleted_at = datetime.utcnow()
+    db.commit()
+    return None

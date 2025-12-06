@@ -53,20 +53,20 @@
   --popover: #ffffff;
   --popover-foreground: #09090b;
 
-  /* Primary - ProcessLab Vermilion Orange */
-  --primary: #E54C2E; /* ProcessLab brand color */
+  /* Primary - Clean Grey (Zinc/Slate) */
+  --primary: #18181b; /* zinc-900 */
   --primary-foreground: #ffffff;
-  --primary-50: #fef3f2;
-  --primary-100: #fee4e1;
-  --primary-200: #fdcdc8;
-  --primary-300: #fba9a1;
-  --primary-400: #f67a6b;
-  --primary-500: #ec5140;
-  --primary-600: #E54C2E; /* Main brand */
-  --primary-700: #c62f1a;
-  --primary-800: #a42a19;
-  --primary-900: #88291c;
-  --primary-950: #4a1109;
+  --primary-50: #fafafa;
+  --primary-100: #f4f4f5;
+  --primary-200: #e4e4e7;
+  --primary-300: #d4d4d8;
+  --primary-400: #a1a1aa;
+  --primary-500: #71717a;
+  --primary-600: #52525b;
+  --primary-700: #3f3f46;
+  --primary-800: #27272a;
+  --primary-900: #18181b;
+  --primary-950: #09090b;
 
   --secondary: #f4f4f5; /* zinc-100 */
   --secondary-foreground: #18181b; /* zinc-900 */
@@ -77,7 +77,7 @@
   --accent: #f4f4f5; /* zinc-100 */
   --accent-foreground: #18181b; /* zinc-900 */
 
-  /* Success - Green */
+  /* Success - Muted Green */
   --success: #10b981; /* emerald-500 */
   --success-foreground: #ffffff;
   --success-50: #ecfdf5;
@@ -88,7 +88,7 @@
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
 
-  /* Warning - Amber */
+  /* Warning - Muted Amber */
   --warning: #f59e0b; /* amber-500 */
   --warning-foreground: #ffffff;
   --warning-50: #fffbeb;
@@ -99,7 +99,7 @@
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
 
-  /* Destructive - Red */
+  /* Destructive - Muted Red */
   --destructive: #ef4444; /* red-500 */
   --destructive-foreground: #ffffff;
   --destructive-50: #fef2f2;
@@ -108,7 +108,7 @@
   --destructive-600: #dc2626;
   --destructive-700: #b91c1c;
 
-  /* Info - Cyan */
+  /* Info - Muted Cyan */
   --info: #06b6d4; /* cyan-500 */
   --info-foreground: #ffffff;
   --info-50: #ecfeff;
@@ -121,7 +121,7 @@
 
   --border: #e4e4e7; /* zinc-200 */
   --input: #e4e4e7;
-  --ring: #E54C2E;
+  --ring: #18181b; /* zinc-900 - matching primary */
 
   --radius: 0.5rem;
 
@@ -157,8 +157,8 @@
     --popover: #09090b;
     --popover-foreground: #fafafa;
 
-    --primary: #ec5140; /* ProcessLab brand - lighter for dark mode */
-    --primary-foreground: #ffffff;
+    --primary: #fafafa; /* zinc-50 - inverted for dark mode */
+    --primary-foreground: #18181b; /* zinc-900 */
 
     --secondary: #27272a; /* zinc-800 */
     --secondary-foreground: #fafafa;
@@ -178,11 +178,11 @@
 
     --border: #27272a; /* zinc-800 */
     --input: #27272a;
-    --ring: #ec5140; /* ProcessLab brand */
+    --ring: #fafafa; /* zinc-50 */
   }
 
   body {
-    color: #cbd5e1; /* slate-300 - suave para body text no dark mode */
+    color: #a1a1aa; /* zinc-400 - softer body text for dark mode */
   }
 }
 
