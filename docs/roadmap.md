@@ -184,8 +184,8 @@ O roadmap está organizado em **5 Fases**, cada uma dividida em **Sprints**:
 
 ---
 
-### Sprint 6 - Governança e Segurança Organizacional 🔮
-**Status**: Planejado (Dezembro 2025 - Janeiro 2026)
+### Sprint 6 - Governança e Segurança Organizacional 🔄
+**Status**: Em Andamento (Dezembro 2025)
 
 **Backend**:
 - [ ] **Optimistic Locking**: Adicionar `version_timestamp`/`etag` em versões; endpoint de save retorna 409 Conflict se base mudou
@@ -197,7 +197,7 @@ O roadmap está organizado em **5 Fases**, cada uma dividida em **Sprints**:
 
 **Frontend**:
 - [ ] **Modal de Conflito de Edição**: Detecta 409 Conflict, exibe opções (sobrescrever/salvar como cópia/mesclar)
-- [ ] **Rota `/invite/[token]`**: Aceite de convite, definição de senha
+- [x] **Rota `/invite/[token]`**: Aceite de convite, definição de senha
 - [ ] **Rota `/settings/audit-log`**: Tabela de eventos administrativos com filtros e exportação
 - [ ] **Rota `/settings/api-keys`**: Gestão de chaves BYOK e API
 - [ ] **Páginas de Erro**: `/403`, `/404`, `/500` com mensagens amigáveis
@@ -208,7 +208,7 @@ O roadmap está organizado em **5 Fases**, cada uma dividida em **Sprints**:
 - [ ] Páginas de erro amigáveis
 
 **Páginas a Implementar**:
-- [ ] Aceite de Convite (`/invite/[token]`)
+- [x] Aceite de Convite (`/invite/[token]`)
 - [ ] Audit Log (`/settings/audit-log`)
 - [ ] Gestão de API Keys (`/settings/api-keys`)
 - [ ] Acesso Negado (`/403`)

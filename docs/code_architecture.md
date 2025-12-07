@@ -28,10 +28,13 @@ JSON e a fonte de verdade; XML e usado apenas em bordas (import/export/visualiza
   - `src/features/copiloto/Copilot.tsx`: chat de edicao chamando `/api/v1/edit`.
   - `src/features/citations/`: placeholder.
   - `src/features/versioning/`: `VersionDiffViewer.tsx` (diff visual), timeline de versões.
-  - `src/app/`: rotas Next.js (dashboard, projetos, processos, studio, login, register).
-  - `src/components/`: componentes reutilizáveis (ProtectedRoute, etc.).
-  - `src/contexts/`: AuthContext para gerenciamento de autenticação.
-  - Config: Next.js 15, React 19, TailwindCSS, ESLint.
+  - `src/app/`: rotas Next.js (App Router).
+    - `w/[orgSlug]/`: rotas de workspace (dashboard, projects, studio).
+    - `personal/`: rotas pessoais do usuário.
+    - `(auth)/`: login, register, invite.
+  - `src/components/`: componentes reutilizáveis (UI, Layout, Branding).
+  - `src/contexts/`: AuthContext, WorkspaceContext.
+  - Config: Next.js 16, React 19, TailwindCSS v4, ESLint.
 - `packages/shared-schemas`
   - `src/bpmn_json.schema.json`: schema principal.
   - `src/types.ts`: tipos TS gerados.

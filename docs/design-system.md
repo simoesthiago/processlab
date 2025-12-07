@@ -10,12 +10,12 @@ Este documento define o design system do ProcessLab, incluindo identidade visual
 
 ### Logo
 
-O logo ProcessLab é composto por um círculo vermilion orange com um ícone BPMN em branco representando um fluxo de processo (diamante de decisão conectado a retângulos de tarefa) e a marca textual "ProcessLab".
+O logo ProcessLab é composto por um símbolo minimalista representando um fluxo de processo e a marca textual "ProcessLab".
 
 **Variantes disponíveis:**
 - **Horizontal**: Logo completo com ícone e texto lado a lado
 - **Vertical**: Logo empilhado com ícone acima do texto
-- **Icon**: Apenas o ícone circular do fluxo de processo
+- **Icon**: Apenas o ícone
 
 **Uso:**
 ```tsx
@@ -32,34 +32,34 @@ import { Logo } from '@/components/branding/Logo';
 ```
 
 **Cores do logo:**
-- Fundo do círculo: `#E54C2E` (Vermilion Orange)
-- Ícone interno: `#FFFFFF` (White)
+- Primária: `#18181b` (Zinc 900)
+- Fundo: Transparente ou `#ffffff`
 
 ---
 
 ## 🎨 Paleta de Cores
 
-### Cores Primárias
+### Cores Primárias (Zinc/Slate)
 
-A paleta principal do ProcessLab é baseada em Vermilion Orange, representando energia, inovação e dinamismo.
+A paleta principal do ProcessLab é baseada em Zinc (Clean Grey), transmitindo profissionalismo, sobriedade e foco no conteúdo técnico.
 
 | Nome | Hex | Uso |
 |------|-----|-----|
-| Primary 50 | `#fef3f2` | Backgrounds muito suaves |
-| Primary 100 | `#fee4e1` | Backgrounds suaves |
-| Primary 200 | `#fdcdc8` | Borders suaves |
-| Primary 300 | `#fba9a1` | Elementos secundários |
-| Primary 400 | `#f67a6b` | Hover states |
-| Primary 500 | `#ec5140` | Ações secundárias |
-| **Primary 600** | `#E54C2E` | **Cor principal (Brand)** |
-| Primary 700 | `#c62f1a` | Hover estados escuros |
-| Primary 800 | `#a42a19` | Estados pressionados |
-| Primary 900 | `#88291c` | Texto em backgrounds claros |
-| Primary 950 | `#4a1109` | Tom mais escuro |
+| Primary 50 | `#fafafa` | Backgrounds muito suaves |
+| Primary 100 | `#f4f4f5` | Backgrounds suaves |
+| Primary 200 | `#e4e4e7` | Borders suaves |
+| Primary 300 | `#d4d4d8` | Elementos secundários |
+| Primary 400 | `#a1a1aa` | Texto desabilitado/placeholder |
+| Primary 500 | `#71717a` | Texto secundário |
+| Primary 600 | `#52525b` | Ícones e bordas fortes |
+| Primary 700 | `#3f3f46` | Texto importante |
+| Primary 800 | `#27272a` | Estados pressionados |
+| **Primary 900** | `#18181b` | **Cor principal (Brand/Text)** |
+| Primary 950 | `#09090b` | Backgrounds escuros |
 
 ### Cores Semânticas
 
-#### Success (Verde)
+#### Success (Emerald)
 - Success: `#10b981` (emerald-500)
 - Success 50: `#ecfdf5`
 - Success 600: `#059669`
@@ -71,7 +71,7 @@ A paleta principal do ProcessLab é baseada em Vermilion Orange, representando e
 - Warning 600: `#d97706`
 - Uso: Avisos, estados de atenção
 
-#### Destructive (Vermelho)
+#### Destructive (Red)
 - Destructive: `#ef4444` (red-500)
 - Destructive 50: `#fef2f2`
 - Destructive 600: `#dc2626`
@@ -99,9 +99,9 @@ A paleta principal do ProcessLab é baseada em Vermilion Orange, representando e
 
 ### Fontes
 
-- **Sans-serif**: Geist Sans (variável `--font-geist-sans`)
+- **Sans-serif**: Inter (variável `--font-inter`)
   - Fallback: system-ui, -apple-system, sans-serif
-- **Monospace**: Geist Mono (variável `--font-geist-mono`)
+- **Monospace**: JetBrains Mono (variável `--font-mono`)
   - Fallback: 'Courier New', monospace
 
 ### Escala Tipográfica
@@ -122,9 +122,9 @@ A paleta principal do ProcessLab é baseada em Vermilion Orange, representando e
 ### Pesos de Fonte
 
 - `400` (normal): Texto padrão
-- `500` (medium): Ênfase leve
-- `600` (semibold): Subtítulos, labels importantes
-- `700` (bold): Títulos, destaque
+- `500` (medium): Ênfase leve, subtítulos
+- `600` (semibold): Títulos, botões, labels importantes
+- `700` (bold): Destaque máximo
 
 ---
 

@@ -62,15 +62,17 @@
     - Preferir estado local; contexto/zustand apenas para compartilhado; bpmn-js nao e fonte de verdade, BPMN_JSON sim.
 25. Performance
     - Lazy load do bpmn-js; memoizacao de componentes pesados; virtual scroll em listas grandes (historico, artefatos).
+26. Next.js 16 Compatibility
+    - `params` e `searchParams` são Promises. Use `React.use()` para desembrulhá-los antes de usar.
 
 ## Deploy e Performance
-26. Variaveis de ambiente
+27. Variaveis de ambiente
     - Configuracoes via env vars; proibido hardcode de URLs/credenciais; validar no startup.
-27. Migrations
+28. Migrations
     - Alembic versionado; com downgrade; testar em staging.
-28. Database
+29. Database
     - Indexes para queries frequentes; evitar N+1; pooling.
-29. Cache
+30. Cache
     - Cachear embeddings e layout quando util; invalidar ao mudar artefatos/modelos.
 
 ---

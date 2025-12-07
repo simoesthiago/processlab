@@ -114,7 +114,7 @@
 - Recuperacao de dados: soft delete permite restaurar processos/projetos deletados acidentalmente; periodo de retencao configuravel.
 
 ## 7. Arquitetura de Referencia (atual + alvo)
-- Monorepo (`processlab`): `apps/api` (FastAPI), `apps/web` (Next.js + bpmn.io), `packages/shared-schemas` (BPMN_JSON schema/types/models).
+- Monorepo (`processlab`): `apps/api` (FastAPI), `apps/web` (Next.js 16 / React 19 + bpmn.io), `packages/shared-schemas` (BPMN_JSON schema/types/models).
 - Fonte de verdade: `BPMN_JSON` (`packages/shared-schemas/src/bpmn_json.schema.json`); tipos gerados TS/Pydantic.
 - Editor: bpmn-js como motor; ELK para layout; UI React/Next.
 - Backend:

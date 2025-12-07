@@ -24,41 +24,16 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 /solucao                    → Página de Solução (pública) [Fase 5]
 /docs                       → Documentação (pública) [Fase 5]
 
-/dashboard                  → Dashboard Principal (protegida)
-/projects                   → Catálogo de Projetos (protegida)
-/projects/new               → Criar Novo Projeto (protegida)
-/projects/[id]             → Detalhes do Projeto (protegida)
-/projects/[id]/processes   → Processos do Projeto (protegida)
+/w/[orgSlug]/dashboard      → Dashboard do Workspace (protegida)
+/w/[orgSlug]/projects       → Catálogo de Projetos (protegida)
+/w/[orgSlug]/projects/new   → Criar Novo Projeto (protegida)
+/w/[orgSlug]/projects/[id]  → Detalhes do Projeto (protegida)
+/w/[orgSlug]/studio         → Editor BPMN (protegida)
 
-/catalog                    → Catálogo de Processos (protegida) [Fase 2]
-/catalog/[processId]        → Detalhes do Processo (protegida) [Fase 2]
+/personal                   → Área Pessoal / Configurações de Usuário (protegida)
+/share/[id]                 → Links de Compartilhamento Público (pública/protegida)
 
-/studio                     → Editor BPMN (protegida)
-/studio?process_id=[id]     → Editor com Processo Carregado (protegida)
-
-/processes/[id]             → Página do Processo (protegida) [Fase 2]
-/processes/[id]/versions   → Histórico de Versões (protegida) [Fase 2]
-/processes/[id]/compare    → Comparar Versões (protegida) [Fase 2]
-/processes/[id]/evidence   → Evidências do Processo (protegida) [Fase 4]
-
-/reviews                    → Lista de Reviews Pendentes (protegida) [Fase 3]
-/reviews/[id]               → Detalhes do Review (protegida) [Fase 3]
-
-/reports                    → Relatórios (protegida) [Fase 4]
-/reports/[type]             → Gerar Relatório (protegida) [Fase 4]
-
-/settings                   → Configurações (protegida) [Fase 5]
-/settings/profile           → Perfil do Usuário (protegida)
-/settings/organization      → Configurações da Organização (protegida) [Fase 5]
-/settings/audit-log         → Log de Auditoria do Sistema (protegida, admin) [Fase 2]
-/settings/usage             → Monitoramento de Uso (protegida) [Fase 5]
-/settings/api-keys          → Gestão de API Keys (protegida) [Fase 2]
-/settings/integrations      → Integrações (protegida) [Fase 5]
-/settings/billing           → Faturamento (protegida) [Fase 5]
-
-/trash                      → Lixeira (protegida) [Fase 3]
-
-/onboarding                 → Onboarding Guiado (protegida) [Sprint 2.5]
+/settings                   → Configurações Globais (protegida) [Fase 5]
 
 /403                        → Acesso Negado (pública) [Fase 2]
 /404                        → Não Encontrado (pública) [Fase 2]
@@ -119,7 +94,7 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 - Redireciona para `/dashboard` ou URL de retorno
 
 **Navegação**:
-- Sucesso → `/dashboard` (ou URL de retorno)
+- Sucesso → `/w/[orgSlug]/dashboard` (ou URL de retorno)
 - Erro → exibe mensagem, mantém na página
 - Link para registro → `/register`
 
@@ -145,7 +120,7 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
   - `User` com role `admin`
   - `Organization` com nome baseado no email
 - Armazena token no `AuthContext`
-- Redireciona para `/onboarding` (primeira vez) ou `/dashboard`
+- Redireciona para `/onboarding` (primeira vez) ou `/w/[orgSlug]/dashboard`
 
 **Navegação**:
 - Sucesso → `/onboarding` (primeira vez) ou `/dashboard`
@@ -231,7 +206,7 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 
 ## 4. Páginas Autenticadas (Aplicação Principal)
 
-### 4.1. Dashboard (`/dashboard`)
+### 4.1. Dashboard (`/w/[orgSlug]/dashboard`)
 
 **Objetivo**: Visão geral do usuário, acesso rápido a projetos e processos.
 
@@ -264,7 +239,7 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 
 ---
 
-### 4.2. Catálogo de Projetos (`/projects`)
+### 4.2. Catálogo de Projetos (`/w/[orgSlug]/projects`)
 
 **Objetivo**: Listar e gerenciar projetos da organização.
 
@@ -291,7 +266,7 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 
 ---
 
-### 4.3. Detalhes do Projeto (`/projects/[id]`)
+### 4.3. Detalhes do Projeto (`/w/[orgSlug]/projects/[id]`)
 
 **Objetivo**: Visualizar detalhes e processos de um projeto.
 
@@ -380,7 +355,7 @@ Este documento detalha a arquitetura completa de páginas do ProcessLab, incluin
 
 ---
 
-### 4.6. Editor BPMN (`/studio`)
+### 4.6. Editor BPMN (`/w/[orgSlug]/studio`)
 
 **⚠️ IMPORTANTE - Conflitos de Edição**: O editor implementa detecção de conflitos quando múltiplos usuários editam o mesmo processo simultaneamente. Ao salvar, se a versão base no servidor for mais nova, um modal de conflito é exibido com opções de resolução.
 
