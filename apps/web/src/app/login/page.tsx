@@ -29,7 +29,7 @@ export default function LoginPage() {
     // Redirect if already authenticated
     useEffect(() => {
         if (!loading && isAuthenticated) {
-            router.push('/dashboard');
+            router.push('/home');
         }
     }, [isAuthenticated, loading, router]);
 
@@ -40,7 +40,7 @@ export default function LoginPage() {
 
         try {
             await login(email, password);
-            router.push('/dashboard');
+            router.push('/home');
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : 'Login failed';
             setError(errorMessage);

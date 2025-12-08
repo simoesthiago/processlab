@@ -14,7 +14,18 @@ TODO (Sprint 2+):
 - Create indexes for performance
 """
 
-from sqlalchemy import Column, String, Integer, DateTime, JSON, LargeBinary, ForeignKey, Text, Boolean
+from sqlalchemy import (
+    Column,
+    String,
+    Integer,
+    DateTime,
+    JSON,
+    LargeBinary,
+    ForeignKey,
+    Text,
+    Boolean,
+    UniqueConstraint,
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from pgvector.sqlalchemy import Vector
@@ -56,6 +67,11 @@ class Organization(Base):
     # Relationships
     projects = relationship("Project", back_populates="organization")
     users = relationship("User", back_populates="organization")
+    memberships = relationship(
+        "OrganizationMember",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
     
     def __repr__(self):
         return f"<Organization(id={self.id}, name={self.name}, slug={self.slug})>"
@@ -123,7 +139,9 @@ class Folder(Base):
     __tablename__ = "folders"
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     parent_folder_id = Column(String(36), ForeignKey("folders.id"), nullable=True, index=True)
     
     name = Column(String(255), nullable=False)
@@ -148,12 +166,14 @@ class Folder(Base):
     
     # Relationships
     project = relationship("Project", back_populates="folders")
+    organization = relationship("Organization")
+    user = relationship("User", foreign_keys=[user_id])
     parent_folder = relationship("Folder", remote_side="Folder.id", backref="subfolders")
     processes = relationship("ProcessModel", back_populates="folder")
     creator = relationship("User", foreign_keys=[created_by])
     
     def __repr__(self):
-        return f"<Folder(id={self.id}, name={self.name}, project_id={self.project_id})>"
+        return f"<Folder(id={self.id}, name={self.name}, project_id={self.project_id}, org_id={self.organization_id}, user_id={self.user_id})>"
 
 
 class ProcessModel(Base):
@@ -168,7 +188,7 @@ class ProcessModel(Base):
     __tablename__ = "processes"
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
     folder_id = Column(String(36), ForeignKey("folders.id"), nullable=True, index=True)  # Optional folder
     
     name = Column(String(255), nullable=False)
@@ -182,7 +202,8 @@ class ProcessModel(Base):
     
     # Ownership
     created_by = Column(String(255), nullable=True)  # User ID from auth system
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True)  # Denormalized for easy filtering (NULL for personal)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # Team space scope
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)  # Private space scope
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -194,10 +215,12 @@ class ProcessModel(Base):
     # Relationships
     project = relationship("Project", back_populates="processes")
     folder = relationship("Folder", back_populates="processes")
+    organization = relationship("Organization")
+    user = relationship("User", foreign_keys=[user_id])
     versions = relationship("ModelVersion", back_populates="process", foreign_keys="ModelVersion.process_id")
     
     def __repr__(self):
-        return f"<ProcessModel(id={self.id}, name={self.name}, project_id={self.project_id})"
+        return f"<ProcessModel(id={self.id}, name={self.name}, project_id={self.project_id}, org_id={self.organization_id}, user_id={self.user_id})>"
 
 
 
@@ -404,6 +427,7 @@ class User(Base):
     full_name = Column(String(255), nullable=True)
     
     # Organization membership
+    # organization_id is the user's currently active organization (for switching)
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True)
     
     # Status and role
@@ -416,11 +440,69 @@ class User(Base):
     
     # Relationships
     organization = relationship("Organization", back_populates="users")
+    memberships = relationship(
+        "OrganizationMember",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys=lambda: [OrganizationMember.user_id],
+        primaryjoin="User.id==OrganizationMember.user_id",
+    )
+    organizations = relationship(
+        "Organization",
+        secondary="organization_members",
+        viewonly=True,
+        primaryjoin="User.id==OrganizationMember.user_id",
+        secondaryjoin="Organization.id==OrganizationMember.organization_id",
+        foreign_keys=lambda: [OrganizationMember.user_id, OrganizationMember.organization_id],
+        overlaps="memberships,organization",
+    )
     owned_projects = relationship("Project", back_populates="owner", foreign_keys="Project.owner_id")
     shared_projects = relationship("ProjectShare", back_populates="shared_with_user", foreign_keys="ProjectShare.shared_with_user_id")
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, org_id={self.organization_id})>"
+
+
+class OrganizationMember(Base):
+    """
+    Organization membership (many-to-many between users and organizations).
+    
+    Stores role per organization and supports soft deletion for revocation.
+    """
+
+    __tablename__ = "organization_members"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "user_id", name="uq_org_member"),
+    )
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+
+    role = Column(String(50), nullable=False, default="viewer")  # viewer, editor, admin
+    status = Column(String(20), nullable=False, default="active")  # active, invited, suspended
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    deleted_at = Column(DateTime, nullable=True)
+    invited_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+
+    organization = relationship(
+        "Organization",
+        back_populates="memberships",
+        foreign_keys=[organization_id],
+        primaryjoin="OrganizationMember.organization_id==Organization.id",
+    )
+    user = relationship(
+        "User",
+        back_populates="memberships",
+        foreign_keys=[user_id],
+        primaryjoin="OrganizationMember.user_id==User.id",
+    )
+    inviter = relationship("User", foreign_keys=[invited_by], viewonly=True)
+
+    def __repr__(self):
+        return f"<OrganizationMember(org_id={self.organization_id}, user_id={self.user_id}, role={self.role})>"
 
 
 class ProjectShare(Base):

@@ -11,8 +11,8 @@ from pydantic import BaseModel
 from slugify import slugify
 
 from app.db.session import get_db
-from app.db.models import Organization, User, Project
-from app.core.dependencies import get_current_user
+from app.db.models import Organization, User, Project, OrganizationMember
+from app.core.dependencies import get_current_user, require_organization_access
 
 router = APIRouter()
 
@@ -81,26 +81,53 @@ async def get_my_organizations(
     Get all organizations the current user belongs to.
     """
     organizations = []
-    
-    # Get user's primary organization
-    if current_user.organization_id:
-        org = db.query(Organization).filter(
-            Organization.id == current_user.organization_id,
-            Organization.deleted_at.is_(None)
-        ).first()
-        
+
+    memberships = (
+        db.query(OrganizationMember)
+        .join(Organization, OrganizationMember.organization_id == Organization.id)
+        .filter(
+            OrganizationMember.user_id == current_user.id,
+            OrganizationMember.deleted_at.is_(None),
+            Organization.deleted_at.is_(None),
+        )
+        .all()
+    )
+
+    # Backward compatibility: include active org if no membership exists yet
+    if not memberships and current_user.organization_id:
+        org = (
+            db.query(Organization)
+            .filter(
+                Organization.id == current_user.organization_id,
+                Organization.deleted_at.is_(None),
+            )
+            .first()
+        )
         if org:
-            organizations.append(OrganizationResponse(
+            organizations.append(
+                OrganizationResponse(
+                    id=org.id,
+                    name=org.name,
+                    slug=org.slug,
+                    description=org.description,
+                    role=current_user.role or "viewer",
+                )
+            )
+
+    for membership in memberships:
+        org = membership.organization
+        if not org:
+            continue
+        organizations.append(
+            OrganizationResponse(
                 id=org.id,
                 name=org.name,
                 slug=org.slug,
                 description=org.description,
-                role=current_user.role or "viewer"
-            ))
-    
-    # TODO: In the future, support users belonging to multiple organizations
-    # through a separate membership table
-    
+                role=membership.role or "viewer",
+            )
+        )
+
     return OrganizationsListResponse(organizations=organizations)
 
 
@@ -125,12 +152,14 @@ async def get_organization(
             detail="Organization not found"
         )
     
-    # Check user has access
-    if current_user.organization_id != org_id and not current_user.is_superuser:
+    # Check user has access (supports multi-org via membership)
+    try:
+        require_organization_access(current_user, org_id, db=db)
+    except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this organization"
-        )
+        ) from exc
     
     return OrganizationDetailResponse(
         id=org.id,
@@ -163,12 +192,14 @@ async def get_organization_by_slug(
             detail="Organization not found"
         )
     
-    # Check user has access
-    if current_user.organization_id != org.id and not current_user.is_superuser:
+    # Check user has access (supports multi-org via membership)
+    try:
+        require_organization_access(current_user, org.id, db=db)
+    except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this organization"
-        )
+        ) from exc
     
     return OrganizationDetailResponse(
         id=org.id,
@@ -193,11 +224,13 @@ async def get_organization_projects(
     User must be a member of the organization.
     """
     # Check user has access to org
-    if current_user.organization_id != org_id and not current_user.is_superuser:
+    try:
+        require_organization_access(current_user, org_id, db=db)
+    except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this organization"
-        )
+        ) from exc
     
     # Get projects
     projects_query = db.query(Project).filter(
@@ -255,9 +288,16 @@ async def create_organization(
     db.add(org)
     db.flush()
     
-    # Update user to be admin of this organization
+    # Update user to be admin of this organization and add membership
     current_user.organization_id = org.id
     current_user.role = "admin"
+    membership = OrganizationMember(
+        organization_id=org.id,
+        user_id=current_user.id,
+        role="admin",
+        status="active",
+    )
+    db.add(membership)
     
     db.commit()
     db.refresh(org)

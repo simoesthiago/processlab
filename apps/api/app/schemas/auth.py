@@ -92,11 +92,13 @@ class ProjectResponse(BaseModel):
 
 class ProcessResponse(BaseModel):
     """Response schema for process (basic info)"""
+
     id: str
-    project_id: str
+    project_id: Optional[str] = None
     folder_id: Optional[str] = Field(None, description="Folder containing the process (optional)")
-    # Personal projects' processes can have NULL organization_id
+    # Personal/private processes carry user_id, team processes carry organization_id
     organization_id: Optional[str] = None
+    user_id: Optional[str] = None
     name: str
     description: Optional[str]
     current_version_id: Optional[str]
@@ -105,5 +107,5 @@ class ProcessResponse(BaseModel):
     updated_at: datetime
     version_count: Optional[int] = Field(None, description="Number of versions")
     status: Optional[str] = Field(None, description="Process status (derived from active version)")
-    
+
     model_config = ConfigDict(from_attributes=True)

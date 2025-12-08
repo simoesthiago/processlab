@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import ProtectedRoute from '@/components/ProtectedRoute';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,11 +11,9 @@ import { ShieldCheck, Bell, UserCog } from 'lucide-react';
 
 export default function SettingsPage() {
     return (
-        <ProtectedRoute>
-            <AppLayout>
-                <SettingsContent />
-            </AppLayout>
-        </ProtectedRoute>
+        <AppLayout>
+            <SettingsContent />
+        </AppLayout>
     );
 }
 

@@ -60,6 +60,7 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             if (!modelerRef.current) throw new Error("Editor not initialized");
             const modeler = modelerRef.current as { saveXML: (options: { format: boolean }) => Promise<{ xml: string }> };
             const { xml } = await modeler.saveXML({ format: true });
+            console.log('[BpmnEditor] getXml called, returning XML length:', xml.length);
             return xml;
         },
     }));
@@ -91,6 +92,7 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
 
                 // Import minimal XML to ensure modeler is ready
                 const xmlToImport = initialXml || MINIMAL_BPMN_XML;
+                console.log('[BpmnEditor] Initializing with XML length:', xmlToImport.length);
                 await (modeler as { importXML: (xml: string) => Promise<unknown> }).importXML(xmlToImport);
 
                 console.log('[BpmnEditor] Modeler initialized and XML imported');
@@ -119,7 +121,7 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
         if (modelerRef.current && isReady && initialXml) {
             // Only re-import if initialXml changes and is different from what's already loaded
             const modeler = modelerRef.current as { importXML: (xml: string) => Promise<unknown> };
-
+            console.log('[BpmnEditor] Re-importing XML length:', initialXml.length);
             modeler.importXML(initialXml).catch((err: unknown) => {
                 console.error("[BpmnEditor] Failed to import XML:", err);
                 setError("Failed to render BPMN diagram");

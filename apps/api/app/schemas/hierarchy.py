@@ -46,7 +46,9 @@ class FolderResponse(BaseModel):
     """Response schema for folder metadata."""
 
     id: str
-    project_id: str
+    project_id: Optional[str] = None
+    organization_id: Optional[str] = None
+    user_id: Optional[str] = None
     parent_folder_id: Optional[str] = None
     name: str
     description: Optional[str]

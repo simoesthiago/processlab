@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, ingestion, organizations, projects, processes, users, shares, folders
+from app.api.v1.endpoints import auth, ingestion, organizations, projects, processes, users, shares, folders, spaces
 from app.api.v1.endpoints import invitations, api_keys, audit_log
 from app.api.v1 import generate, edit, export, search
 
@@ -15,6 +15,7 @@ api_router.include_router(processes.router, tags=["processes"])  # Has its own n
 api_router.include_router(folders.router, tags=["folders"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(shares.router, prefix="/shares", tags=["shares"])
+api_router.include_router(spaces.router, tags=["spaces"])
 
 # Governance (Sprint 6)
 api_router.include_router(invitations.router, prefix="/invitations", tags=["invitations"])

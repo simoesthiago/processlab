@@ -133,7 +133,8 @@ async def get_current_superuser(
 def require_organization_access(
     user: User,
     organization_id: str,
-    allow_superuser: bool = True
+    allow_superuser: bool = True,
+    db: Session | None = None,
 ) -> None:
     """
     Helper to check if user has access to an organization.
@@ -148,11 +149,31 @@ def require_organization_access(
     """
     if allow_superuser and user.is_superuser:
         return
-    
-    if user.organization_id != organization_id:
-        raise AuthorizationError(
-            f"User does not have access to organization {organization_id}"
+
+    # Active organization shortcut
+    if user.organization_id == organization_id:
+        return
+
+    # Check membership table when available (supports multi-org users)
+    if db:
+        from app.db.models import OrganizationMember
+
+        membership = (
+            db.query(OrganizationMember)
+            .filter(
+                OrganizationMember.organization_id == organization_id,
+                OrganizationMember.user_id == user.id,
+                OrganizationMember.deleted_at.is_(None),
+                OrganizationMember.status != "suspended",
+            )
+            .first()
         )
+        if membership:
+            return
+
+    raise AuthorizationError(
+        f"User does not have access to organization {organization_id}"
+    )
 
 
 def require_role(user: User, required_roles: list[str]) -> None:

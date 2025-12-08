@@ -15,7 +15,7 @@ export function UserProfile() {
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
     return (
-        <div className="p-4 mb-6 relative">
+        <div className="relative">
             <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="flex w-full items-center gap-3 rounded-xl p-2 hover:bg-accent transition-colors text-left group"

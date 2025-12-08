@@ -18,17 +18,13 @@ export function Navbar() {
     const getBreadcrumbs = () => {
         const crumbs = [
             {
-                label: 'Overview',
-                href: '/dashboard',
+                label: 'Dashboard',
+        href: '/dashboard',
                 icon: LayoutDashboard,
             }
         ];
 
-        if (pathname === '/catalog') {
-            crumbs.push({ label: 'Process Catalog', href: '/catalog', icon: FileText });
-        } else if (pathname === '/analytics') {
-            crumbs.push({ label: 'Analytics', href: '/analytics', icon: BarChart });
-        } else if (pathname === '/settings') {
+        if (pathname === '/settings') {
             crumbs.push({ label: 'Settings', href: '/settings', icon: Settings });
         }
 

@@ -21,6 +21,7 @@ class ModelVersionResponse(ModelVersionBase):
     created_at: datetime
     created_by: Optional[str] = None
     parent_version_id: Optional[str] = None
+    etag: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -35,6 +36,7 @@ class VersionHistoryItem(BaseModel):
     is_active: bool
     change_type: Optional[str]
     parent_version_id: Optional[str]
+    etag: Optional[str] = None
     
     class Config:
         from_attributes = True

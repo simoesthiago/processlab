@@ -18,6 +18,9 @@ services:
       # O TRUQUE: Cria volumes anônimos para isolar as dependências do container
       - "/srv/node_modules"
       - "/srv/apps/web/node_modules"
+    environment:
+      # Frontend no navegador deve chamar via host (porta exposta)
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
     # Adicionamos --force para garantir que ele não peça confirmação
     command: sh -lc "npm install -g pnpm && pnpm install --force && pnpm dev --port 3004 --hostname 0.0.0.0"
     ports: [ "3004:3004" ]

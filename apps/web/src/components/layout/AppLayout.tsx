@@ -1,59 +1,29 @@
 'use client';
 
-import { Sidebar } from './Sidebar';
-import { UserProfile } from './UserProfile';
-import {
-    LayoutDashboard,
-    FileText,
-    Settings,
-    BarChart,
-    Share2
-} from 'lucide-react';
+import { SpacesSidebar } from './SpacesSidebar';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { cn } from '@/lib/utils';
+import { SpacesProvider } from '@/contexts/SpacesContext';
 
 interface AppLayoutProps {
     children: React.ReactNode;
+    mainClassName?: string;
 }
 
-const generalNavigation = [
-    {
-        name: 'Overview',
-        href: '/dashboard',
-        icon: LayoutDashboard,
-    },
-    {
-        name: 'Process Catalog',
-        href: '/catalog',
-        icon: FileText,
-    },
-    {
-        name: 'Analytics',
-        href: '/analytics',
-        icon: BarChart,
-    },
-    {
-        name: 'Shared with Me',
-        href: '/shared',
-        icon: Share2,
-    },
-    {
-        name: 'Settings',
-        href: '/settings',
-        icon: Settings,
-    },
-];
-
-export function AppLayout({ children }: AppLayoutProps) {
+export function AppLayout({
+    children,
+    mainClassName,
+}: AppLayoutProps) {
     return (
-        <div className="flex h-screen w-full overflow-hidden bg-background">
-            <Sidebar
-                topComponent={<UserProfile />}
-                navigationItems={generalNavigation}
-            />
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <main className="flex-1 overflow-y-auto bg-white">
-                    {children}
-                </main>
-            </div>
-        </div>
+        <ProtectedRoute>
+            <SpacesProvider>
+                <div className="min-h-screen bg-white">
+                    <SpacesSidebar />
+                    <main className={cn('ml-72 min-h-screen bg-white', mainClassName)}>
+                        {children}
+                    </main>
+                </div>
+            </SpacesProvider>
+        </ProtectedRoute>
     );
 }

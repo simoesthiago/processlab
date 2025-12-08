@@ -4,7 +4,7 @@ Process endpoints for ProcessLab API
 Handles process management within projects.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Header
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func, or_
 from typing import List, Dict, Any, Optional
@@ -13,12 +13,30 @@ from app.db.session import get_db
 from app.db.models import User, ProcessModel, ModelVersion, Project, Folder
 from app.core.dependencies import get_current_user, require_organization_access, require_role
 from app.schemas.auth import ProcessResponse
+from app.schemas.governance import ConflictError
 from app.core.exceptions import ResourceNotFoundError, AuthorizationError, ValidationError
 from datetime import datetime
+import hashlib
+import json
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def compute_etag(payload: Dict[str, Any]) -> str:
+    """
+    Generate a deterministic hash for optimistic locking.
+    """
+    serialized = json.dumps(payload or {}, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+class ProcessCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    project_id: str
+    folder_id: Optional[str] = None
 
 
 @router.get("/projects/{project_id}/processes", response_model=List[ProcessResponse])
@@ -69,6 +87,59 @@ def list_processes_in_project(
         processes.append(ProcessResponse(**process_dict))
     
     return processes
+
+
+@router.post("/processes", response_model=ProcessResponse, status_code=status.HTTP_201_CREATED)
+def create_process(
+    payload: ProcessCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new process under a project (and optional folder).
+    """
+    project = db.query(Project).filter(
+        Project.id == payload.project_id,
+        Project.deleted_at == None
+    ).first()
+
+    if not project:
+        raise ResourceNotFoundError("Project", payload.project_id)
+
+    # Access control
+    if project.organization_id:
+        require_organization_access(current_user, project.organization_id)
+        require_role(current_user, ["editor", "admin"])
+    else:
+        # Personal project: only owner or superuser
+        if project.owner_id != current_user.id and not current_user.is_superuser:
+            raise AuthorizationError("Access denied to create process in this project")
+
+    # Optional folder check
+    if payload.folder_id:
+        folder = db.query(Folder).filter(
+            Folder.id == payload.folder_id,
+            Folder.project_id == payload.project_id,
+            Folder.deleted_at == None
+        ).first()
+        if not folder:
+            raise ResourceNotFoundError("Folder", payload.folder_id)
+
+    process = ProcessModel(
+        project_id=payload.project_id,
+        folder_id=payload.folder_id,
+        name=payload.name,
+        description=payload.description,
+        organization_id=project.organization_id,
+        user_id=project.owner_id if not project.organization_id else None,
+        created_by=current_user.id,
+    )
+
+    db.add(process)
+    db.commit()
+    db.refresh(process)
+
+    return ProcessResponse.model_validate(process)
 
 
 @router.get("/processes", response_model=List[ProcessResponse])
@@ -175,7 +246,20 @@ def get_process(
         raise ResourceNotFoundError("Process", process_id)
     
     # Check access
-    require_organization_access(current_user, process.organization_id)
+    if process.organization_id:
+        require_organization_access(current_user, process.organization_id)
+    elif process.user_id:
+        # Private process (no organization)
+        if not current_user.is_superuser and process.user_id != current_user.id:
+            raise AuthorizationError("Access denied to this personal process")
+    else:
+        # Legacy personal process tied to a project
+        if (
+            process.project
+            and not current_user.is_superuser
+            and process.project.owner_id != current_user.id
+        ):
+            raise AuthorizationError("Access denied to this personal project")
     
     # Get version count
     version_count = db.query(func.count(ModelVersion.id)).filter(
@@ -194,6 +278,7 @@ from app.schemas.versioning import ModelVersionCreate, ModelVersionResponse, Ver
 def create_version(
     process_id: str,
     version_data: ModelVersionCreate,
+    if_match: Optional[str] = Header(default=None, alias="If-Match"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -213,8 +298,21 @@ def create_version(
         raise ResourceNotFoundError("Process", process_id)
     
     # Check access
-    require_organization_access(current_user, process.organization_id)
-    require_role(current_user, ["editor", "admin"])
+    if process.organization_id:
+        require_organization_access(current_user, process.organization_id)
+        require_role(current_user, ["editor", "admin"])
+    elif process.user_id:
+        # Personal/private process
+        if not current_user.is_superuser and process.user_id != current_user.id:
+            raise AuthorizationError("Access denied to this personal process")
+    else:
+        # Legacy personal project relationship
+        if (
+            process.project
+            and not current_user.is_superuser
+            and process.project.owner_id != current_user.id
+        ):
+            raise AuthorizationError("Access denied to this personal project")
     
     # Get next version number
     last_version = db.query(ModelVersion).filter(
@@ -222,6 +320,17 @@ def create_version(
     ).order_by(ModelVersion.version_number.desc()).first()
     
     next_version_number = (last_version.version_number + 1) if last_version else 1
+
+    # Optimistic locking using If-Match header against latest stored etag
+    if if_match and last_version and last_version.etag and if_match != last_version.etag:
+        conflict_payload = ConflictError(
+            message="Process changed since you started editing.",
+            your_etag=if_match,
+            current_etag=last_version.etag,
+            last_modified_by=last_version.created_by,
+            last_modified_at=last_version.created_at
+        ).model_dump()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=conflict_payload)
     
     # Validate parent version if provided
     if version_data.parent_version_id:
@@ -244,6 +353,7 @@ def create_version(
         generation_method=version_data.generation_method,
         source_artifact_ids=version_data.source_artifact_ids,
         created_by=current_user.id,
+        etag=compute_etag(version_data.bpmn_json),
         status="ready",
         is_active=False # Explicitly set to False, must be activated separately
     )
@@ -282,7 +392,18 @@ def list_process_versions(
         raise ResourceNotFoundError("Process", process_id)
     
     # Check access
-    require_organization_access(current_user, process.organization_id)
+    if process.organization_id:
+        require_organization_access(current_user, process.organization_id)
+    elif process.user_id:
+        if not current_user.is_superuser and process.user_id != current_user.id:
+            raise AuthorizationError("Access denied to this personal process")
+    else:
+        if (
+            process.project
+            and not current_user.is_superuser
+            and process.project.owner_id != current_user.id
+        ):
+            raise AuthorizationError("Access denied to this personal project")
     
     # Fetch versions
     versions = db.query(ModelVersion).filter(
@@ -325,7 +446,18 @@ def get_version(
         raise ResourceNotFoundError("Process", process_id)
     
     # Check access
-    require_organization_access(current_user, process.organization_id)
+    if process.organization_id:
+        require_organization_access(current_user, process.organization_id)
+    elif process.user_id:
+        if not current_user.is_superuser and process.user_id != current_user.id:
+            raise AuthorizationError("Access denied to this personal process")
+    else:
+        if (
+            process.project
+            and not current_user.is_superuser
+            and process.project.owner_id != current_user.id
+        ):
+            raise AuthorizationError("Access denied to this personal project")
     
     # Fetch version
     version = db.query(ModelVersion).filter(
@@ -348,6 +480,7 @@ def get_version(
         "created_by": version.created_by,
         "change_type": version.change_type,
         "is_active": (version.id == process.current_version_id),
+        "etag": version.etag,
         "xml": xml_content,
         "bpmn_json": version.bpmn_json
     }
@@ -376,8 +509,19 @@ def activate_version(
         raise ResourceNotFoundError("Process", process_id)
     
     # Check access
-    require_organization_access(current_user, process.organization_id)
-    require_role(current_user, ["editor", "admin"])
+    if process.organization_id:
+        require_organization_access(current_user, process.organization_id)
+        require_role(current_user, ["editor", "admin"])
+    elif process.user_id:
+        if not current_user.is_superuser and process.user_id != current_user.id:
+            raise AuthorizationError("Access denied to this personal process")
+    else:
+        if (
+            process.project
+            and not current_user.is_superuser
+            and process.project.owner_id != current_user.id
+        ):
+            raise AuthorizationError("Access denied to this personal project")
     
     # Check version exists and belongs to this process
     version = db.query(ModelVersion).filter(
@@ -431,8 +575,19 @@ def restore_version(
         raise ResourceNotFoundError("Process", process_id)
     
     # Check access
-    require_organization_access(current_user, process.organization_id)
-    require_role(current_user, ["editor", "admin"])
+    if process.organization_id:
+        require_organization_access(current_user, process.organization_id)
+        require_role(current_user, ["editor", "admin"])
+    elif process.user_id:
+        if not current_user.is_superuser and process.user_id != current_user.id:
+            raise AuthorizationError("Access denied to this personal process")
+    else:
+        if (
+            process.project
+            and not current_user.is_superuser
+            and process.project.owner_id != current_user.id
+        ):
+            raise AuthorizationError("Access denied to this personal project")
     
     # Fetch version to restore
     source_version = db.query(ModelVersion).filter(
@@ -465,6 +620,7 @@ def restore_version(
         generation_method="restored",
         source_artifact_ids=source_version.source_artifact_ids,  # Preserve source artifacts
         created_by=current_user.id,
+        etag=compute_etag(source_version.bpmn_json or {}),
         status="ready",
         is_active=True  # Auto-activate restored version
     )
@@ -510,7 +666,18 @@ def get_version_diff(
         raise ResourceNotFoundError("Process", process_id)
     
     # Check access
-    require_organization_access(current_user, process.organization_id)
+    if process.organization_id:
+        require_organization_access(current_user, process.organization_id)
+    elif process.user_id:
+        if not current_user.is_superuser and process.user_id != current_user.id:
+            raise AuthorizationError("Access denied to this personal process")
+    else:
+        if (
+            process.project
+            and not current_user.is_superuser
+            and process.project.owner_id != current_user.id
+        ):
+            raise AuthorizationError("Access denied to this personal project")
     
     # Fetch versions
     base_version = db.query(ModelVersion).filter(
@@ -609,8 +776,15 @@ def move_process(
     # Verify current access
     if process.organization_id:
         require_organization_access(current_user, process.organization_id)
+    elif process.user_id:
+        if not current_user.is_superuser and process.user_id != current_user.id:
+            raise AuthorizationError("Access denied to this personal process")
     else:
-        if not current_user.is_superuser and process.project.owner_id != current_user.id:
+        if (
+            process.project
+            and not current_user.is_superuser
+            and process.project.owner_id != current_user.id
+        ):
             raise AuthorizationError("Access denied to this personal project")
     require_role(current_user, ["editor", "admin"])
 
@@ -634,6 +808,7 @@ def move_process(
 
         process.project_id = target_project.id
         process.organization_id = target_project.organization_id
+        process.user_id = target_project.owner_id if not target_project.organization_id else None
 
     # Validate folder (optional)
     if payload.folder_id:
@@ -677,10 +852,17 @@ def delete_process(
 
     if process.organization_id:
         require_organization_access(current_user, process.organization_id)
+        require_role(current_user, ["editor", "admin"])
+    elif process.user_id:
+        if not current_user.is_superuser and process.user_id != current_user.id:
+            raise AuthorizationError("Access denied to this personal process")
     else:
-        if not current_user.is_superuser and process.project.owner_id != current_user.id:
+        if (
+            process.project
+            and not current_user.is_superuser
+            and process.project.owner_id != current_user.id
+        ):
             raise AuthorizationError("Access denied to this personal project")
-    require_role(current_user, ["editor", "admin"])
 
     process.deleted_at = datetime.utcnow()
     db.commit()

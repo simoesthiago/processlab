@@ -91,6 +91,8 @@ def _build_hierarchy(
         node = FolderTree(
             id=folder.id,
             project_id=folder.project_id,
+            organization_id=folder.organization_id,
+            user_id=folder.user_id,
             parent_folder_id=folder.parent_folder_id,
             name=folder.name,
             description=folder.description,
@@ -198,6 +200,8 @@ def create_folder(
 
     folder = Folder(
         project_id=project_id,
+        organization_id=project.organization_id,
+        user_id=project.owner_id if not project.organization_id else None,
         parent_folder_id=folder_data.parent_folder_id,
         name=folder_data.name,
         description=folder_data.description,

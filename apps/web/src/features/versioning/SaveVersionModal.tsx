@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 interface SaveVersionModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (message: string, changeType: 'major' | 'minor' | 'patch') => Promise<void>;
+    onSave: (message: string, changeType: 'major' | 'minor' | 'patch') => Promise<boolean>;
     isSaving: boolean;
 }
 
@@ -15,9 +15,11 @@ export default function SaveVersionModal({ isOpen, onClose, onSave, isSaving }: 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        await onSave(message, changeType);
-        setMessage('');
-        onClose();
+        const ok = await onSave(message, changeType);
+        if (ok) {
+            setMessage('');
+            onClose();
+        }
     };
 
     return (
@@ -74,7 +76,7 @@ export default function SaveVersionModal({ isOpen, onClose, onSave, isSaving }: 
 
                     <div>
                         <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                            Commit Message
+                            Commit Message <span className="text-red-500 text-xs">(Required)</span>
                         </label>
                         <textarea
                             value={message}

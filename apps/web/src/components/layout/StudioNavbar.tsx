@@ -7,24 +7,17 @@
  * Shows workspace context, process info, version status, and actions.
  */
 
-import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Logo } from '@/components/branding/Logo';
 import {
   ChevronRight,
   Save,
-  Download,
-  MoreHorizontal,
+  Share,
   GitBranch,
   Clock,
   CheckCircle,
-  User,
-  LogOut,
-  Settings,
   ArrowLeft,
   LayoutDashboard,
   FolderKanban,
@@ -54,6 +47,10 @@ interface StudioNavbarProps {
   onSave: () => void;
   onExport: () => void;
   onActivateVersion?: (versionId: string) => void;
+  projectName?: string;
+  folderPath?: string[];
+  workspaceType?: 'personal' | 'organization';
+  projectId?: string;
 }
 
 export function StudioNavbar({
@@ -66,31 +63,23 @@ export function StudioNavbar({
   onSave,
   onExport,
   onActivateVersion,
+  projectName,
+  folderPath = [],
+  workspaceType,
+  projectId,
 }: StudioNavbarProps) {
-  const { user, logout } = useAuth();
   const { currentWorkspace } = useWorkspace();
-  const router = useRouter();
 
   const selectedVersion = versions.find(v => v.id === selectedVersionId);
 
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
-  };
-
   return (
     <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4 shrink-0">
-      {/* Left Section - Logo, Back, Breadcrumbs */}
+      {/* Left Section - Back, Breadcrumbs */}
       <div className="flex items-center gap-3">
-        {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2 pr-3 border-r border-border">
-          <Logo variant="horizontal" height={24} />
-        </Link>
-
-        {/* Back to Workspace */}
+        {/* Back to Workspace/Project */}
         <Link
           href={basePath}
-          className="p-1.5 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
+          className="p-2 bg-muted/60 hover:bg-muted rounded-md transition-colors text-muted-foreground hover:text-foreground shadow-sm"
           title="Back to workspace"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -110,13 +99,27 @@ export function StudioNavbar({
 
           {process ? (
             <>
-              <Link
-                href={`${basePath}/projects/${process.project_id}`}
-                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <FolderKanban className="h-3.5 w-3.5" />
-                Project
-              </Link>
+              {process.project_id ? (
+                <Link
+                  href={`${basePath}/folders/${process.project_id}`}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <FolderKanban className="h-3.5 w-3.5" />
+                  {projectName || 'Folder'}
+                </Link>
+              ) : (
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <FolderKanban className="h-3.5 w-3.5" />
+                  {projectName || (workspaceType === 'personal' ? 'Personal' : 'Folder')}
+                </span>
+              )}
+              {folderPath.length > 0 && folderPath.map((folder, idx) => (
+                <span key={idx} className="flex items-center gap-1.5 text-muted-foreground">
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+                  <FolderKanban className="h-3.5 w-3.5" />
+                  <span className="truncate max-w-[120px]">{folder}</span>
+                </span>
+              ))}
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
               <span className="flex items-center gap-1.5 font-medium text-foreground truncate max-w-[200px]">
                 <FileText className="h-3.5 w-3.5" />
@@ -165,56 +168,28 @@ export function StudioNavbar({
         </div>
       )}
 
-      {/* Right Section - Actions & User */}
+      {/* Right Section - Actions */}
       <div className="flex items-center gap-2">
-        {/* Save Button */}
-        {process && (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={onSave}
-            disabled={isSaving}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            <Save className="h-4 w-4 mr-1.5" />
-            {isSaving ? 'Saving...' : 'Save'}
-          </Button>
-        )}
-
-        {/* Export Button */}
         <Button
           variant="outline"
           size="sm"
           onClick={onExport}
+          className="min-w-[88px]"
         >
-          <Download className="h-4 w-4 mr-1.5" />
+          <Share className="h-4 w-4 mr-1.5" />
           Export
         </Button>
 
-        {/* Separator */}
-        <div className="w-px h-6 bg-border mx-1" />
-
-        {/* User Menu */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-accent transition-colors cursor-pointer">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10">
-              <User className="h-3.5 w-3.5 text-primary" />
-            </div>
-            <span className="text-sm font-medium hidden md:block max-w-[100px] truncate">
-              {user?.full_name?.split(' ')[0] || user?.email?.split('@')[0]}
-            </span>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={handleLogout}
-            title="Logout"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
+        <Button
+          variant="default"
+          size="sm"
+          onClick={onSave}
+          disabled={isSaving || (!process && !projectId)}
+          className="bg-green-500/90 hover:bg-green-600 text-white min-w-[88px]"
+        >
+          <Save className="h-4 w-4 mr-1.5" />
+          {isSaving ? 'Saving...' : 'Save'}
+        </Button>
       </div>
     </header>
   );

@@ -11,6 +11,7 @@
  */
 
 import { useRef, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { WorkspaceType } from '@/contexts/WorkspaceContext';
 import { StudioNavbar } from '@/components/layout/StudioNavbar';
@@ -20,6 +21,7 @@ import VersionTimeline from '@/features/versioning/VersionTimeline';
 import SaveVersionModal from '@/features/versioning/SaveVersionModal';
 import RestoreVersionModal from '@/features/versioning/RestoreVersionModal';
 import VersionDiffViewer from '@/features/versioning/VersionDiffViewer';
+import ConflictModal from '@/features/versioning/ConflictModal';
 import BpmnEditor, { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
 import Copilot from '@/features/copiloto/Copilot';
 import Citations from '@/features/citations/Citations';
@@ -37,6 +39,7 @@ interface Process {
   id: string;
   name: string;
   project_id: string;
+  folder_id?: string | null;
 }
 
 interface Version {
@@ -48,6 +51,7 @@ interface Version {
   created_at: string;
   created_by?: string;
   change_type?: 'major' | 'minor' | 'patch';
+  etag?: string;
 }
 
 interface StudioContentProps {
@@ -62,6 +66,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 type RightPanelTab = 'copilot' | 'citations' | 'history';
 
+interface ConflictDetail {
+  message?: string;
+  yourEtag?: string;
+  currentEtag?: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
+
 export default function StudioContent({
   processId: initialProcessId,
   projectId,
@@ -70,6 +82,7 @@ export default function StudioContent({
   basePath,
 }: StudioContentProps) {
   const editorRef = useRef<BpmnEditorRef>(null);
+  const router = useRouter();
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<RightPanelTab>('copilot');
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
@@ -78,10 +91,16 @@ export default function StudioContent({
   const [process, setProcess] = useState<Process | null>(null);
   const [versions, setVersions] = useState<Version[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const [selectedVersionEtag, setSelectedVersionEtag] = useState<string | undefined>(undefined);
+  const [latestVersionId, setLatestVersionId] = useState<string | null>(null);
   const [bpmnXml, setBpmnXml] = useState<string | undefined>(undefined);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [artifactId, setArtifactId] = useState('');
+  const [pendingSave, setPendingSave] = useState<{ message: string; changeType: 'major' | 'minor' | 'patch' } | null>(null);
+  const [conflictInfo, setConflictInfo] = useState<ConflictDetail | null>(null);
+  const [projectName, setProjectName] = useState<string>('Project');
+  const [processName, setProcessName] = useState<string>('New Process');
 
   // Diff viewer state
   const [diffViewerOpen, setDiffViewerOpen] = useState(false);
@@ -110,6 +129,14 @@ export default function StudioContent({
     }
   }, [initialProcessId, token]);
 
+  // Sync selected etag when versions list changes
+  useEffect(() => {
+    if (selectedVersionId && versions.length > 0) {
+      const match = versions.find((v) => v.id === selectedVersionId);
+      setSelectedVersionEtag(match?.etag);
+    }
+  }, [selectedVersionId, versions]);
+
   const loadProcess = async (processId: string) => {
     try {
       const res = await fetch(`${API_URL}/api/v1/processes/${processId}`, {
@@ -119,12 +146,30 @@ export default function StudioContent({
       if (res.ok) {
         const data = await res.json();
         setProcess(data);
+        // Load project name for breadcrumbs
+        if (data.project_id) {
+          try {
+            const projectRes = await fetch(`${API_URL}/api/v1/projects/${data.project_id}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (projectRes.ok) {
+              const projectData = await projectRes.json();
+              setProjectName(projectData.name || 'Project');
+            }
+          } catch (err) {
+            console.error("Failed to load project info", err);
+            setProjectName('Project');
+          }
+        } else {
+          setProjectName(workspaceType === 'personal' ? 'Personal' : 'Project');
+        }
         await loadVersions(processId);
 
         if (data.current_version_id) {
           const xml = await loadVersionXml(processId, data.current_version_id);
           setBpmnXml(xml);
           setSelectedVersionId(data.current_version_id);
+          setProcessName(data.name || 'New Process');
         }
       }
     } catch (err) {
@@ -140,7 +185,17 @@ export default function StudioContent({
       });
       if (res.ok) {
         const data = await res.json();
-        setVersions(data.versions || []);
+        const list: Version[] = data.versions || [];
+        setVersions(list);
+        setLatestVersionId(list[0]?.id || null);
+
+        if (selectedVersionId) {
+          const match = list.find((v) => v.id === selectedVersionId);
+          setSelectedVersionEtag(match?.etag);
+        } else if (list.length > 0) {
+          setSelectedVersionId(list[0].id);
+          setSelectedVersionEtag(list[0].etag);
+        }
       }
     } catch (err) {
       console.error("Failed to load versions", err);
@@ -148,55 +203,171 @@ export default function StudioContent({
   };
 
   const handleSave = () => {
-    if (!process) {
-      setToast({ message: 'No process loaded to save', type: 'warning' });
+    if (!process && !projectId) {
+      setToast({ message: 'No process or project loaded to save', type: 'warning' });
       return;
     }
     setIsSaveModalOpen(true);
   };
 
-  const handleConfirmSave = async (message: string, changeType: 'major' | 'minor' | 'patch') => {
-    if (!process) return;
-
-    setIsSaving(true);
-    try {
-      const currentXml = await editorRef.current?.getXml();
-      if (!currentXml) {
-        throw new Error("Failed to get XML from editor");
+  const performSave = async (
+    params: { message: string; changeType: 'major' | 'minor' | 'patch'; force?: boolean }
+  ): Promise<boolean> => {
+    // If process doesn't exist yet, create it first
+    let currentProcess = process;
+    if (!currentProcess) {
+      if (!projectId) {
+        setToast({ message: 'No project selected to create the process.', type: 'error' });
+        return false;
       }
 
-      const response = await fetch(`${API_URL}/api/v1/processes/${process.id}/versions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          bpmn_json: { xml: currentXml },
-          version_label: `v${(versions[0]?.version_number || 0) + 1}`,
-          commit_message: message,
-          change_type: changeType,
-          parent_version_id: selectedVersionId,
-          is_active: true
-        }),
+      try {
+        const createRes = await fetch(`${API_URL}/api/v1/processes`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            project_id: projectId,
+            name: processName || 'New Process',
+            description: '',
+            folder_id: null,
+          }),
+        });
+
+        if (!createRes.ok) {
+          const errBody = await createRes.json().catch(() => ({}));
+          throw new Error(errBody.detail || 'Failed to create process');
+        }
+
+        const created = await createRes.json();
+        currentProcess = created;
+        setProcess(created);
+        setProcessName(created.name || 'New Process');
+
+        // Redirect to canonical process URL
+        // Legacy project path removed; send user to dashboard as canonical
+        router.replace('/dashboard');
+      } catch (err: any) {
+        console.error("Create process failed:", err);
+        setToast({ message: `Failed to create process: ${err.message || 'Unknown error'}`, type: 'error' });
+        return false;
+      }
+    }
+
+    const processIdToUse = currentProcess?.id;
+    if (!processIdToUse) {
+      setToast({ message: 'Process id missing.', type: 'error' });
+      return false;
+    }
+
+    const currentXml = await editorRef.current?.getXml();
+    if (!currentXml) {
+      throw new Error("Failed to get XML from editor");
+    }
+    console.log('[StudioContent] performSave - Got XML from editor, length:', currentXml.length);
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    };
+
+    if (!params.force && selectedVersionEtag) {
+      headers['If-Match'] = selectedVersionEtag;
+    }
+
+    const response = await fetch(`${API_URL}/api/v1/processes/${processIdToUse}/versions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        bpmn_json: { xml: currentXml },
+        version_label: `v${(versions[0]?.version_number || 0) + 1}`,
+        commit_message: params.message,
+        change_type: params.changeType,
+        parent_version_id: selectedVersionId,
+        is_active: true
+      }),
+    });
+
+    if (response.status === 409) {
+      let detail: any = null;
+      try {
+        const body = await response.json();
+        detail = body?.detail || body;
+      } catch (err) {
+        detail = null;
+      }
+
+      setConflictInfo({
+        message: detail?.message || 'Edit conflict detected.',
+        yourEtag: detail?.your_etag || selectedVersionEtag,
+        currentEtag: detail?.current_etag,
+        lastModifiedAt: detail?.last_modified_at,
+        lastModifiedBy: detail?.last_modified_by,
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to create version");
-      }
+      await loadVersions(processIdToUse);
+      setToast({ message: 'Conflito de edição detectado. Reveja as mudanças antes de salvar.', type: 'error' });
+      return false;
+    }
 
-      const newVersion = await response.json();
-      await loadVersions(process.id);
-      setSelectedVersionId(newVersion.id);
+    if (!response.ok) {
+      throw new Error("Failed to create version");
+    }
 
-      setToast({ message: 'Version saved successfully!', type: 'success' });
-      setIsSaveModalOpen(false);
+    const newVersion = await response.json();
+    await loadVersions(processIdToUse);
+    setSelectedVersionId(newVersion.id);
+    setSelectedVersionEtag(newVersion.etag);
+    setToast({ message: 'Version saved successfully!', type: 'success' });
+    setIsSaveModalOpen(false);
+    setConflictInfo(null);
+    return true;
+  };
+
+  const handleConfirmSave = async (message: string, changeType: 'major' | 'minor' | 'patch') => {
+    // Check if we have process OR projectId (for creation)
+    if (!process && !projectId) return false;
+
+    setPendingSave({ message, changeType });
+    setIsSaving(true);
+    try {
+      return await performSave({ message, changeType });
     } catch (error: any) {
       console.error("Save failed:", error);
       setToast({ message: `Save failed: ${error.message || 'Unknown error'}`, type: 'error' });
+      return false;
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleOverwriteAfterConflict = async () => {
+    if (!pendingSave) {
+      setConflictInfo(null);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await performSave({ ...pendingSave, force: true });
+    } catch (error: any) {
+      console.error("Overwrite failed:", error);
+      setToast({ message: `Overwrite failed: ${error.message || 'Unknown error'}`, type: 'error' });
+    } finally {
+      setIsSaving(false);
+      setConflictInfo(null);
+    }
+  };
+
+  const handleViewDiffFromConflict = () => {
+    if (!latestVersionId || !selectedVersionId) {
+      setToast({ message: 'Não foi possível abrir o diff com a versão mais recente.', type: 'error' });
+      return;
+    }
+    handleCompareVersions(latestVersionId, selectedVersionId);
+    setConflictInfo(null);
   };
 
   const handleExport = async () => {
@@ -298,6 +469,8 @@ export default function StudioContent({
 
   const handleSelectVersion = async (versionId: string) => {
     setSelectedVersionId(versionId);
+    const match = versions.find((v) => v.id === versionId);
+    setSelectedVersionEtag(match?.etag);
 
     if (process) {
       setIsLoadingVersion(true);
@@ -322,7 +495,9 @@ export default function StudioContent({
       });
       if (res.ok) {
         const data = await res.json();
-        return data.xml || '';
+        const xml = data.xml || '';
+        console.log('[StudioContent] loadVersionXml - Loaded XML length:', xml.length);
+        return xml;
       }
     } catch (err) {
       console.error("Failed to load version XML", err);
@@ -435,6 +610,9 @@ export default function StudioContent({
         onSave={handleSave}
         onExport={handleExport}
         onActivateVersion={handleActivateVersion}
+        projectName={projectName}
+        workspaceType={workspaceType}
+        projectId={projectId}
       />
 
       {/* Main Content Area */}
@@ -543,6 +721,15 @@ export default function StudioContent({
         onClose={() => setIsSaveModalOpen(false)}
         onSave={handleConfirmSave}
         isSaving={isSaving}
+      />
+
+      <ConflictModal
+        isOpen={!!conflictInfo}
+        onClose={() => setConflictInfo(null)}
+        onOverwrite={handleOverwriteAfterConflict}
+        onViewDiff={latestVersionId && selectedVersionId ? handleViewDiffFromConflict : undefined}
+        isSaving={isSaving}
+        conflict={conflictInfo || undefined}
       />
 
       <RestoreVersionModal

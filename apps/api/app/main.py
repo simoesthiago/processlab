@@ -95,10 +95,12 @@ async def health():
     minio_endpoint = os.getenv("MINIO_ENDPOINT")
     if minio_endpoint:
         try:
-            from app.services.storage.minio_client import get_minio_client
-            minio_client = get_minio_client()
-            # Try to list buckets as a health check
-            list(minio_client.list_buckets())
+            # Our storage service singleton lives in app.services.storage.minio
+            from app.services.storage.minio import storage_service
+
+            # Touch the client and attempt a lightweight op
+            client = storage_service.client
+            list(client.list_buckets())
             health_status["checks"]["minio"] = {"status": "healthy", "message": "Connected"}
         except Exception as e:
             health_status["ok"] = False
@@ -108,6 +110,12 @@ async def health():
         health_status["checks"]["minio"] = {"status": "not_configured", "message": "MinIO endpoint not set"}
     
     return health_status
+
+
+# Convenience: health under API prefix for tooling that expects /api/v1/health
+@app.get("/api/v1/health")
+async def health_v1():
+    return await health()
 
 
 

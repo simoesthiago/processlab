@@ -23,29 +23,29 @@ import {
 export function WorkspaceSwitcher() {
   const router = useRouter();
   const { user } = useAuth();
-  const { 
-    currentWorkspace, 
-    organizations, 
+  const {
+    currentWorkspace,
+    organizations,
     setCurrentWorkspace,
-    loading 
+    loading
   } = useWorkspace();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSelectWorkspace = (workspace: Workspace) => {
     setCurrentWorkspace(workspace);
     setIsOpen(false);
-    
+
     // Navigate to the new workspace's dashboard
     if (workspace.type === 'personal') {
-      router.push('/personal');
+      router.push('/home');
     } else {
-      router.push(`/w/${workspace.slug}`);
+      router.push('/dashboard');
     }
   };
 
   const handleSelectPersonal = () => {
     if (!user) return;
-    
+
     const personalWorkspace: Workspace = {
       type: 'personal',
       id: user.id,
@@ -73,7 +73,7 @@ export function WorkspaceSwitcher() {
           'border border-border'
         )}
       >
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
+        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
           {currentWorkspace?.type === 'personal' ? (
             <User className="h-4 w-4 text-primary" />
           ) : (
@@ -98,11 +98,11 @@ export function WorkspaceSwitcher() {
       {isOpen && (
         <>
           {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => setIsOpen(false)} 
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsOpen(false)}
           />
-          
+
           {/* Menu */}
           <div className="absolute left-0 top-full z-50 mt-2 w-72 rounded-lg border bg-popover p-2 shadow-lg">
             {/* Personal Workspace */}
@@ -152,8 +152,8 @@ export function WorkspaceSwitcher() {
                 </div>
                 <div className="space-y-1">
                   {organizations.map((org) => {
-                    const isSelected = currentWorkspace?.type === 'organization' && 
-                                       currentWorkspace.id === org.id;
+                    const isSelected = currentWorkspace?.type === 'organization' &&
+                      currentWorkspace.id === org.id;
                     return (
                       <button
                         key={org.id}
