@@ -3,7 +3,8 @@
 import { useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { FolderKanban } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -27,14 +28,14 @@ export default function SpacePage() {
   return (
     <AppLayout>
       <div className="mx-auto max-w-6xl px-8 py-8 space-y-6">
-        <Breadcrumbs items={[{ label: 'Spaces' }, { label: space?.name || 'Space' }]} />
-
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">{space?.name || 'Space'}</h1>
-          <p className="text-muted-foreground">
-            {space?.description || 'Pastas e processos neste space.'}
-          </p>
-        </div>
+        <PageHeader
+          title={space?.name || 'Space'}
+          description={space?.description || 'Pastas e processos neste space.'}
+          breadcrumbs={[
+            { label: 'Spaces', icon: FolderKanban },
+            { label: space?.name || 'Space', icon: FolderKanban },
+          ]}
+        />
 
         <div className="grid gap-4 sm:grid-cols-2">
           {tree?.root_folders?.map((folder) => (

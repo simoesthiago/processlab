@@ -48,6 +48,7 @@ interface SpacesContextType {
   loadTree: (spaceId: string) => Promise<void>;
   createFolder: (spaceId: string, payload: { name: string; description?: string; parent_folder_id?: string | null }) => Promise<void>;
   createProcess: (spaceId: string, payload: { name: string; description?: string; folder_id?: string | null }) => Promise<void>;
+  deleteFolder: (spaceId: string, folderId: string) => Promise<void>;
   getFolder: (spaceId: string, folderId: string) => SpaceFolder | null;
 }
 
@@ -163,6 +164,23 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
     [authHeaders, loadTree, token]
   );
 
+  const deleteFolder = useCallback(
+    async (spaceId: string, folderId: string) => {
+      if (!token) throw new Error('Not authenticated');
+      const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/folders/${folderId}`, {
+        method: 'DELETE',
+        headers: {
+          ...authHeaders,
+        },
+      });
+      if (!resp.ok) {
+        throw new Error('Failed to delete folder');
+      }
+      await loadTree(spaceId);
+    },
+    [authHeaders, loadTree, token]
+  );
+
   const getFolder = useCallback(
     (spaceId: string, folderId: string): SpaceFolder | null => {
       const tree = trees[spaceId];
@@ -198,6 +216,7 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
     loadTree,
     createFolder,
     createProcess,
+    deleteFolder,
     getFolder,
   };
 

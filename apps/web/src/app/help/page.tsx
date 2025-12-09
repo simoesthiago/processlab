@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { CircleHelp } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -10,14 +11,11 @@ export default function HelpPage() {
   return (
     <AppLayout>
       <div className="mx-auto max-w-4xl px-8 py-8 space-y-6">
-        <Breadcrumbs items={[{ label: 'Help' }]} />
-
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Help Center</h1>
-          <p className="text-muted-foreground">
-            Encontre respostas rápidas ou fale com o time de suporte.
-          </p>
-        </div>
+        <PageHeader
+          title="Help Center"
+          description="Encontre respostas rápidas ou fale com o time de suporte."
+          breadcrumbs={[{ label: 'Help', icon: CircleHelp }]}
+        />
 
         <Card>
           <CardHeader>

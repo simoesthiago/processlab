@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { FolderKanban, Workflow } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useSpaces } from '@/contexts/SpacesContext';
 
@@ -22,11 +23,13 @@ export default function ProcessPage() {
   return (
     <AppLayout>
       <div className="mx-auto max-w-5xl px-8 py-8 space-y-6">
-        <Breadcrumbs
-          items={[
-            { label: 'Spaces', href: '/spaces' },
-            { label: spaceId, href: `/spaces/${spaceId}` },
-            { label: 'Process' },
+        <PageHeader
+          title="Process"
+          description={`ID: ${params.processId}`}
+          breadcrumbs={[
+            { label: 'Spaces', href: '/spaces', icon: FolderKanban },
+            { label: spaceId, href: `/spaces/${spaceId}`, icon: FolderKanban },
+            { label: 'Process', icon: Workflow },
           ]}
         />
 

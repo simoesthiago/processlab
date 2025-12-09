@@ -3,9 +3,9 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
-import { Breadcrumbs } from '@/components/ui/breadcrumbs';
-import { Clock3, Home as HomeIcon, LayoutGrid, Workflow, Folder as FolderIcon } from 'lucide-react';
+import { Clock3, LayoutGrid, Workflow, Folder as FolderIcon, Home as HomeIcon } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 const recentlyVisited = [
   { id: 'gov', title: 'Governance', type: 'folder' as const },
@@ -58,24 +58,20 @@ export default function HomePage() {
 
   return (
     <AppLayout>
-      <div className="px-8 py-6 bg-white">
-        <div className="max-w-7xl">
-          <div className="flex items-center gap-2 text-sm text-neutral-500 mb-6">
-            <HomeIcon className="h-4 w-4" />
-            <Breadcrumbs items={[{ label: 'Home' }]} />
-          </div>
+      <div className="px-8 py-8 bg-white">
+        <div className="max-w-7xl space-y-10">
+          <PageHeader
+            title="Home"
+            description={`Welcome back, ${name}`}
+            breadcrumbs={[{ label: 'Home', icon: HomeIcon }]}
+          />
 
-          <header className="mb-8 space-y-2">
-            <h1 className="text-4xl font-bold text-neutral-900">Home</h1>
-            <p className="text-base text-neutral-600">Welcome back, {name}</p>
-          </header>
-
-          <section className="mb-10">
+          <section className="space-y-3">
             <div className="flex items-center gap-2 text-lg font-semibold text-neutral-900">
               <Clock3 className="h-5 w-5 text-neutral-500" />
               <span>Recently Visited</span>
             </div>
-            <div className="my-3 h-px bg-neutral-200" />
+            <div className="h-px bg-neutral-200" />
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5">
               {recentlyVisited.map((item) => (
                 <FolderTile key={item.id} title={item.title} type={item.type} />

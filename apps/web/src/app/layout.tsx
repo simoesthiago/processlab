@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { SpacesProvider } from "@/contexts/SpacesContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -56,7 +57,9 @@ export default function RootLayout({
       >
         <AuthProvider>
           <WorkspaceProvider>
-            {children}
+            <SpacesProvider>
+              {children}
+            </SpacesProvider>
           </WorkspaceProvider>
         </AuthProvider>
       </body>

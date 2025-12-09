@@ -1,21 +1,19 @@
 'use client';
 
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Trash2 } from 'lucide-react';
 
 export default function TrashPage() {
   return (
     <AppLayout>
       <div className="mx-auto max-w-4xl px-8 py-8 space-y-6">
-        <Breadcrumbs items={[{ label: 'Trash' }]} />
-
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Trash</h1>
-          <p className="text-muted-foreground">
-            Itens removidos permanecem aqui por 30 dias antes da exclusão permanente.
-          </p>
-        </div>
+        <PageHeader
+          title="Trash"
+          description="Itens removidos permanecem aqui por 30 dias antes da exclusão permanente."
+          breadcrumbs={[{ label: 'Trash', icon: Trash2 }]}
+        />
 
         <Card>
           <CardHeader>

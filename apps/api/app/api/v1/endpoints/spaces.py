@@ -7,6 +7,7 @@ Spaces endpoints (Notion-like navigation)
 """
 
 from typing import Dict, List, Optional
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from slugify import slugify
@@ -303,6 +304,25 @@ def get_space_tree(
     return _build_space_tree(folders, processes, "team", space_id)
 
 
+def _cascade_delete_folder(db: Session, folder: Folder, now: datetime):
+    """Soft delete folder, its children and contained processes."""
+    folder.deleted_at = now
+    db.query(ProcessModel).filter(
+        ProcessModel.folder_id == folder.id,
+        ProcessModel.deleted_at == None,  # noqa: E711
+    ).update({"deleted_at": now})
+    children = (
+        db.query(Folder)
+        .filter(
+            Folder.parent_folder_id == folder.id,
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .all()
+    )
+    for child in children:
+        _cascade_delete_folder(db, child, now)
+
+
 @router.post("/spaces/{space_id}/folders", response_model=FolderTree, status_code=status.HTTP_201_CREATED)
 def create_space_folder(
     space_id: str,
@@ -390,6 +410,46 @@ def create_space_folder(
         processes=[],
         children=[],
     )
+
+
+@router.delete("/spaces/{space_id}/folders/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_space_folder(
+    space_id: str,
+    folder_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a folder within a space (private or team) with cascade on children and processes."""
+    is_private = space_id == "private"
+    organization_id = None if is_private else space_id
+    user_id = current_user.id if is_private else None
+
+    if not is_private:
+        require_organization_access(current_user, space_id, db=db)
+
+    folder = (
+        db.query(Folder)
+        .filter(
+            Folder.id == folder_id,
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .first()
+    )
+    if not folder:
+        raise ResourceNotFoundError("Folder", folder_id)
+
+    # Ensure folder belongs to the target space
+    if is_private:
+        if folder.user_id != user_id or folder.organization_id is not None:
+            raise ValidationError("Folder must belong to the private space")
+    else:
+        if folder.organization_id != organization_id:
+            raise ValidationError("Folder must belong to the target space")
+
+    now = datetime.utcnow()
+    _cascade_delete_folder(db, folder, now)
+    db.commit()
+    return None
 
 
 @router.post("/spaces/{space_id}/processes", response_model=ProcessResponse, status_code=status.HTTP_201_CREATED)

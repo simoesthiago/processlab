@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, Bell, UserCog } from 'lucide-react';
+import { ShieldCheck, Bell, UserCog, Settings as SettingsIcon } from 'lucide-react';
 
 export default function SettingsPage() {
     return (
@@ -25,13 +26,12 @@ function SettingsContent() {
     const [defaultVisibility, setDefaultVisibility] = useState<'private' | 'shared' | 'public'>('private');
 
     return (
-        <div className="px-8 py-10 space-y-6">
-            <div className="mb-8">
-                <h1 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">Settings</h1>
-                <p className="text-base text-gray-500 max-w-2xl">
-                    Configure dados pessoais, notificações e preferências de trabalho.
-                </p>
-            </div>
+        <div className="px-8 py-8 space-y-8">
+            <PageHeader
+                title="Settings"
+                description="Configure dados pessoais, notificações e preferências de trabalho."
+                breadcrumbs={[{ label: 'Settings', icon: SettingsIcon }]}
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="h-full">

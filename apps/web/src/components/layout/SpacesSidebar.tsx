@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import {
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
   Folder,
+  Lock,
   Workflow,
   Home,
   Inbox,
@@ -52,10 +53,14 @@ interface NewItemState {
   type: 'folder' | 'process';
 }
 
-export function SpacesSidebar() {
+interface SpacesSidebarProps {
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+}
+
+export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
   const { spaces, selectedSpaceId, selectSpace, trees, loadTree, createFolder, createProcess, loading } = useSpaces();
   const [newItem, setNewItem] = useState<NewItemState>({ open: false, spaceId: '', parentFolderId: null, type: 'folder' });
   const [itemName, setItemName] = useState('');
@@ -106,28 +111,42 @@ export function SpacesSidebar() {
         )}
       >
         <div className="flex flex-col gap-2 py-3">
-          <div className="flex items-center">
+      <div className="flex items-center">
             <button
-              className="flex h-9 w-9 items-center justify-center rounded-md pl-4 hover:bg-muted/60"
-              onClick={() => setCollapsed((v) => !v)}
+          className={cn(
+            'flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted/60',
+            collapsed ? 'mx-auto' : 'pl-4'
+          )}
+          onClick={onToggleCollapsed}
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
             </button>
           </div>
-          {!collapsed && (
-            <button className="flex w-full items-center justify-between rounded-md px-4 py-2 hover:bg-muted/60">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
-                  {initials?.[0] || 'W'}
-                </div>
-                <span className="truncate text-base font-semibold text-foreground">
-                  {user?.full_name || user?.email || 'Workspace'}
-                </span>
+      <button
+        className={cn(
+          'rounded-md hover:bg-muted/60 transition-colors h-12',
+          collapsed ? 'mx-auto flex w-12 items-center justify-center' : 'flex w-full items-center justify-between px-4'
+        )}
+      >
+        {collapsed ? (
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
+            {initials?.[0] || 'W'}
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
+                {initials?.[0] || 'W'}
               </div>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            </button>
-          )}
+              <span className="truncate text-base font-semibold text-foreground">
+                {user?.full_name || user?.email || 'Workspace'}
+              </span>
+            </div>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </>
+        )}
+      </button>
         </div>
 
         <nav className="space-y-1">
@@ -140,8 +159,8 @@ export function SpacesSidebar() {
                 key={link.name}
                 href={link.href}
                 className={cn(
-                  'flex items-center gap-2 rounded-md py-1.5 text-sm font-medium transition-colors',
-                  collapsed ? 'px-2 mx-1' : 'px-4 mx-2',
+                'flex h-10 items-center rounded-md py-1.5 text-sm font-medium transition-colors',
+                collapsed ? 'justify-center px-0 mx-0' : 'gap-2 px-4 mx-2',
                   isActive ? 'bg-[#ffe8d7] text-foreground' : 'text-muted-foreground hover:bg-[#ffe8d7]'
                 )}
               >
@@ -152,81 +171,77 @@ export function SpacesSidebar() {
           })}
         </nav>
 
-        <div className="mt-4 flex-1 overflow-y-auto px-3 pb-3 space-y-3">
+        <div
+          className={cn(
+            'flex-1 mt-4 overflow-y-auto pb-3 space-y-3',
+            collapsed ? 'px-1' : 'px-3'
+          )}
+        >
           {spaces.map((space) => {
             const isSelected = space.id === selectedSpaceId;
             const tree = trees[space.id];
             return (
-              <div key={space.id} className="rounded-lg border border-gray-100 bg-white/60">
-                <div className="flex items-center justify-between px-3 py-2">
-                  <button
+                <div key={space.id} className="rounded-lg border border-gray-100 bg-white/60">
+                  <div
                     className={cn(
-                      'flex items-center gap-2 text-sm font-semibold text-gray-800 hover:text-orange-600 transition-colors',
-                      isSelected && 'text-orange-600'
+                      'flex h-12 items-center',
+                      collapsed ? 'justify-center px-2' : 'justify-between px-3'
                     )}
+                  >
+                  {/*
+                    Show lock icon for Private Space for visual distinction.
+                    This keeps icon spacing consistent with other spaces.
+                  */}
+                  {null}
+                  <button
+                      className={cn(
+                        'flex items-center text-sm font-semibold text-gray-800 hover:text-orange-600 transition-colors',
+                        collapsed ? 'justify-center gap-0 h-10 w-10' : 'justify-start gap-2 h-10 w-full',
+                        isSelected && 'text-orange-600'
+                      )}
                     onClick={() => selectSpace(space.id)}
                   >
-                    <Folder className="h-4 w-4" />
-                    <span className="truncate">{space.name}</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setNewItem({ open: true, spaceId: space.id, parentFolderId: null, type: 'folder' });
-                      setItemName('');
-                      setItemDesc('');
-                    }}
-                    className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                    title="Add folder or process"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-                {isSelected && (
-                  <div className="px-2 pb-2 space-y-2">
-                    {loading && !tree ? (
-                      <p className="text-xs text-muted-foreground px-2">Loading...</p>
+                    {space.name.toLowerCase().includes('private') ? (
+                      <Lock className="h-4 w-4" />
                     ) : (
-                      <>
-                        <SpaceTreeList
-                          spaceId={space.id}
-                          folders={tree?.root_folders || []}
-                          processes={tree?.root_processes || []}
-                          onAdd={(parentId, type) => {
-                            setNewItem({ open: true, spaceId: space.id, parentFolderId: parentId, type });
-                            setItemName('');
-                            setItemDesc('');
-                          }}
-                        />
-                        {(!tree?.root_folders?.length && !tree?.root_processes?.length) && (
-                          <p className="text-xs text-muted-foreground px-2">Empty space</p>
-                        )}
-                      </>
+                      <Folder className="h-4 w-4" />
                     )}
-                  </div>
-                )}
+                    {!collapsed && <span className="truncate">{space.name}</span>}
+                  </button>
+                  {!collapsed && (
+                    <button
+                      onClick={() => {
+                        setNewItem({ open: true, spaceId: space.id, parentFolderId: null, type: 'folder' });
+                        setItemName('');
+                        setItemDesc('');
+                      }}
+                      className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                      title="Add folder or process"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                  {isSelected && !collapsed && tree && ((tree.root_folders?.length ?? 0) + (tree.root_processes?.length ?? 0) > 0) && (
+                    <SpaceTreeList
+                      spaceId={space.id}
+                      folders={tree?.root_folders || []}
+                      processes={tree?.root_processes || []}
+                      showLabels={!collapsed}
+                      onAdd={(parentId, type) => {
+                        setNewItem({ open: true, spaceId: space.id, parentFolderId: parentId, type });
+                        setItemName('');
+                        setItemDesc('');
+                      }}
+                    />
+                  )}
               </div>
             );
           })}
         </div>
 
-        <div className={cn('py-2 text-sm text-muted-foreground', collapsed ? 'px-2' : 'px-3', 'border-t border-gray-100')}>
-          <div className="flex items-center gap-3 px-2 text-muted-foreground">
-            <button
-              className="rounded p-1 hover:text-foreground"
-              onClick={logout}
-              title="Logout"
-              aria-label="Logout"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
-            <Link
-              className="rounded p-1 hover:text-foreground"
-              href="/help"
-              title="Help"
-              aria-label="Help"
-            >
-              <HelpCircle className="h-5 w-5" />
-            </Link>
+        <div className={cn('py-2 text-sm text-muted-foreground border-t border-gray-100 mt-auto', collapsed ? 'px-0' : 'px-3')}>
+          <div className={cn('flex text-muted-foreground', collapsed ? 'flex-col items-center gap-3' : 'items-center gap-3 px-2')}>
             <Link
               className="rounded p-1 hover:text-foreground"
               href="/classification-framework"
@@ -235,6 +250,22 @@ export function SpacesSidebar() {
             >
               <FolderKanban className="h-5 w-5" />
             </Link>
+            <Link
+              className="rounded p-1 hover:text-foreground"
+              href="/help"
+              title="Help"
+              aria-label="Help"
+            >
+              <HelpCircle className="h-5 w-5" />
+            </Link>
+            <button
+              className="rounded p-1 hover:text-foreground"
+              onClick={logout}
+              title="Logout"
+              aria-label="Logout"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </aside>
@@ -293,12 +324,14 @@ function SpaceTreeList({
   processes,
   onAdd,
   depth = 0,
+  showLabels = true,
 }: {
   spaceId: string;
   folders: any[];
   processes: any[];
   onAdd: (parentFolderId: string | null, type: 'folder' | 'process') => void;
   depth?: number;
+  showLabels?: boolean;
 }) {
   return (
     <div className="space-y-1">
@@ -312,7 +345,7 @@ function SpaceTreeList({
           >
             <Link href={`/spaces/${spaceId}/folders/${folder.id}`} className="flex items-center gap-2 flex-1">
               <Folder className="h-5 w-5 text-muted-foreground/70" />
-              <span className="truncate flex-1">{folder.name}</span>
+              {showLabels && <span className="truncate flex-1">{folder.name}</span>}
             </Link>
             <button
               className="opacity-0 group-hover:opacity-100 rounded p-1 hover:bg-muted/60"
@@ -341,7 +374,7 @@ function SpaceTreeList({
                   style={{ paddingLeft: `${(depth + 2) * 12}px` }}
                 >
                   <Workflow className="h-4 w-4" />
-                  <span className="truncate">{proc.name}</span>
+              {showLabels && <span className="truncate">{proc.name}</span>}
                 </Link>
               ))}
             </div>
@@ -356,7 +389,7 @@ function SpaceTreeList({
           style={{ paddingLeft: `${(depth + 1) * 12}px` }}
         >
           <Workflow className="h-4 w-4" />
-          <span className="truncate">{proc.name}</span>
+          {showLabels && <span className="truncate">{proc.name}</span>}
         </Link>
       ))}
     </div>

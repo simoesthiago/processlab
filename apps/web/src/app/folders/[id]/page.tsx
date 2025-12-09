@@ -1,10 +1,11 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { SectionToolbar } from '@/components/layout/SectionToolbar';
 import { FileCard } from '@/components/files/FileCard';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { LayoutDashboard, Users, FolderOpen } from 'lucide-react';
 
 const childItems = [
   { id: 'c1', title: 'Payroll Updates', type: 'process' as const, description: 'Updated XML + diagram' },
@@ -20,26 +21,17 @@ export default function FolderPage({ params }: { params: { id: string } }) {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-8 py-6 space-y-6">
-        <Breadcrumbs
-          items={[
-            { label: 'Dashboard', href: '/dashboard' },
-            { label: 'Teams Space', href: '/dashboard' },
-            { label: folderName },
+      <div className="mx-auto max-w-7xl px-8 py-8 space-y-8">
+        <PageHeader
+          title={folderName}
+          description="Processes and subfolders inside this space."
+          breadcrumbs={[
+            { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+            { label: 'Teams Space', href: '/dashboard', icon: Users },
+            { label: folderName, icon: FolderOpen },
           ]}
+          actions={<SectionToolbar title={folderName} variant="blue" newLabel="New" />}
         />
-
-        <header className="rounded-xl border border-neutral-200 bg-white p-5 shadow-md">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">{folderName}</h1>
-              <p className="text-sm text-muted-foreground">
-                Processes and subfolders inside this space.
-              </p>
-            </div>
-            <SectionToolbar title={folderName} variant="blue" newLabel="New" />
-          </div>
-        </header>
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {childItems.map((item) => (
