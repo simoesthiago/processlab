@@ -149,7 +149,7 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
       </button>
         </div>
 
-        <nav className="space-y-1">
+        <nav className="space-y-0.5">
           {navLinks.map((link) => {
             const Icon = link.icon;
             const isActive =
@@ -160,7 +160,7 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
                 href={link.href}
                 className={cn(
                 'flex h-10 items-center rounded-md py-1.5 text-sm font-medium transition-colors',
-                collapsed ? 'justify-center px-0 mx-0' : 'gap-2 px-4 mx-2',
+                collapsed ? 'justify-center px-0 mx-0' : 'gap-1.5 px-4 mx-1',
                   isActive ? 'bg-[#ffe8d7] text-foreground' : 'text-muted-foreground hover:bg-[#ffe8d7]'
                 )}
               >
@@ -184,7 +184,7 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
                 <div key={space.id} className="rounded-lg border border-gray-100 bg-white/60">
                   <div
                     className={cn(
-                      'flex h-12 items-center',
+                      'relative flex h-12 items-center',
                       collapsed ? 'justify-center px-2' : 'justify-between px-3'
                     )}
                   >
@@ -201,7 +201,7 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
                       )}
                     onClick={() => selectSpace(space.id)}
                   >
-                    {space.name.toLowerCase().includes('private') ? (
+                  {space.name.toLowerCase().includes('private') ? (
                       <Lock className="h-4 w-4" />
                     ) : (
                       <Folder className="h-4 w-4" />
@@ -215,7 +215,7 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
                         setItemName('');
                         setItemDesc('');
                       }}
-                      className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60 flex h-7 w-7 items-center justify-center"
                       title="Add folder or process"
                     >
                       <Plus className="h-4 w-4" />
@@ -240,24 +240,13 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
           })}
         </div>
 
-        <div className={cn('py-2 text-sm text-muted-foreground border-t border-gray-100 mt-auto', collapsed ? 'px-0' : 'px-3')}>
-          <div className={cn('flex text-muted-foreground', collapsed ? 'flex-col items-center gap-3' : 'items-center gap-3 px-2')}>
-            <Link
-              className="rounded p-1 hover:text-foreground"
-              href="/classification-framework"
-              title="Classification Framework"
-              aria-label="Classification Framework"
-            >
-              <FolderKanban className="h-5 w-5" />
-            </Link>
-            <Link
-              className="rounded p-1 hover:text-foreground"
-              href="/help"
-              title="Help"
-              aria-label="Help"
-            >
-              <HelpCircle className="h-5 w-5" />
-            </Link>
+        <div className={cn('py-2 text-sm text-muted-foreground border-t border-gray-100 mt-auto w-full', collapsed ? 'px-0' : 'px-3')}>
+          <div
+            className={cn(
+              'flex w-full text-muted-foreground',
+              collapsed ? 'flex-col-reverse items-center justify-center gap-2 px-0' : 'items-center justify-start gap-2 px-2'
+            )}
+          >
             <button
               className="rounded p-1 hover:text-foreground"
               onClick={logout}
@@ -266,6 +255,22 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
             >
               <LogOut className="h-5 w-5" />
             </button>
+            <Link
+              className="rounded p-1 hover:text-foreground"
+              href="/help"
+              title="Help"
+              aria-label="Help"
+            >
+              <HelpCircle className="h-5 w-5" />
+            </Link>
+            <Link
+              className="rounded p-1 hover:text-foreground"
+              href="/classification-framework"
+              title="Classification Framework"
+              aria-label="Classification Framework"
+            >
+              <FolderKanban className="h-5 w-5" />
+            </Link>
           </div>
         </div>
       </aside>
@@ -339,16 +344,17 @@ function SpaceTreeList({
         <div key={folder.id}>
           <div
             className={cn(
-              'group flex items-center gap-2 rounded-md py-1.5 text-sm font-medium text-muted-foreground hover:bg-[#ffe8d7]'
+              'group relative flex items-center gap-2 rounded-md py-1.5 text-sm font-medium text-muted-foreground hover:bg-[#ffe8d7]'
             )}
-            style={{ paddingLeft: `${(depth + 1) * 12}px` }}
+            // Extra indent to emphasize hierarchy under the space header
+            style={{ paddingLeft: `${(depth + 1) * 16}px` }}
           >
-            <Link href={`/spaces/${spaceId}/folders/${folder.id}`} className="flex items-center gap-2 flex-1">
+            <Link href={`/spaces/${spaceId}/folders/${folder.id}`} className="flex items-center gap-2 flex-1 pr-10">
               <Folder className="h-5 w-5 text-muted-foreground/70" />
               {showLabels && <span className="truncate flex-1">{folder.name}</span>}
             </Link>
             <button
-              className="opacity-0 group-hover:opacity-100 rounded p-1 hover:bg-muted/60"
+              className="opacity-0 group-hover:opacity-100 absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 hover:bg-muted/60 flex h-7 w-7 items-center justify-center"
               onClick={() => onAdd(folder.id, 'folder')}
               title="Add folder"
             >
@@ -386,7 +392,7 @@ function SpaceTreeList({
           key={proc.id}
           href={`/spaces/${spaceId}/processes/${proc.id}`}
           className="flex items-center gap-2 rounded-md py-1.5 text-sm text-muted-foreground hover:bg-[#ffe8d7]"
-          style={{ paddingLeft: `${(depth + 1) * 12}px` }}
+          style={{ paddingLeft: `${(depth + 1) * 16}px` }}
         >
           <Workflow className="h-4 w-4" />
           {showLabels && <span className="truncate">{proc.name}</span>}

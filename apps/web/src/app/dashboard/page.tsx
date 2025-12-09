@@ -26,6 +26,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSpaces } from '@/contexts/SpacesContext';
+import { useRecentItems } from '@/hooks/useRecentItems';
 
 function SectionHeader({ title, onNewFolder }: { title: string; onNewFolder?: () => void }) {
   return (
@@ -64,6 +65,7 @@ function SectionHeader({ title, onNewFolder }: { title: string; onNewFolder?: ()
 
 export default function DashboardPage() {
   const { spaces, trees, selectSpace, loadTree, createFolder } = useSpaces();
+  const { addRecentOptimistic, refreshRecents } = useRecentItems(12, { autoFetch: false });
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderDesc, setNewFolderDesc] = useState('');
@@ -71,6 +73,7 @@ export default function DashboardPage() {
 
   const privateSpace = useMemo(() => spaces.find((s) => s.id === 'private'), [spaces]);
   const privateTree = trees['private'];
+  const privateSpaceId = privateSpace?.id || 'private';
 
   useEffect(() => {
     if (privateSpace) {
@@ -85,11 +88,22 @@ export default function DashboardPage() {
     if (!privateSpace || !newFolderName.trim()) return;
     setCreating(true);
     try {
-      await createFolder(privateSpace.id, {
+      const created = await createFolder(privateSpace.id, {
         name: newFolderName.trim(),
         description: newFolderDesc || undefined,
         parent_folder_id: null,
       });
+      if (created?.id) {
+        addRecentOptimistic({
+          id: created.id,
+          name: created.name,
+          type: 'folder',
+          space_id: privateSpaceId,
+          space_type: 'private',
+          parent_folder_id: created.parent_folder_id ?? null,
+        });
+        refreshRecents();
+      }
       setNewFolderName('');
       setNewFolderDesc('');
       setNewFolderOpen(false);
@@ -122,14 +136,26 @@ export default function DashboardPage() {
           {privateTree && (
             <>
               {(privateTree.root_folders?.length || privateTree.root_processes?.length) ? (
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                <div className="flex flex-wrap gap-4">
                   {privateTree.root_folders?.map((item) => (
                     <FileCard
                       key={item.id}
                       title={item.name}
                       description={item.description || ''}
                       type="folder"
-                      meta={`${item.processes?.length || 0} processos`}
+                      meta={privateSpace?.name || 'Private Space'}
+                      processCount={item.process_count ?? item.processes?.length ?? 0}
+                      href={`/spaces/${privateSpaceId}/folders/${item.id}`}
+                      onVisit={() =>
+                        addRecentOptimistic({
+                          id: item.id,
+                          name: item.name,
+                          type: 'folder',
+                          space_id: privateSpaceId,
+                          space_type: 'private',
+                          parent_folder_id: item.parent_folder_id ?? null,
+                        })
+                      }
                     />
                   ))}
                   {privateTree.root_processes?.map((proc) => (
@@ -138,6 +164,19 @@ export default function DashboardPage() {
                       title={proc.name}
                       description={proc.description || ''}
                       type="process"
+                      meta={privateSpace?.name || 'Private Space'}
+                      processCount={1}
+                      href={`/spaces/${privateSpaceId}/processes/${proc.id}`}
+                      onVisit={() =>
+                        addRecentOptimistic({
+                          id: proc.id,
+                          name: proc.name,
+                          type: 'process',
+                          space_id: privateSpaceId,
+                          space_type: 'private',
+                          parent_folder_id: proc.folder_id ?? null,
+                        })
+                      }
                     />
                   ))}
                 </div>

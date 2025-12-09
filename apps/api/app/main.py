@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import logging
 import os
+from app.core.config import settings
 
 # Setup structured logging FIRST
 from app.core.logging_config import setup_logging
@@ -38,13 +39,13 @@ from app.core.exceptions import setup_exception_handlers
 setup_exception_handlers(app)
 
 # CORS Configuration
-# Allow Next.js frontend to make requests
+# Allow Next.js frontend to make requests (dev defaults + env override)
+default_cors_origins = settings.BACKEND_CORS_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3004",  # Next.js dev server
-        "http://127.0.0.1:3004",
-    ],
+    allow_origins=[str(origin).rstrip("/") for origin in default_cors_origins],
+    allow_origin_regex=r"https?://.*\.processlab\.io",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

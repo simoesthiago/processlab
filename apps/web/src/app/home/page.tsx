@@ -1,60 +1,111 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card } from '@/components/ui/card';
-import { Clock3, LayoutGrid, Workflow, Folder as FolderIcon, Home as HomeIcon } from 'lucide-react';
+import { useSpaces } from '@/contexts/SpacesContext';
+import { useRecentItems } from '@/hooks/useRecentItems';
+import { FileCard } from '@/components/files/FileCard';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Clock3, LayoutGrid, Users, Home as HomeIcon } from 'lucide-react';
 
-const recentlyVisited = [
-  { id: 'gov', title: 'Governance', type: 'folder' as const },
-  { id: 'school', title: 'School', type: 'folder' as const },
-  { id: 'house', title: 'House cleaning', type: 'process' as const },
-  { id: 'reg', title: 'Regulation', type: 'folder' as const },
-  { id: 'fin', title: 'Finance', type: 'folder' as const },
-];
-
-const privateSpace = [
-  { id: 'ps-school', title: 'School', type: 'folder' as const },
-  { id: 'ps-drafts', title: 'Drafts', type: 'folder' as const },
-  { id: 'ps-house', title: 'House cleaning', type: 'process' as const },
-];
-
-const teamSpace = [
-  { id: 'ts-governance', title: 'Governance', type: 'folder' as const },
-  { id: 'ts-finance', title: 'Finance', type: 'folder' as const },
-  { id: 'ts-regulation', title: 'Regulation', type: 'folder' as const },
-];
-
-function FolderGlyph() {
-  return (
-    <FolderIcon className="h-24 w-24 text-neutral-500" strokeWidth={1.5} />
-  );
-}
-
-function ProcessGlyph() {
-  return (
-    <Workflow className="h-24 w-24 text-neutral-500" strokeWidth={1.25} />
-  );
-}
-
-function FolderTile({ title, type = 'folder' as const }: { title: string; type?: 'folder' | 'process' }) {
-  const isProcess = type === 'process';
-  return (
-    <Card className="flex h-full min-h-[200px] w-full flex-col items-center justify-center gap-2 rounded-xl border-none bg-white px-4 py-6 text-center shadow-none transition-transform duration-200 hover:-translate-y-1 hover:scale-105 hover:bg-[#ffe8d7]/30">
-      {isProcess ? <ProcessGlyph /> : <FolderGlyph />}
-      <div className="text-lg font-semibold text-neutral-800">{title}</div>
-    </Card>
-  );
-}
+type CardItem = {
+  id: string;
+  name: string;
+  description?: string | null;
+  type: 'folder' | 'process';
+  spaceId: string;
+  spaceType: 'private' | 'team';
+  parent_folder_id?: string | null;
+  processes?: { id: string }[];
+};
 
 export default function HomePage() {
   const { user } = useAuth();
+  const { spaces, trees, loadTree } = useSpaces();
+  const { recents, loading: recentsLoading } = useRecentItems();
   const name = useMemo(
     () => user?.full_name?.split(' ')[0] || user?.email || 'there',
     [user]
   );
+
+  const privateSpace = useMemo(
+    () => spaces.find((s) => s.id === 'private' || s.type === 'private'),
+    [spaces]
+  );
+  const teamSpaces = useMemo(() => spaces.filter((s) => s.type === 'team'), [spaces]);
+  const privateTree = privateSpace ? trees[privateSpace.id] : undefined;
+
+  useEffect(() => {
+    if (privateSpace && !trees[privateSpace.id]) {
+      loadTree(privateSpace.id);
+    }
+    teamSpaces.forEach((space) => {
+      if (!trees[space.id]) {
+        loadTree(space.id);
+      }
+    });
+  }, [privateSpace, teamSpaces, trees, loadTree]);
+
+  const buildHref = (spaceId: string, type: 'folder' | 'process', id: string) =>
+    type === 'folder'
+      ? `/spaces/${spaceId}/folders/${id}`
+      : `/spaces/${spaceId}/processes/${id}`;
+
+  const privateItems: CardItem[] = useMemo(() => {
+    if (!privateSpace || !privateTree) return [];
+    return [
+      ...(privateTree.root_folders || []).map((folder) => ({
+        id: folder.id,
+        name: folder.name,
+        description: folder.description,
+        type: 'folder' as const,
+        spaceId: privateSpace.id,
+        spaceType: 'private' as const,
+        parent_folder_id: folder.parent_folder_id ?? null,
+        processes: folder.processes,
+      })),
+      ...(privateTree.root_processes || []).map((proc) => ({
+        id: proc.id,
+        name: proc.name,
+        description: proc.description,
+        type: 'process' as const,
+        spaceId: privateSpace.id,
+        spaceType: 'private' as const,
+        parent_folder_id: proc.folder_id ?? null,
+      })),
+    ];
+  }, [privateSpace, privateTree]);
+
+  const teamItems: CardItem[] = useMemo(() => {
+    if (!teamSpaces.length) return [];
+    return teamSpaces.flatMap((space) => {
+      const tree = trees[space.id];
+      if (!tree) return [];
+      return [
+        ...(tree.root_folders || []).map((folder) => ({
+          id: folder.id,
+          name: folder.name,
+          description: folder.description,
+          type: 'folder' as const,
+          spaceId: space.id,
+          spaceType: 'team' as const,
+          parent_folder_id: folder.parent_folder_id ?? null,
+          processes: folder.processes,
+        })),
+        ...(tree.root_processes || []).map((proc) => ({
+          id: proc.id,
+          name: proc.name,
+          description: proc.description,
+          type: 'process' as const,
+          spaceId: space.id,
+          spaceType: 'team' as const,
+          parent_folder_id: proc.folder_id ?? null,
+        })),
+      ];
+    });
+  }, [teamSpaces, trees]);
 
   return (
     <AppLayout>
@@ -72,38 +123,134 @@ export default function HomePage() {
               <span>Recently Visited</span>
             </div>
             <div className="h-px bg-neutral-200" />
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5">
-              {recentlyVisited.map((item) => (
-                <FolderTile key={item.id} title={item.title} type={item.type} />
-              ))}
-            </div>
+            {recentsLoading && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Carregando itens recentes...</CardTitle>
+                  <CardDescription>Buscando suas últimas pastas e processos.</CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+            {!recentsLoading && !recents.length && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Nenhum item recente</CardTitle>
+                  <CardDescription>Abra uma pasta ou processo para vê-lo aqui.</CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+            {!recentsLoading && recents.length > 0 && (
+              <div className="flex flex-wrap gap-4">
+                {recents.map((item) => {
+                  const spaceName =
+                    item.space_type === 'private'
+                      ? 'Private Space'
+                      : teamSpaces.find((s) => s.id === item.space_id)?.name || 'Team Space';
+                  const spaceIdForRoute = item.space_type === 'private' ? 'private' : item.space_id || '';
+                  const processCount = item.type === 'folder' ? 0 : 1;
+                  return (
+                    <FileCard
+                      key={`${item.space_id}-${item.id}`}
+                      title={item.name}
+                      type={item.type}
+                      meta={spaceName}
+                      processCount={processCount}
+                      href={buildHref(spaceIdForRoute, item.type, item.id)}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           <div className="space-y-10">
-            <section>
+            <section className="space-y-3">
               <div className="flex items-center gap-2 text-lg font-semibold text-neutral-900">
                 <LayoutGrid className="h-5 w-5 text-neutral-500" />
                 <span>Private Space</span>
               </div>
-              <div className="my-3 h-px bg-neutral-200" />
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5">
-                {privateSpace.map((item) => (
-                  <FolderTile key={item.id} title={item.title} type={item.type} />
-                ))}
-              </div>
+              <div className="h-px bg-neutral-200" />
+              {!privateSpace && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Nenhum Private Space</CardTitle>
+                    <CardDescription>Não foi possível encontrar seu espaço privado.</CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+              {privateSpace && !privateTree && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Carregando Private Space...</CardTitle>
+                    <CardDescription>Buscando pastas e processos.</CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+              {privateSpace && privateTree && privateItems.length === 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Private Space vazio</CardTitle>
+                    <CardDescription>Crie uma pasta ou processo para começar.</CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+              {privateItems.length > 0 && (
+                <div className="flex flex-wrap gap-4">
+                  {privateItems.map((item) => (
+                    <FileCard
+                      key={item.id}
+                      title={item.name}
+                      description={item.description || undefined}
+                      type={item.type}
+                      meta={privateSpace?.name || 'Private Space'}
+                      processCount={item.type === 'folder' ? item.process_count ?? item.processes?.length ?? 0 : 1}
+                      href={buildHref(item.spaceId, item.type, item.id)}
+                    />
+                  ))}
+                </div>
+              )}
             </section>
 
-            <section>
+            <section className="space-y-3">
               <div className="flex items-center gap-2 text-lg font-semibold text-neutral-900">
-                <LayoutGrid className="h-5 w-5 text-neutral-500" />
+                <Users className="h-5 w-5 text-neutral-500" />
                 <span>Teams Space</span>
               </div>
-              <div className="my-3 h-px bg-neutral-200" />
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5">
-                {teamSpace.map((item) => (
-                  <FolderTile key={item.id} title={item.title} type={item.type} />
-                ))}
-              </div>
+              <div className="h-px bg-neutral-200" />
+              {!teamSpaces.length && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Sem spaces de time</CardTitle>
+                    <CardDescription>Participe de um time para ver os cards aqui.</CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+              {teamSpaces.length > 0 && teamItems.length === 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Carregando spaces de time...</CardTitle>
+                    <CardDescription>Buscando pastas e processos dos times.</CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+              {teamItems.length > 0 && (
+                <div className="flex flex-wrap gap-4">
+                  {teamItems.map((item) => {
+                    const spaceName = teamSpaces.find((s) => s.id === item.spaceId)?.name || 'Team Space';
+                    return (
+                      <FileCard
+                        key={`${item.spaceId}-${item.id}`}
+                        title={item.name}
+                        description={item.description || undefined}
+                        type={item.type}
+                        meta={spaceName}
+                        processCount={item.type === 'folder' ? item.process_count ?? item.processes?.length ?? 0 : 1}
+                        href={buildHref(item.spaceId, item.type, item.id)}
+                      />
+                    );
+                  })}
+                </div>
+              )}
             </section>
           </div>
         </div>

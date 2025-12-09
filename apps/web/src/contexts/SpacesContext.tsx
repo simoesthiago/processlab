@@ -46,8 +46,8 @@ interface SpacesContextType {
   selectSpace: (spaceId: string) => void;
   refreshSpaces: () => Promise<void>;
   loadTree: (spaceId: string) => Promise<void>;
-  createFolder: (spaceId: string, payload: { name: string; description?: string; parent_folder_id?: string | null }) => Promise<void>;
-  createProcess: (spaceId: string, payload: { name: string; description?: string; folder_id?: string | null }) => Promise<void>;
+  createFolder: (spaceId: string, payload: { name: string; description?: string; parent_folder_id?: string | null }) => Promise<SpaceFolder>;
+  createProcess: (spaceId: string, payload: { name: string; description?: string; folder_id?: string | null }) => Promise<SpaceProcess>;
   deleteFolder: (spaceId: string, folderId: string) => Promise<void>;
   getFolder: (spaceId: string, folderId: string) => SpaceFolder | null;
 }
@@ -136,7 +136,9 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       if (!resp.ok) {
         throw new Error('Failed to create folder');
       }
+      const data: SpaceFolder = await resp.json();
       await loadTree(spaceId);
+      return data;
     },
     [authHeaders, loadTree, token]
   );
@@ -159,7 +161,9 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       if (!resp.ok) {
         throw new Error('Failed to create process');
       }
+      const data: SpaceProcess = await resp.json();
       await loadTree(spaceId);
+      return data;
     },
     [authHeaders, loadTree, token]
   );
