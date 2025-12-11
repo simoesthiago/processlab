@@ -7,10 +7,13 @@
  * Shows workspace context, process info, version status, and actions.
  */
 
+import { useState, useEffect } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
+import { cn } from '@/lib/utils';
 import {
   ChevronRight,
   Save,
@@ -27,6 +30,9 @@ import {
   Settings,
   Globe,
   ChevronDown,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
 } from 'lucide-react';
 
 interface Process {
@@ -48,7 +54,6 @@ interface StudioNavbarProps {
   selectedVersionId: string | null;
   basePath: string;
   isSaving: boolean;
-  isGenerating?: boolean;
   onSave: () => void;
   onExport: () => void;
   onActivateVersion?: (versionId: string) => void;
@@ -57,6 +62,8 @@ interface StudioNavbarProps {
   folderPath?: Array<{ id: string; name: string }>;
   workspaceType?: 'personal' | 'organization';
   projectId?: string;
+  editorRef?: React.RefObject<BpmnEditorRef>;
+  onSettingsClick?: () => void;
 }
 
 export function StudioNavbar({
@@ -65,7 +72,6 @@ export function StudioNavbar({
   selectedVersionId,
   basePath,
   isSaving,
-  isGenerating,
   onSave,
   onExport,
   onActivateVersion,
@@ -74,7 +80,72 @@ export function StudioNavbar({
   folderPath = [],
   workspaceType,
   projectId,
+  editorRef,
+  onSettingsClick,
 }: StudioNavbarProps) {
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const [currentZoom, setCurrentZoom] = useState(1);
+  const [isEditingZoom, setIsEditingZoom] = useState(false);
+  const [zoomInputValue, setZoomInputValue] = useState('100');
+
+  // Check undo/redo state periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (editorRef?.current) {
+        setCanUndo(editorRef.current.canUndo());
+        setCanRedo(editorRef.current.canRedo());
+        // Update zoom level (only if not editing)
+        if (!isEditingZoom) {
+          const zoom = editorRef.current.getZoom();
+          // getZoom() already returns percentage (100 = 100%), so use it directly
+          setCurrentZoom(zoom / 100); // Store as decimal for calculations
+          setZoomInputValue(zoom.toString());
+        }
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [editorRef, isEditingZoom]);
+
+  const handleZoomInputChange = (value: string) => {
+    // Remove non-numeric characters except empty string
+    const numericValue = value.replace(/[^0-9]/g, '');
+    setZoomInputValue(numericValue);
+  };
+
+  const handleZoomInputBlur = () => {
+    setIsEditingZoom(false);
+    applyZoomFromInput();
+  };
+
+  const handleZoomInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+      applyZoomFromInput();
+    } else if (e.key === 'Escape') {
+      setIsEditingZoom(false);
+      // Reset to current zoom (currentZoom is decimal, getZoom returns percentage)
+      const zoom = editorRef?.current?.getZoom() || 100;
+      setZoomInputValue(zoom.toString());
+    }
+  };
+
+  const applyZoomFromInput = () => {
+    if (!editorRef?.current) return;
+    
+    const numericValue = parseInt(zoomInputValue);
+    if (isNaN(numericValue) || numericValue < 20 || numericValue > 300) {
+      // Reset to current zoom if invalid (getZoom returns percentage)
+      const zoom = editorRef.current.getZoom();
+      setZoomInputValue(zoom.toString());
+      setCurrentZoom(zoom / 100);
+      return;
+    }
+    
+    const zoomDecimal = numericValue / 100;
+    editorRef.current.setZoom(zoomDecimal);
+    setCurrentZoom(zoomDecimal);
+  };
   const { currentWorkspace } = useWorkspace();
   
   // Use spaceName if provided (for spaces), otherwise fall back to currentWorkspace or projectName
@@ -195,42 +266,101 @@ export function StudioNavbar({
       )}
 
       {/* Right Section - Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         {/* Undo/Redo */}
-        <div className="flex items-center gap-1 border-r border-border pr-2 mr-1">
+        <div className="flex items-center gap-0.5 border-r border-border pr-1.5 mr-0.5">
           <button
-            className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-            title="Undo"
+            onClick={() => {
+              if (editorRef?.current) {
+                editorRef.current.undo();
+              }
+            }}
+            disabled={!canUndo}
+            className={cn(
+              "p-1.5 rounded-md transition-colors",
+              canUndo 
+                ? "hover:bg-accent text-muted-foreground hover:text-foreground" 
+                : "text-muted-foreground/50 cursor-not-allowed"
+            )}
+            title="Undo (Ctrl+Z)"
           >
             <Undo2 className="h-4 w-4" />
           </button>
           <button
-            className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-            title="Redo"
+            onClick={() => {
+              if (editorRef?.current) {
+                editorRef.current.redo();
+              }
+            }}
+            disabled={!canRedo}
+            className={cn(
+              "p-1.5 rounded-md transition-colors",
+              canRedo 
+                ? "hover:bg-accent text-muted-foreground hover:text-foreground" 
+                : "text-muted-foreground/50 cursor-not-allowed"
+            )}
+            title="Redo (Ctrl+Y)"
           >
             <Redo2 className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Language Selector */}
-        <div className="relative group">
-          <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-accent transition-colors text-sm text-muted-foreground hover:text-foreground">
-            <Globe className="h-3.5 w-3.5" />
-            <span>EN</span>
-            <ChevronDown className="h-3 w-3" />
+        {/* Zoom Controls */}
+        <div className="flex items-center gap-0.5 border-r border-border pr-1.5 mr-0.5">
+          <button
+            onClick={() => {
+              if (editorRef?.current) {
+                editorRef.current.zoomOut();
+              }
+            }}
+            className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            title="Zoom Out (Ctrl+-)"
+          >
+            <ZoomOut className="h-4 w-4" />
           </button>
-          <div className="absolute top-full right-0 mt-1 p-1 bg-card border border-border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[100px]">
-            <button className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent rounded transition-colors">
-              English (EN)
+          {isEditingZoom ? (
+            <input
+              type="text"
+              value={zoomInputValue}
+              onChange={(e) => handleZoomInputChange(e.target.value)}
+              onBlur={handleZoomInputBlur}
+              onKeyDown={handleZoomInputKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              className="w-12 px-1.5 py-1 text-xs text-center border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
+              autoFocus
+              min={20}
+              max={300}
+            />
+          ) : (
+            <button
+              onClick={() => {
+                setIsEditingZoom(true);
+                // getZoom() already returns percentage, use it directly
+                const zoom = editorRef?.current?.getZoom() || 100;
+                setZoomInputValue(zoom.toString());
+              }}
+              className="px-1.5 py-1 text-xs text-muted-foreground hover:text-foreground min-w-[40px] text-center hover:bg-accent rounded-md transition-colors"
+              title="Click to edit zoom percentage"
+            >
+              {editorRef?.current ? editorRef.current.getZoom() : 100}%
             </button>
-            <button className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent rounded transition-colors">
-              Português (PT)
-            </button>
-          </div>
+          )}
+          <button
+            onClick={() => {
+              if (editorRef?.current) {
+                editorRef.current.zoomIn();
+              }
+            }}
+            className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            title="Zoom In (Ctrl++)"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Settings */}
         <button
+          onClick={onSettingsClick}
           className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
           title="Settings"
         >

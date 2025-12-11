@@ -583,6 +583,27 @@ html {
   background: var(--accent) !important;
 }
 
+/* Enhanced drag & drop feedback */
+.bpmn-editor-container.dragging-element {
+  cursor: copy !important;
+}
+
+.bpmn-editor-container.dragging-element .djs-container {
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+
+/* Enhanced selection feedback */
+.djs-element.djs-shape.djs-element-selected {
+  box-shadow: 0 0 0 2px hsl(var(--primary)) !important;
+}
+
+.djs-element.djs-shape:hover {
+  cursor: move;
+}
+
 /* Properties panel integration */
 .bpp-properties-panel {
   background: var(--card) !important;

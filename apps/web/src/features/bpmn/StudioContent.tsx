@@ -10,7 +10,7 @@
  * - Consistent color palette with ProcessLab design system
  */
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { WorkspaceType } from '@/contexts/WorkspaceContext';
@@ -25,16 +25,17 @@ import BpmnEditor, { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
 import Copilot from '@/features/copiloto/Copilot';
 import ProcessWizard from '@/features/copiloto/ProcessWizard';
 import Citations from '@/features/citations/Citations';
+import SearchPanel from '@/components/panels/SearchPanel';
 import { Toast, ToastType } from '@/components/ui/toast';
+import { ExportModal, ExportFormat, ExportOptions } from '@/components/modals/ExportModal';
+import { SettingsModal, EditorSettings } from '@/components/modals/SettingsModal';
 import { cn } from '@/lib/utils';
 import {
   Sparkles,
   FileText,
   Clock,
   ChevronDown,
-  Wand2,
   Search,
-  PanelRightOpen,
 } from 'lucide-react';
 
 interface Process {
@@ -68,9 +69,6 @@ interface StudioContentProps {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-type RightPanelTab = 'copilot' | 'citations' | 'history' | 'search';
-type PanelTab = RightPanelTab | 'wizard';
-
 interface ConflictDetail {
   message?: string;
   yourEtag?: string;
@@ -89,7 +87,6 @@ export default function StudioContent({
   const editorRef = useRef<BpmnEditorRef>(null);
   const router = useRouter();
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
 
   // State
   const [process, setProcess] = useState<Process | null>(null);
@@ -98,9 +95,7 @@ export default function StudioContent({
   const [selectedVersionEtag, setSelectedVersionEtag] = useState<string | undefined>(undefined);
   const [latestVersionId, setLatestVersionId] = useState<string | null>(null);
   const [bpmnXml, setBpmnXml] = useState<string | undefined>(undefined);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [artifactId, setArtifactId] = useState('');
   const [pendingSave, setPendingSave] = useState<{ message: string; changeType: 'major' | 'minor' | 'patch' } | null>(null);
   const [conflictInfo, setConflictInfo] = useState<ConflictDetail | null>(null);
   const [projectName, setProjectName] = useState<string>('Project');
@@ -114,8 +109,13 @@ export default function StudioContent({
   const [versionToRestore, setVersionToRestore] = useState<Version | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [isLoadingVersion, setIsLoadingVersion] = useState(false);
-  const [wizardPanelCollapsed, setWizardPanelCollapsed] = useState(false);
-  const [showWizard, setShowWizard] = useState(true);
+  const [rightPanelMode, setRightPanelMode] = useState<'wizard' | 'search' | 'history'>('wizard');
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const [selectedElements, setSelectedElements] = useState<any[]>([]);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [editorSettings, setEditorSettings] = useState<EditorSettings | null>(null);
 
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
@@ -268,13 +268,124 @@ export default function StudioContent({
     }
   };
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (!process && !projectId && !workspaceId) {
       setToast({ message: 'No process, project, or workspace loaded to save', type: 'warning' });
       return;
     }
     setIsSaveModalOpen(true);
-  };
+  }, [process, projectId, workspaceId]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in inputs
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+
+      // Ctrl+Z / Cmd+Z - Undo
+      if (ctrlOrCmd && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (editorRef.current) {
+          editorRef.current.undo();
+        }
+      }
+
+      // Ctrl+Y / Cmd+Y or Ctrl+Shift+Z / Cmd+Shift+Z - Redo
+      if ((ctrlOrCmd && e.key === 'y') || (ctrlOrCmd && e.shiftKey && e.key === 'z')) {
+        e.preventDefault();
+        if (editorRef.current) {
+          editorRef.current.redo();
+        }
+      }
+
+      // Ctrl+A / Cmd+A - Select All
+      if (ctrlOrCmd && e.key === 'a') {
+        e.preventDefault();
+        if (editorRef.current) {
+          editorRef.current.selectAll();
+        }
+      }
+
+      // Ctrl+C / Cmd+C - Copy
+      if (ctrlOrCmd && e.key === 'c') {
+        // Let browser handle default copy for now, but we can enhance later
+        if (editorRef.current) {
+          editorRef.current.copy();
+        }
+      }
+
+      // Ctrl+V / Cmd+V - Paste
+      if (ctrlOrCmd && e.key === 'v') {
+        // Let browser handle default paste for now, but we can enhance later
+        if (editorRef.current) {
+          editorRef.current.paste();
+        }
+      }
+
+      // Ctrl+D / Cmd+D - Duplicate
+      if (ctrlOrCmd && e.key === 'd') {
+        e.preventDefault();
+        if (editorRef.current) {
+          editorRef.current.duplicate();
+        }
+      }
+
+      // Ctrl+S / Cmd+S - Save
+      if (ctrlOrCmd && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+
+      // Ctrl+F / Cmd+F - Search
+      if (ctrlOrCmd && e.key === 'f') {
+        e.preventDefault();
+        openRightPanel('search');
+      }
+
+      // Delete / Backspace - Delete selected elements
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !ctrlOrCmd) {
+        e.preventDefault();
+        if (editorRef.current) {
+          editorRef.current.deleteSelected();
+        }
+      }
+
+      // Ctrl+Plus / Cmd+Plus - Zoom in
+      if (ctrlOrCmd && (e.key === '+' || e.key === '=')) {
+        e.preventDefault();
+        if (editorRef.current) {
+          editorRef.current.zoomIn();
+        }
+      }
+
+      // Ctrl+Minus / Cmd+Minus - Zoom out
+      if (ctrlOrCmd && e.key === '-') {
+        e.preventDefault();
+        if (editorRef.current) {
+          editorRef.current.zoomOut();
+        }
+      }
+
+      // Ctrl+0 / Cmd+0 - Reset zoom
+      if (ctrlOrCmd && e.key === '0') {
+        e.preventDefault();
+        if (editorRef.current) {
+          editorRef.current.zoomReset();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editorRef, handleSave]);
 
   const performSave = async (
     params: { message: string; changeType: 'major' | 'minor' | 'patch'; force?: boolean }
@@ -462,76 +573,229 @@ export default function StudioContent({
   };
 
 
-  const handleExport = async () => {
+  const handleExport = () => {
+    setIsExportModalOpen(true);
+  };
+
+  const performExport = async (options: ExportOptions) => {
+    setIsExporting(true);
     try {
       const xml = await editorRef.current?.getXml();
-      if (xml) {
-        const blob = new Blob([xml], { type: 'application/xml' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${process?.name || 'process'}.bpmn`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        setToast({ message: 'Process exported successfully!', type: 'success' });
+      if (!xml) {
+        throw new Error('Failed to get XML from editor');
       }
+
+      const processName = process?.name || 'process';
+      let blob: Blob;
+      let mimeType: string;
+      let extension: string;
+      let filename: string;
+
+      switch (options.format) {
+        case 'xml':
+          blob = new Blob([xml], { type: 'application/xml' });
+          mimeType = 'application/xml';
+          extension = 'bpmn';
+          filename = `${processName}.${extension}`;
+          break;
+
+        case 'png':
+          // Export as PNG using SVG to Canvas conversion
+          try {
+            const svg = await editorRef.current?.getSvg();
+            if (!svg) {
+              throw new Error('Failed to get SVG from editor');
+            }
+
+            // Convert SVG to PNG using canvas
+            const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            const img = new Image();
+            
+            await new Promise<void>((resolve, reject) => {
+              img.onload = () => resolve();
+              img.onerror = reject;
+              img.src = url;
+            });
+
+            // Calculate scale based on DPI
+            const scale = (options.pngDpi || 150) / 72; // 72 is default DPI
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) {
+              throw new Error('Failed to get canvas context');
+            }
+
+            // Set white background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw image
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to blob with quality
+            const quality = options.pngQuality === 'low' ? 0.7 : options.pngQuality === 'medium' ? 0.85 : 0.95;
+            blob = await new Promise<Blob>((resolve, reject) => {
+              canvas.toBlob((blobResult) => {
+                if (!blobResult) {
+                  reject(new Error('Failed to convert canvas to blob'));
+                } else {
+                  resolve(blobResult);
+                }
+              }, 'image/png', quality);
+            });
+            
+            mimeType = 'image/png';
+            extension = 'png';
+            filename = `${processName}.${extension}`;
+            
+            URL.revokeObjectURL(url);
+          } catch (err: any) {
+            throw new Error(`PNG export failed: ${err.message || 'Unknown error'}`);
+          }
+          break;
+
+        case 'pdf':
+          // Export as PDF using SVG to PDF conversion
+          try {
+            const svg = await editorRef.current?.getSvg();
+            if (!svg) {
+              throw new Error('Failed to get SVG from editor');
+            }
+
+            // Convert SVG to image first
+            const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            const img = new Image();
+            
+            await new Promise<void>((resolve, reject) => {
+              img.onload = () => resolve();
+              img.onerror = reject;
+              img.src = url;
+            });
+
+            // Calculate PDF dimensions based on page size
+            const pageSizes: Record<string, { width: number; height: number }> = {
+              A4: { width: 210, height: 297 }, // mm
+              Letter: { width: 216, height: 279 }, // mm
+              Legal: { width: 216, height: 356 }, // mm
+            };
+            
+            const pageSize = pageSizes[options.pdfSize || 'A4'];
+            const isLandscape = options.pdfOrientation === 'landscape';
+            const pdfWidth = isLandscape ? pageSize.height : pageSize.width;
+            const pdfHeight = isLandscape ? pageSize.width : pageSize.height;
+            
+            // Create canvas to convert SVG to image
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) {
+              throw new Error('Failed to get canvas context');
+            }
+
+            // Set white background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw image
+            ctx.drawImage(img, 0, 0);
+            
+            // Convert canvas to data URL
+            const dataUrl = canvas.toDataURL('image/png');
+            
+            // Use jsPDF to create PDF
+            const { default: jsPDF } = await import('jspdf');
+            const pdf = new jsPDF({
+              orientation: isLandscape ? 'landscape' : 'portrait',
+              unit: 'mm',
+              format: (options.pdfSize?.toLowerCase() || 'a4') as 'a4' | 'letter' | 'legal',
+            });
+            
+            // Calculate image dimensions to fit page
+            const imgAspectRatio = img.width / img.height;
+            const pageAspectRatio = pdfWidth / pdfHeight;
+            
+            let imgWidth = pdfWidth;
+            let imgHeight = pdfHeight;
+            
+            if (imgAspectRatio > pageAspectRatio) {
+              // Image is wider, fit to width
+              imgHeight = pdfWidth / imgAspectRatio;
+            } else {
+              // Image is taller, fit to height
+              imgWidth = pdfHeight * imgAspectRatio;
+            }
+            
+            // Center image on page
+            const x = (pdfWidth - imgWidth) / 2;
+            const y = (pdfHeight - imgHeight) / 2;
+            
+            pdf.addImage(dataUrl, 'PNG', x, y, imgWidth, imgHeight);
+            pdf.save(`${processName}.pdf`);
+            
+            URL.revokeObjectURL(url);
+            
+            setToast({ message: `Process exported as PDF successfully!`, type: 'success' });
+            setIsExportModalOpen(false);
+            setIsExporting(false);
+            return; // Exit early
+          } catch (err: any) {
+            throw new Error(`PDF export failed: ${err.message || 'Unknown error'}`);
+          }
+
+        case 'json':
+          // Convert XML to JSON (simplified - would need proper parser)
+          try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(xml, 'application/xml');
+            const jsonData = {
+              process: {
+                id: doc.querySelector('bpmn\\:process, process')?.getAttribute('id') || 'process',
+                name: doc.querySelector('bpmn\\:process, process')?.getAttribute('name') || processName,
+              },
+              xml: xml,
+              exportedAt: new Date().toISOString(),
+              version: options.includeVersion ? selectedVersionId : undefined,
+            };
+            blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+            mimeType = 'application/json';
+            extension = 'bpmn.json';
+            filename = `${processName}.${extension}`;
     } catch (err) {
+            throw new Error('Failed to convert XML to JSON');
+          }
+          break;
+
+        default:
+          throw new Error(`Unsupported format: ${options.format}`);
+      }
+
+      // Download file
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setToast({ message: `Process exported as ${options.format.toUpperCase()} successfully!`, type: 'success' });
+      setIsExportModalOpen(false);
+    } catch (err: any) {
       console.error('Export failed:', err);
-      setToast({ message: 'Export failed', type: 'error' });
-    }
-  };
-
-  const handleGenerate = async () => {
-    if (!artifactId) return;
-    setIsGenerating(true);
-    try {
-      const payload = {
-        artifact_ids: [artifactId],
-        process_name: 'Generated Process',
-        project_id: projectId,
-        // options can include org context in the future; keep payload minimal for now
-      };
-
-      const res = await fetch(`${API_URL}/api/v1/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) throw new Error("Generation failed");
-
-      const data = await res.json();
-      const xml =
-        data.preview_xml ||
-        data.bpmn_json?.xml ||
-        data.bpmn_json?.bpmn_xml;
-      if (xml) {
-        setBpmnXml(xml);
-      }
-
-      if (data.process_id) {
-        // Reload from API to ensure local state has project/process metadata
-        await loadProcess(data.process_id);
-      } else if (projectId) {
-        // Keep minimal local process state so the user can keep editing
-        setProcess({
-          id: data.process_id || 'temporary',
-          name: payload.process_name,
-          project_id: projectId,
-        });
-      }
-    } catch (err) {
-      console.error("Generation error", err);
-      setToast({ message: 'Generation failed', type: 'error' });
+      setToast({ message: `Export failed: ${err.message || 'Unknown error'}`, type: 'error' });
     } finally {
-      setIsGenerating(false);
+      setIsExporting(false);
     }
   };
+
 
   const handleActivateVersion = async (versionId: string) => {
     if (!process) return;
@@ -650,13 +914,10 @@ export default function StudioContent({
     }
   };
 
-  const [activeTab, setActiveTab] = useState<PanelTab>('wizard');
-
-  // Tab buttons config for ResizablePanel header (History and Search)
-  const headerTabs: { id: 'history' | 'search'; label: string; icon: React.ReactNode }[] = [
-    { id: 'history', label: 'History', icon: <Clock className="h-3.5 w-3.5" /> },
-    { id: 'search', label: 'Search', icon: <Search className="h-3.5 w-3.5" /> },
-  ];
+  const openRightPanel = (mode: 'wizard' | 'search' | 'history') => {
+    setRightPanelMode(mode);
+    setRightPanelCollapsed(false);
+  };
 
   return (
     <div className="flex flex-col h-screen w-full bg-background">
@@ -667,7 +928,6 @@ export default function StudioContent({
         selectedVersionId={selectedVersionId}
         basePath={basePath}
         isSaving={isSaving}
-        isGenerating={isGenerating}
         onSave={handleSave}
         onExport={handleExport}
         onActivateVersion={handleActivateVersion}
@@ -676,68 +936,28 @@ export default function StudioContent({
         folderPath={folderPath}
         workspaceType={workspaceType}
         projectId={projectId}
+        editorRef={editorRef}
       />
 
       {/* Navbar 2 (Fixed) - Format Toolbar */}
-      <FormatToolbar />
+      <FormatToolbar 
+        editorRef={editorRef} 
+        selectedElements={selectedElements}
+        onWizardClick={() => openRightPanel('wizard')}
+        onHistoryClick={() => openRightPanel('history')}
+        onSearchClick={() => openRightPanel('search')}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* ProcessWizard Expand Button (when collapsed) */}
-        {wizardPanelCollapsed && (
-          <button
-            onClick={() => {
-              setWizardPanelCollapsed(false);
-              setShowWizard(true);
-            }}
-            className={cn(
-              'fixed right-0 top-[104px] bottom-0 z-40',
-              'w-12 flex items-center justify-center',
-              'bg-card border-l border-border',
-              'shadow-md',
-              'hover:bg-accent transition-colors',
-              'text-muted-foreground hover:text-foreground'
-            )}
-            title="Expand Process Wizard"
-          >
-            <PanelRightOpen className="h-5 w-5" />
-          </button>
-        )}
-
         {/* Center: Canvas Area */}
         <div className="flex-1 flex flex-col min-w-0">
-
-          {/* Generation Bar (when no process) */}
-          {!process && (
-            <div className="h-12 bg-card border-b border-border flex items-center px-4 gap-3 shrink-0">
-              <Wand2 className="h-4 w-4 text-primary" />
-              <span className="text-sm text-muted-foreground">Generate from artifact:</span>
-              <input
-                type="text"
-                value={artifactId}
-                onChange={(e) => setArtifactId(e.target.value)}
-                placeholder="Enter Artifact ID"
-                className="px-3 py-1.5 text-sm border border-input rounded-md bg-background w-64 focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating || !artifactId}
-                className={cn(
-                  'px-4 py-1.5 text-sm rounded-md font-medium transition-colors',
-                  'bg-primary text-primary-foreground hover:bg-primary/90',
-                  'disabled:opacity-50 disabled:cursor-not-allowed'
-                )}
-              >
-                {isGenerating ? 'Generating...' : 'Generate'}
-              </button>
-            </div>
-          )}
 
           {/* BPMN Editor Canvas */}
           <div className="flex-1 bg-muted/30 overflow-hidden relative">
             {isLoadingVersion && (
-              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
-                <div className="text-center">
+              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center pointer-events-auto">
+                <div className="text-center pointer-events-none">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground">Loading version...</p>
                 </div>
@@ -746,48 +966,69 @@ export default function StudioContent({
             <BpmnEditor
               ref={editorRef}
               initialXml={bpmnXml}
+              onSelectionChange={(elements) => {
+                setSelectedElements(elements);
+              }}
             />
           </div>
         </div>
 
 
-        {/* ProcessWizard as separate ResizablePanel */}
-        {showWizard && (
+        {/* Right Panel (Wizard / Search / History) */}
           <ResizablePanel
+          key={`${rightPanelMode}-${rightPanelCollapsed ? 'c' : 'o'}`}
             defaultWidth={380}
             minWidth={320}
             maxWidth={560}
-            defaultCollapsed={wizardPanelCollapsed}
+          defaultCollapsed={rightPanelCollapsed}
             position="right"
             onCollapsedChange={(collapsed) => {
-              setWizardPanelCollapsed(collapsed);
-              setShowWizard(!collapsed);
-              if (collapsed) {
-                setActiveTab('history');
-              }
+            setRightPanelCollapsed(collapsed);
             }}
             headerContent={null}
             showCollapseButton={false}
           >
+          {rightPanelMode === 'wizard' && (
             <ProcessWizard
               bpmnXml={bpmnXml || ''}
               modelVersionId={selectedVersionId || undefined}
               onEditApplied={(newBpmn, newVersionId) => {
                 console.log("Edit applied", newVersionId);
                 setToast({ message: 'Edit applied! Reloading...', type: 'info' });
-                // Reload process to get updated XML
                 if (process) {
                   loadProcess(process.id);
                 }
               }}
               onCollapse={() => {
-                setWizardPanelCollapsed(true);
-                setShowWizard(false);
-                setActiveTab('history');
+                setRightPanelCollapsed(true);
               }}
             />
-          </ResizablePanel>
-        )}
+          )}
+          {rightPanelMode === 'history' && (
+            <VersionTimeline
+              versions={versions}
+              selectedVersionId={selectedVersionId}
+              onSelectVersion={(versionId) => {
+                handleSelectVersion(versionId);
+              }}
+              onRestoreVersion={(versionId) => {
+                const version = versions.find(v => v.id === versionId);
+                if (version) {
+                  setVersionToRestore(version);
+                  setIsRestoreModalOpen(true);
+                }
+              }}
+            />
+          )}
+          {rightPanelMode === 'search' && (
+            <SearchPanel
+              editorRef={editorRef}
+              onClose={() => {
+                setRightPanelCollapsed(true);
+              }}
+            />
+          )}
+        </ResizablePanel>
       </div>
 
       {/* Modals */}
@@ -817,6 +1058,32 @@ export default function StudioContent({
         version={versionToRestore}
       />
 
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onExport={performExport}
+        processName={process?.name || processName}
+        isExporting={isExporting}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        onSettingsChange={(settings) => {
+          setEditorSettings(settings);
+          // Apply settings to editor
+          if (editorRef?.current) {
+            editorRef.current.applySettings({
+              gridSnap: settings.gridSnap,
+              gridSize: settings.gridSize,
+              zoomMin: settings.zoomMin,
+              zoomMax: settings.zoomMax,
+            });
+          }
+        }}
+      />
 
       {/* Toast Notification */}
       {toast && (

@@ -110,13 +110,17 @@ export default function ProcessWizard({ bpmn, bpmnXml, modelVersionId, onEditApp
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="flex flex-col items-center justify-center h-full text-center">
-          {/* Star Icon */}
-          <div className="mb-4">
-            <Sparkles className="h-12 w-12 text-primary/60" />
+          {/* ProcessLab Logo */}
+          <div className="mb-0.1">
+            <img
+              src="/logo_processlab.png"
+              alt="ProcessLab Logo"
+              className="h-20 w-20 object-contain"
+            />
           </div>
 
           {/* Title and Description */}
-          <h3 className="text-sm font-semibold text-foreground mb-1">
+          <h3 className="text-xl font-bold text-foreground mb-1">
             Process Wizard
           </h3>
           <p className="text-xs text-muted-foreground mb-6 max-w-[280px]">

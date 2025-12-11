@@ -216,6 +216,26 @@ O roadmap está organizado em **3 Fases**:
 - [ ] Atalhos de teclado
 - [ ] Zoom e pan otimizados
 
+**Funcionalidades Identificadas (Implementadas mas não conectadas)**:
+- [ ] **FormatToolbar**: Conectar formatação (Font, Size, Bold, Italic, Underline, Text Color, Fill Color) com elementos BPMN
+- [ ] **FormatToolbar**: Implementar Arrange (bring to front, send to back, group, ungroup)
+- [ ] **FormatToolbar**: Implementar Simulation (executar simulação do processo BPMN)
+- [ ] **FormatToolbar**: Implementar Search (buscar elementos no canvas)
+- [ ] **FormatToolbar**: Implementar History (histórico de ações no editor)
+- [ ] **FormatToolbar**: Implementar alinhamento horizontal e vertical
+- [ ] **StudioNavbar**: Implementar Undo/Redo (integração com bpmn-js)
+- [ ] **StudioNavbar**: Implementar seletor de idioma (i18n completo)
+- [ ] **StudioNavbar**: Implementar Settings (configurações do editor)
+- [ ] **ElementsSidebar**: Implementar ferramentas (Resize/Move, Align, Connector)
+- [ ] **ElementsSidebar**: Melhorar drag & drop de elementos BPMN
+- [ ] **ProcessWizard**: Expandir sugestões contextuais
+- [ ] **ProcessWizard**: Histórico de comandos executados
+- [ ] **Copilot**: Melhorar histórico de mensagens (persistência)
+- [ ] **Copilot**: Preview de mudanças antes de aplicar
+- [ ] **Citations**: Implementar painel completo com links para documentos
+- [ ] **ResizablePanel**: Salvar preferências de tamanho dos painéis
+- [ ] **ResizablePanel**: Atalhos de teclado para mostrar/ocultar painéis
+
 ---
 
 ### Sprint 7 - IA Generativa Melhorada 🔮

@@ -148,24 +148,24 @@ export function ResizablePanel({
 
       {/* Header with collapse button - only render if there's content or collapse button */}
       {(headerContent || showCollapseButton) && (
-        <div className="flex items-center justify-between h-12 px-3 border-b border-border shrink-0">
-          <div className="flex-1 min-w-0">
-            {headerContent}
-          </div>
-          {showCollapseButton && (
-            <button
-              onClick={toggleCollapsed}
-              className="p-1.5 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground ml-2"
-              title="Collapse panel"
-            >
-              {position === 'right' ? (
-                <PanelRightClose className="h-4 w-4" />
-              ) : (
-                <PanelRight className="h-4 w-4" />
-              )}
-            </button>
-          )}
+      <div className="flex items-center justify-between h-12 px-3 border-b border-border shrink-0">
+        <div className="flex-1 min-w-0">
+          {headerContent}
         </div>
+        {showCollapseButton && (
+          <button
+            onClick={toggleCollapsed}
+            className="p-1.5 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground ml-2"
+            title="Collapse panel"
+          >
+            {position === 'right' ? (
+              <PanelRightClose className="h-4 w-4" />
+            ) : (
+              <PanelRight className="h-4 w-4" />
+            )}
+          </button>
+        )}
+      </div>
       )}
 
       {/* Content */}

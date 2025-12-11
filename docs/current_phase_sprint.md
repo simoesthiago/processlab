@@ -90,26 +90,78 @@ Garantir que a hierarquia **Workspace → Project → Folder → Process** funci
 
 #### Frontend - Pendente
 - [ ] **Melhorias na UX do Editor**
-  - Atalhos de teclado
-  - Zoom e pan otimizados
-  - Feedback visual melhorado
-  - Estados de loading claros
+  - Atalhos de teclado (Ctrl+Z, Ctrl+Y, Delete, etc.)
+  - Zoom e pan otimizados (mouse wheel, trackpad, controles visuais)
+  - Feedback visual melhorado (seleção, hover, drag)
+  - Estados de loading claros (salvando, gerando, carregando)
 
 - [ ] **Export/Download**
-  - Botão de export no editor
-  - Modal de seleção de formato
-  - Download direto
-  - Preview antes de exportar
+  - Modal de seleção de formato (XML, PNG, PDF, JSON)
+  - Download direto dos arquivos
+  - Preview antes de exportar (opcional)
+  - Integração completa com backend de export
 
 - [ ] **Refinamento do Auto-layout**
   - Botão de auto-layout mais visível
   - Feedback durante layout
   - Opções de layout (horizontal/vertical)
 
+- [ ] **FormatToolbar - Funcionalidades Pendentes**
+  - Implementar ações dos botões de formatação (Font, Font Size, Bold, Italic, Underline, Text Color, Fill Color)
+  - Conectar formatação com elementos BPMN selecionados
+  - Implementar alinhamento horizontal e vertical nos elementos
+  - Implementar botão Arrange (bring to front, send to back, group, etc.)
+  - Implementar botão Simulation (executar simulação do processo)
+  - Implementar botão Search (buscar elementos no canvas)
+  - Implementar botão History (histórico de ações no editor)
+  - Implementar botão Plus (adicionar elementos rápidos)
+
+- [ ] **StudioNavbar - Funcionalidades Pendentes**
+  - Implementar Undo/Redo (integração com bpmn-js)
+  - Implementar seletor de idioma (i18n completo)
+  - Implementar Settings (configurações do editor)
+  - Melhorar feedback visual de Save/Export
+
+- [ ] **ElementsSidebar - Funcionalidades Pendentes**
+  - Implementar ferramentas de edição (Resize/Move, Align, Connector)
+  - Melhorar drag & drop de elementos BPMN
+  - Feedback visual ao arrastar elementos
+  - Tooltips informativos para cada elemento
+
+- [ ] **ProcessWizard - Melhorias**
+  - Expandir sugestões contextuais baseadas no processo atual
+  - Melhorar feedback visual durante processamento
+  - Histórico de comandos executados
+  - Desfazer ações do wizard
+
+- [ ] **Copilot - Melhorias**
+  - Melhorar histórico de mensagens (persistência)
+  - Sugestões mais inteligentes baseadas no contexto
+  - Preview de mudanças antes de aplicar
+  - Integração melhor com editor
+
+- [ ] **Citations - Implementação**
+  - Exibir citações de documentos usados na geração
+  - Links para chunks de documentos
+  - Visualização de contexto usado pela IA
+
+- [ ] **Painéis Resizáveis - Melhorias**
+  - Salvar preferências de tamanho dos painéis
+  - Animações suaves ao redimensionar
+  - Atalhos de teclado para mostrar/ocultar painéis
+
 #### Design - Pendente
 - [ ] Design das melhorias do editor
 - [ ] Modal de export
 - [ ] Feedback visual de ações
+- [ ] Design do modal de Settings
+- [ ] Design do painel de Simulation
+- [ ] Design do painel de Search
+- [ ] Design do painel de History
+- [ ] Design do modal de Arrange
+- [ ] Design do painel de Citations
+- [ ] Estados visuais para todas as ferramentas (ativa/inativa)
+- [ ] Tooltips e ajuda contextual
 
 ---
 
@@ -193,13 +245,19 @@ Garantir que a hierarquia **Workspace → Project → Folder → Process** funci
 
 ### Esta Semana
 1. [ ] **Sprint 6 - Backend**: Melhorias no auto-layout e lint
-2. [ ] **Sprint 6 - Frontend**: Melhorias na UX do editor
-3. [ ] **Sprint 6 - Export**: Implementar export/download completo
+2. [ ] **Sprint 6 - Frontend**: Implementar funcionalidades básicas do FormatToolbar (formatação de texto)
+3. [ ] **Sprint 6 - Frontend**: Implementar Undo/Redo no StudioNavbar
+4. [ ] **Sprint 6 - Frontend**: Conectar ferramentas do ElementsSidebar com o editor
+5. [ ] **Sprint 6 - Export**: Implementar export/download completo
 
 ### Próximas 2-3 Semanas
-1. [ ] **Sprint 6 - Finalização**: Polimento do studio/canvas
-2. [ ] **Sprint 7 - Planejamento**: Planejar melhorias de IA
-3. [ ] **Sprint 7 - Backend**: Melhorias no pipeline de geração
+1. [ ] **Sprint 6 - FormatToolbar**: Implementar Arrange, Simulation, Search, History
+2. [ ] **Sprint 6 - ElementsSidebar**: Implementar todas as ferramentas de edição
+3. [ ] **Sprint 6 - Citations**: Implementar painel de citações completo
+4. [ ] **Sprint 6 - Settings**: Implementar modal de configurações
+5. [ ] **Sprint 6 - Finalização**: Polimento do studio/canvas
+6. [ ] **Sprint 7 - Planejamento**: Planejar melhorias de IA
+7. [ ] **Sprint 7 - Backend**: Melhorias no pipeline de geração
 
 ### Próximo Mês
 1. [ ] Concluir Sprint 6

@@ -71,11 +71,17 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
   const [trees, setTrees] = useState<Record<string, SpaceTree>>({});
   const [loading, setLoading] = useState(false);
+  const loadedTreesRef = React.useRef<Set<string>>(new Set());
 
   const authHeaders = useMemo(() => {
     if (!token) return {};
     return { Authorization: `Bearer ${token}` };
   }, [token]);
+
+  // Keep ref in sync with trees state
+  useEffect(() => {
+    loadedTreesRef.current = new Set(Object.keys(trees));
+  }, [trees]);
 
   const refreshSpaces = useCallback(async () => {
     if (!token) {
@@ -124,9 +130,9 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
     async (spaceId: string, forceRefresh: boolean = false) => {
       if (!token) return;
       
-      // Use cache if available and not forcing refresh
-      if (!forceRefresh && trees[spaceId]) {
-        return;
+      // Check cache using ref to avoid dependency on trees state
+      if (!forceRefresh && loadedTreesRef.current.has(spaceId)) {
+        return; // Already loaded (ref is kept in sync with state via useEffect)
       }
       
       setLoading(true);
@@ -139,22 +145,34 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
         });
         if (!resp.ok) throw new Error('Failed to load space tree');
         const data = await resp.json();
-        setTrees((prev) => ({ ...prev, [spaceId]: data }));
+        setTrees((prev) => {
+          // Only update if not already cached or forcing refresh
+          if (!prev[spaceId] || forceRefresh) {
+            loadedTreesRef.current.add(spaceId);
+            return { ...prev, [spaceId]: data };
+          }
+          return prev;
+        });
       } finally {
         setLoading(false);
       }
     },
-    [authHeaders, token, trees]
+    [authHeaders, token]
   );
 
   const selectSpace = useCallback(
     (spaceId: string) => {
       setSelectedSpaceId(spaceId);
-      if (!trees[spaceId]) {
-        loadTree(spaceId);
+      // Check if tree needs to be loaded using functional update
+      setTrees((prev) => {
+        if (!prev[spaceId]) {
+          // Load tree asynchronously
+          loadTree(spaceId).catch(console.error);
       }
+        return prev;
+      });
     },
-    [loadTree, trees]
+    [loadTree]
   );
 
   const createFolder = useCallback(
