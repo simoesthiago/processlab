@@ -26,7 +26,7 @@ function SettingsContent() {
     const [defaultVisibility, setDefaultVisibility] = useState<'private' | 'shared' | 'public'>('private');
 
     return (
-        <div className="px-8 py-8 space-y-8">
+        <div className="max-w-7xl pr-10 py-8 space-y-8 mx-auto">
             <PageHeader
                 title="Settings"
                 description="Configure dados pessoais, notificações e preferências de trabalho."

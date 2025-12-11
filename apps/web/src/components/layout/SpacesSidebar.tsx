@@ -12,7 +12,6 @@ import {
   Lock,
   Workflow,
   Home,
-  Inbox,
   LayoutDashboard,
   LogOut,
   HelpCircle,
@@ -25,6 +24,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSpaces } from '@/contexts/SpacesContext';
+import { WorkspaceMenu } from './WorkspaceMenu';
 import {
   Dialog,
   DialogContent,
@@ -41,7 +41,6 @@ const navLinks = [
   { name: 'Search', href: '/search', icon: Search },
   { name: 'Home', href: '/home', icon: Home },
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Inbox', href: '/inbox', icon: Inbox },
   { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Trash', href: '/trash', icon: Trash2 },
 ];
@@ -65,6 +64,7 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
   const [newItem, setNewItem] = useState<NewItemState>({ open: false, spaceId: '', parentFolderId: null, type: 'folder' });
   const [itemName, setItemName] = useState('');
   const [itemDesc, setItemDesc] = useState('');
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
 
   useEffect(() => {
     if (selectedSpaceId && !trees[selectedSpaceId]) {
@@ -123,30 +123,37 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
               {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
             </button>
           </div>
-      <button
-        className={cn(
-          'rounded-md hover:bg-muted/60 transition-colors h-12',
-          collapsed ? 'mx-auto flex w-12 items-center justify-center' : 'flex w-full items-center justify-between px-4'
-        )}
-      >
-        {collapsed ? (
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
-            {initials?.[0] || 'W'}
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
+      <WorkspaceMenu
+        open={workspaceMenuOpen}
+        onOpenChange={setWorkspaceMenuOpen}
+        trigger={
+          <button
+            className={cn(
+              'rounded-md hover:bg-muted/60 transition-colors h-12',
+              collapsed ? 'mx-auto flex w-12 items-center justify-center' : 'flex w-full items-center justify-between px-4'
+            )}
+            onClick={() => setWorkspaceMenuOpen(true)}
+          >
+            {collapsed ? (
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
                 {initials?.[0] || 'W'}
               </div>
-              <span className="truncate text-base font-semibold text-foreground">
-                {user?.full_name || user?.email || 'Workspace'}
-              </span>
-            </div>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </>
-        )}
-      </button>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
+                    {initials?.[0] || 'W'}
+                  </div>
+                  <span className="truncate text-base font-semibold text-foreground">
+                    {user?.full_name || user?.email || 'Workspace'}
+                  </span>
+                </div>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </>
+            )}
+          </button>
+        }
+      />
         </div>
 
         <nav className="space-y-0.5">
@@ -161,7 +168,7 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
                 className={cn(
                 'flex h-10 items-center rounded-md py-1.5 text-sm font-medium transition-colors',
                 collapsed ? 'justify-center px-0 mx-0' : 'gap-1.5 px-4 mx-1',
-                  isActive ? 'bg-[#ffe8d7] text-foreground' : 'text-muted-foreground hover:bg-[#ffe8d7]'
+                  isActive ? 'bg-neutral-200 text-foreground' : 'text-muted-foreground hover:bg-neutral-200'
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -193,7 +200,8 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
                     This keeps icon spacing consistent with other spaces.
                   */}
                   {null}
-                  <button
+                  <Link
+                      href={`/spaces/${space.id}`}
                       className={cn(
                         'flex items-center text-sm font-semibold text-gray-800 hover:text-orange-600 transition-colors',
                         collapsed ? 'justify-center gap-0 h-10 w-10' : 'justify-start gap-2 h-10 w-full',
@@ -207,7 +215,7 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
                       <Folder className="h-4 w-4" />
                     )}
                     {!collapsed && <span className="truncate">{space.name}</span>}
-                  </button>
+                  </Link>
                   {!collapsed && (
                     <button
                       onClick={() => {
@@ -344,7 +352,7 @@ function SpaceTreeList({
         <div key={folder.id}>
           <div
             className={cn(
-              'group relative flex items-center gap-2 rounded-md py-1.5 text-sm font-medium text-muted-foreground hover:bg-[#ffe8d7]'
+              'group relative flex items-center gap-2 rounded-md py-1.5 text-sm font-medium text-muted-foreground hover:bg-neutral-200'
             )}
             // Extra indent to emphasize hierarchy under the space header
             style={{ paddingLeft: `${(depth + 1) * 16}px` }}
@@ -376,7 +384,7 @@ function SpaceTreeList({
                 <Link
                   key={proc.id}
                   href={`/spaces/${spaceId}/processes/${proc.id}`}
-                  className="flex items-center gap-2 rounded-md py-1.5 text-sm text-muted-foreground hover:bg-[#ffe8d7]"
+                  className="flex items-center gap-2 rounded-md py-1.5 text-sm text-muted-foreground hover:bg-neutral-200"
                   style={{ paddingLeft: `${(depth + 2) * 12}px` }}
                 >
                   <Workflow className="h-4 w-4" />
@@ -391,7 +399,7 @@ function SpaceTreeList({
         <Link
           key={proc.id}
           href={`/spaces/${spaceId}/processes/${proc.id}`}
-          className="flex items-center gap-2 rounded-md py-1.5 text-sm text-muted-foreground hover:bg-[#ffe8d7]"
+          className="flex items-center gap-2 rounded-md py-1.5 text-sm text-muted-foreground hover:bg-neutral-200"
           style={{ paddingLeft: `${(depth + 1) * 16}px` }}
         >
           <Workflow className="h-4 w-4" />

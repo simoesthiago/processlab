@@ -41,11 +41,3 @@ class VersionHistoryItem(BaseModel):
     class Config:
         from_attributes = True
 
-class VersionDiffResponse(BaseModel):
-    """Response for version comparison diff"""
-    base_version_id: str
-    compare_version_id: str
-    changes: List[str] = Field(default_factory=list, description="Summary of changes")
-    added_elements: List[str] = Field(default_factory=list, description="Added elements/lines")
-    removed_elements: List[str] = Field(default_factory=list, description="Removed elements/lines")
-    modified_elements: List[str] = Field(default_factory=list, description="Modified elements")

@@ -15,15 +15,15 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { WorkspaceType } from '@/contexts/WorkspaceContext';
 import { StudioNavbar } from '@/components/layout/StudioNavbar';
+import { FormatToolbar } from '@/components/layout/FormatToolbar';
 import { ResizablePanel } from '@/components/ui/resizable-panel';
-import { ElementsSidebar } from '@/features/bpmn/ElementsSidebar';
 import VersionTimeline from '@/features/versioning/VersionTimeline';
 import SaveVersionModal from '@/features/versioning/SaveVersionModal';
 import RestoreVersionModal from '@/features/versioning/RestoreVersionModal';
-import VersionDiffViewer from '@/features/versioning/VersionDiffViewer';
 import ConflictModal from '@/features/versioning/ConflictModal';
 import BpmnEditor, { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
 import Copilot from '@/features/copiloto/Copilot';
+import ProcessWizard from '@/features/copiloto/ProcessWizard';
 import Citations from '@/features/citations/Citations';
 import { Toast, ToastType } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
@@ -33,13 +33,17 @@ import {
   Clock,
   ChevronDown,
   Wand2,
+  Search,
+  PanelRightOpen,
 } from 'lucide-react';
 
 interface Process {
   id: string;
   name: string;
-  project_id: string;
+  project_id?: string | null;
   folder_id?: string | null;
+  organization_id?: string | null;
+  user_id?: string | null;
 }
 
 interface Version {
@@ -64,7 +68,8 @@ interface StudioContentProps {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-type RightPanelTab = 'copilot' | 'citations' | 'history';
+type RightPanelTab = 'copilot' | 'citations' | 'history' | 'search';
+type PanelTab = RightPanelTab | 'wizard';
 
 interface ConflictDetail {
   message?: string;
@@ -84,7 +89,6 @@ export default function StudioContent({
   const editorRef = useRef<BpmnEditorRef>(null);
   const router = useRouter();
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<RightPanelTab>('copilot');
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
 
   // State
@@ -100,27 +104,54 @@ export default function StudioContent({
   const [pendingSave, setPendingSave] = useState<{ message: string; changeType: 'major' | 'minor' | 'patch' } | null>(null);
   const [conflictInfo, setConflictInfo] = useState<ConflictDetail | null>(null);
   const [projectName, setProjectName] = useState<string>('Project');
+  const [spaceName, setSpaceName] = useState<string>('');
   const [processName, setProcessName] = useState<string>('New Process');
+  const [folderPath, setFolderPath] = useState<Array<{ id: string; name: string }>>([]);
 
-  // Diff viewer state
-  const [diffViewerOpen, setDiffViewerOpen] = useState(false);
-  const [baseVersion, setBaseVersion] = useState<Version | null>(null);
-  const [compareVersion, setCompareVersion] = useState<Version | null>(null);
-  const [baseXml, setBaseXml] = useState<string>('');
-  const [compareXml, setCompareXml] = useState<string>('');
-  const [isLoadingDiff, setIsLoadingDiff] = useState(false);
 
   // Restore modal state
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
   const [versionToRestore, setVersionToRestore] = useState<Version | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [isLoadingVersion, setIsLoadingVersion] = useState(false);
+  const [wizardPanelCollapsed, setWizardPanelCollapsed] = useState(false);
+  const [showWizard, setShowWizard] = useState(true);
 
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
   // Get auth token
   const { token } = useAuth();
+
+  // Load space name immediately when workspaceId is available
+  useEffect(() => {
+    if (workspaceId && workspaceType && token) {
+      const loadSpaceName = async () => {
+        try {
+          // For 'private' space, use hardcoded name
+          if (workspaceId === 'private') {
+            setSpaceName('Private Space');
+          } else {
+            // For organization spaces, try to get from spaces list
+            const spacesRes = await fetch(`${API_URL}/api/v1/spaces`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (spacesRes.ok) {
+              const spacesData = await spacesRes.json();
+              const space = spacesData.spaces?.find((s: { id: string }) => s.id === workspaceId);
+              setSpaceName(space?.name || 'Space');
+            } else {
+              setSpaceName('Space');
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load space info", err);
+          setSpaceName(workspaceType === 'personal' ? 'Private Space' : 'Space');
+        }
+      };
+      loadSpaceName();
+    }
+  }, [workspaceId, workspaceType, token]);
 
   // Load process if processId is provided
   useEffect(() => {
@@ -139,14 +170,25 @@ export default function StudioContent({
 
   const loadProcess = async (processId: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/processes/${processId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      // Use space endpoint if workspaceId is provided and it's not a project
+      let res;
+      if (workspaceId && !projectId) {
+        // Load from space endpoint
+        res = await fetch(`${API_URL}/api/v1/spaces/${workspaceId}/processes/${processId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      } else {
+        // Load from general processes endpoint
+        res = await fetch(`${API_URL}/api/v1/processes/${processId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
 
       if (res.ok) {
         const data = await res.json();
         setProcess(data);
-        // Load project name for breadcrumbs
+        
+        // Load project name for breadcrumbs (if process has project_id)
         if (data.project_id) {
           try {
             const projectRes = await fetch(`${API_URL}/api/v1/projects/${data.project_id}`, {
@@ -161,8 +203,32 @@ export default function StudioContent({
             setProjectName('Project');
           }
         } else {
-          setProjectName(workspaceType === 'personal' ? 'Personal' : 'Project');
+          setProjectName('');
         }
+
+        // Load folder path if process is in a folder
+        if (data.folder_id && workspaceId) {
+          try {
+            const folderPathRes = await fetch(`${API_URL}/api/v1/spaces/${workspaceId}/folders/${data.folder_id}/path`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (folderPathRes.ok) {
+              const folderPathData = await folderPathRes.json();
+              // Extract folder path with IDs and names
+              const pathItems = folderPathData.path?.map((item: { id: string; name: string }) => ({
+                id: item.id,
+                name: item.name
+              })) || [];
+              setFolderPath(pathItems);
+            }
+          } catch (err) {
+            console.error("Failed to load folder path", err);
+            setFolderPath([]);
+          }
+        } else {
+          setFolderPath([]);
+        }
+
         await loadVersions(processId);
 
         if (data.current_version_id) {
@@ -203,8 +269,8 @@ export default function StudioContent({
   };
 
   const handleSave = () => {
-    if (!process && !projectId) {
-      setToast({ message: 'No process or project loaded to save', type: 'warning' });
+    if (!process && !projectId && !workspaceId) {
+      setToast({ message: 'No process, project, or workspace loaded to save', type: 'warning' });
       return;
     }
     setIsSaveModalOpen(true);
@@ -216,42 +282,76 @@ export default function StudioContent({
     // If process doesn't exist yet, create it first
     let currentProcess = process;
     if (!currentProcess) {
-      if (!projectId) {
-        setToast({ message: 'No project selected to create the process.', type: 'error' });
-        return false;
-      }
+      // Check if we have a workspace (space) to create in
+      if (workspaceId && !projectId) {
+        try {
+          const createRes = await fetch(`${API_URL}/api/v1/spaces/${workspaceId}/processes`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              name: processName || 'New Process',
+              description: '',
+              folder_id: null, // Could be enhanced to support folder_id from context
+            }),
+          });
 
-      try {
-        const createRes = await fetch(`${API_URL}/api/v1/processes`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            project_id: projectId,
-            name: processName || 'New Process',
-            description: '',
-            folder_id: null,
-          }),
-        });
+          if (!createRes.ok) {
+            const errBody = await createRes.json().catch(() => ({}));
+            throw new Error(errBody.detail || 'Failed to create process');
+          }
 
-        if (!createRes.ok) {
-          const errBody = await createRes.json().catch(() => ({}));
-          throw new Error(errBody.detail || 'Failed to create process');
+          const created = await createRes.json();
+          currentProcess = created;
+          setProcess(created);
+          setProcessName(created.name || 'New Process');
+
+          // Redirect to canonical process URL in space
+          router.replace(`/spaces/${workspaceId}/processes/${created.id}`);
+        } catch (err: any) {
+          console.error("Create process failed:", err);
+          setToast({ message: `Failed to create process: ${err.message || 'Unknown error'}`, type: 'error' });
+          return false;
         }
+      } else if (projectId) {
+        // Legacy project-based creation
+        try {
+          const createRes = await fetch(`${API_URL}/api/v1/processes`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              project_id: projectId,
+              name: processName || 'New Process',
+              description: '',
+              folder_id: null,
+            }),
+          });
 
-        const created = await createRes.json();
-        currentProcess = created;
-        setProcess(created);
-        setProcessName(created.name || 'New Process');
+          if (!createRes.ok) {
+            const errBody = await createRes.json().catch(() => ({}));
+            throw new Error(errBody.detail || 'Failed to create process');
+          }
 
-        // Redirect to canonical process URL
-        // Legacy project path removed; send user to dashboard as canonical
-        router.replace('/dashboard');
-      } catch (err: any) {
-        console.error("Create process failed:", err);
-        setToast({ message: `Failed to create process: ${err.message || 'Unknown error'}`, type: 'error' });
+          const created = await createRes.json();
+          currentProcess = created;
+          setProcess(created);
+          setProcessName(created.name || 'New Process');
+
+          // Redirect to canonical process URL
+          // Legacy project path removed; send user to dashboard as canonical
+          router.replace('/dashboard');
+        } catch (err: any) {
+          console.error("Create process failed:", err);
+          setToast({ message: `Failed to create process: ${err.message || 'Unknown error'}`, type: 'error' });
+          return false;
+        }
+      } else {
+        setToast({ message: 'No workspace or project selected to create the process.', type: 'error' });
         return false;
       }
     }
@@ -361,14 +461,6 @@ export default function StudioContent({
     }
   };
 
-  const handleViewDiffFromConflict = () => {
-    if (!latestVersionId || !selectedVersionId) {
-      setToast({ message: 'Não foi possível abrir o diff com a versão mais recente.', type: 'error' });
-      return;
-    }
-    handleCompareVersions(latestVersionId, selectedVersionId);
-    setConflictInfo(null);
-  };
 
   const handleExport = async () => {
     try {
@@ -505,38 +597,6 @@ export default function StudioContent({
     return '';
   };
 
-  const handleCompareVersions = async (baseVersionId: string, compareVersionId: string) => {
-    if (!process) return;
-
-    setIsLoadingDiff(true);
-    setDiffViewerOpen(true);
-
-    try {
-      const base = versions.find(v => v.id === baseVersionId);
-      const compare = versions.find(v => v.id === compareVersionId);
-
-      if (!base || !compare) {
-        throw new Error("Versions not found");
-      }
-
-      setBaseVersion(base);
-      setCompareVersion(compare);
-
-      const [baseXmlData, compareXmlData] = await Promise.all([
-        loadVersionXml(process.id, baseVersionId),
-        loadVersionXml(process.id, compareVersionId)
-      ]);
-
-      setBaseXml(baseXmlData);
-      setCompareXml(compareXmlData);
-    } catch (error) {
-      console.error("Failed to load versions for comparison", error);
-      setToast({ message: 'Failed to load versions for comparison', type: 'error' });
-      setDiffViewerOpen(false);
-    } finally {
-      setIsLoadingDiff(false);
-    }
-  };
 
   const handleRestoreVersion = async (commitMessage?: string) => {
     if (!process || !versionToRestore) return;
@@ -590,11 +650,12 @@ export default function StudioContent({
     }
   };
 
-  // Tab buttons config
-  const tabs: { id: RightPanelTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'copilot', label: 'Copilot', icon: <Sparkles className="h-3.5 w-3.5" /> },
-    { id: 'citations', label: 'Citations', icon: <FileText className="h-3.5 w-3.5" /> },
+  const [activeTab, setActiveTab] = useState<PanelTab>('wizard');
+
+  // Tab buttons config for ResizablePanel header (History and Search)
+  const headerTabs: { id: 'history' | 'search'; label: string; icon: React.ReactNode }[] = [
     { id: 'history', label: 'History', icon: <Clock className="h-3.5 w-3.5" /> },
+    { id: 'search', label: 'Search', icon: <Search className="h-3.5 w-3.5" /> },
   ];
 
   return (
@@ -611,14 +672,41 @@ export default function StudioContent({
         onExport={handleExport}
         onActivateVersion={handleActivateVersion}
         projectName={projectName}
+        spaceName={spaceName}
+        folderPath={folderPath}
         workspaceType={workspaceType}
         projectId={projectId}
       />
 
+      {/* Navbar 2 (Fixed) - Format Toolbar */}
+      <FormatToolbar />
+
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* ProcessWizard Expand Button (when collapsed) */}
+        {wizardPanelCollapsed && (
+          <button
+            onClick={() => {
+              setWizardPanelCollapsed(false);
+              setShowWizard(true);
+            }}
+            className={cn(
+              'fixed right-0 top-[104px] bottom-0 z-40',
+              'w-12 flex items-center justify-center',
+              'bg-card border-l border-border',
+              'shadow-md',
+              'hover:bg-accent transition-colors',
+              'text-muted-foreground hover:text-foreground'
+            )}
+            title="Expand Process Wizard"
+          >
+            <PanelRightOpen className="h-5 w-5" />
+          </button>
+        )}
+
         {/* Center: Canvas Area */}
         <div className="flex-1 flex flex-col min-w-0">
+
           {/* Generation Bar (when no process) */}
           {!process && (
             <div className="h-12 bg-card border-b border-border flex items-center px-4 gap-3 shrink-0">
@@ -662,57 +750,44 @@ export default function StudioContent({
           </div>
         </div>
 
-        {/* Right: Collapsible & Resizable Panel */}
-        <ResizablePanel
-          defaultWidth={380}
-          minWidth={320}
-          maxWidth={560}
-          defaultCollapsed={rightPanelCollapsed}
-          position="right"
-          onCollapsedChange={setRightPanelCollapsed}
-          headerContent={
-            <div className="flex items-center gap-1">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
-                    activeTab === tab.id
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                  )}
-                >
-                  {tab.icon}
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          }
-        >
-          <div className="h-full overflow-hidden">
-            {activeTab === 'copilot' && (
-              <Copilot
-                bpmnXml={bpmnXml || ''}
-                modelVersionId={selectedVersionId || undefined}
-                onEditApplied={(newBpmn, newVersionId) => {
-                  console.log("Edit applied", newVersionId);
-                  setToast({ message: 'Edit applied! Reloading...', type: 'info' });
-                }}
-              />
-            )}
-            {activeTab === 'citations' && <Citations />}
-            {activeTab === 'history' && (
-              <VersionTimeline
-                versions={versions}
-                selectedVersionId={selectedVersionId}
-                onSelectVersion={handleSelectVersion}
-                onCompareVersions={handleCompareVersions}
-                onRestoreVersion={handleOpenRestoreModal}
-              />
-            )}
-          </div>
-        </ResizablePanel>
+
+        {/* ProcessWizard as separate ResizablePanel */}
+        {showWizard && (
+          <ResizablePanel
+            defaultWidth={380}
+            minWidth={320}
+            maxWidth={560}
+            defaultCollapsed={wizardPanelCollapsed}
+            position="right"
+            onCollapsedChange={(collapsed) => {
+              setWizardPanelCollapsed(collapsed);
+              setShowWizard(!collapsed);
+              if (collapsed) {
+                setActiveTab('history');
+              }
+            }}
+            headerContent={null}
+            showCollapseButton={false}
+          >
+            <ProcessWizard
+              bpmnXml={bpmnXml || ''}
+              modelVersionId={selectedVersionId || undefined}
+              onEditApplied={(newBpmn, newVersionId) => {
+                console.log("Edit applied", newVersionId);
+                setToast({ message: 'Edit applied! Reloading...', type: 'info' });
+                // Reload process to get updated XML
+                if (process) {
+                  loadProcess(process.id);
+                }
+              }}
+              onCollapse={() => {
+                setWizardPanelCollapsed(true);
+                setShowWizard(false);
+                setActiveTab('history');
+              }}
+            />
+          </ResizablePanel>
+        )}
       </div>
 
       {/* Modals */}
@@ -727,7 +802,6 @@ export default function StudioContent({
         isOpen={!!conflictInfo}
         onClose={() => setConflictInfo(null)}
         onOverwrite={handleOverwriteAfterConflict}
-        onViewDiff={latestVersionId && selectedVersionId ? handleViewDiffFromConflict : undefined}
         isSaving={isSaving}
         conflict={conflictInfo || undefined}
       />
@@ -743,21 +817,6 @@ export default function StudioContent({
         version={versionToRestore}
       />
 
-      {diffViewerOpen && baseVersion && compareVersion && (
-        <VersionDiffViewer
-          baseVersion={baseVersion}
-          compareVersion={compareVersion}
-          baseXml={baseXml}
-          compareXml={compareXml}
-          onClose={() => {
-            setDiffViewerOpen(false);
-            setBaseVersion(null);
-            setCompareVersion(null);
-            setBaseXml('');
-            setCompareXml('');
-          }}
-        />
-      )}
 
       {/* Toast Notification */}
       {toast && (

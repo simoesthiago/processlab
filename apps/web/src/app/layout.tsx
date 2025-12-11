@@ -20,12 +20,15 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ProcessLab - The GitHub for Process Modeling",
+  title: "ProcessLab",
   description: "AI-powered BPMN diagram generator and editor with version control and governance. Built for consultants, process owners, and compliance teams.",
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "any" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    shortcut: [
       { url: "/favicon.ico" },
     ],
     apple: [
@@ -38,7 +41,7 @@ export const metadata: Metadata = {
   },
   manifest: "/site.webmanifest",
   openGraph: {
-    title: "ProcessLab - The GitHub for Process Modeling",
+    title: "ProcessLab",
     description: "AI-powered BPMN diagram generator and editor with version control and governance.",
     type: "website",
   },

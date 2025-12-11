@@ -14,15 +14,11 @@ export function AppLayout({
     children,
     mainClassName,
 }: AppLayoutProps) {
-    const [collapsed, setCollapsed] = useState(false);
-
-    // persist sidebar state across navigations
-    useEffect(() => {
-        const stored = typeof window !== 'undefined' ? window.localStorage.getItem('sidebar-collapsed') : null;
-        if (stored !== null) {
-            setCollapsed(stored === 'true');
-        }
-    }, []);
+    const [collapsed, setCollapsed] = useState<boolean>(() => {
+        if (typeof window === 'undefined') return false;
+        const stored = window.localStorage.getItem('sidebar-collapsed');
+        return stored === 'true';
+    });
 
     const handleToggle = () => {
         setCollapsed((prev) => {
@@ -34,6 +30,9 @@ export function AppLayout({
         });
     };
 
+    const sidebarWidth = collapsed ? '3.5rem' : '18rem' // w-14 vs w-72
+    const gutter = '2.5rem' // 40px - spacing between sidebar and content
+
     return (
         <ProtectedRoute>
             <div className="min-h-screen bg-white">
@@ -43,10 +42,10 @@ export function AppLayout({
                 />
                 <main
                     className={cn(
-                        'min-h-screen bg-white transition-[margin] duration-200',
-                        collapsed ? 'ml-14' : 'ml-72',
+                        'min-h-screen bg-white transition-[padding-left] duration-200',
                         mainClassName
                     )}
+                    style={{ paddingLeft: `calc(${sidebarWidth} + ${gutter})` }}
                 >
                     {children}
                 </main>

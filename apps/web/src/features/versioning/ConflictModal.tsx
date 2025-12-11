@@ -4,7 +4,6 @@ interface ConflictModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOverwrite: () => void;
-  onViewDiff?: () => void;
   isSaving?: boolean;
   conflict?: {
     message?: string;
@@ -19,7 +18,6 @@ export default function ConflictModal({
   isOpen,
   onClose,
   onOverwrite,
-  onViewDiff,
   isSaving = false,
   conflict
 }: ConflictModalProps) {
@@ -79,14 +77,6 @@ export default function ConflictModal({
           >
             Cancelar
           </button>
-          {onViewDiff && (
-            <button
-              onClick={onViewDiff}
-              className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            >
-              Ver diff
-            </button>
-          )}
           <button
             onClick={onOverwrite}
             disabled={isSaving}

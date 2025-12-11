@@ -19,9 +19,14 @@ import {
   Clock,
   CheckCircle,
   ArrowLeft,
-  LayoutDashboard,
   FolderKanban,
-  FileText,
+  FolderOpen,
+  Workflow,
+  Undo2,
+  Redo2,
+  Settings,
+  Globe,
+  ChevronDown,
 } from 'lucide-react';
 
 interface Process {
@@ -48,7 +53,8 @@ interface StudioNavbarProps {
   onExport: () => void;
   onActivateVersion?: (versionId: string) => void;
   projectName?: string;
-  folderPath?: string[];
+  spaceName?: string;
+  folderPath?: Array<{ id: string; name: string }>;
   workspaceType?: 'personal' | 'organization';
   projectId?: string;
 }
@@ -64,11 +70,16 @@ export function StudioNavbar({
   onExport,
   onActivateVersion,
   projectName,
+  spaceName,
   folderPath = [],
   workspaceType,
   projectId,
 }: StudioNavbarProps) {
   const { currentWorkspace } = useWorkspace();
+  
+  // Use spaceName if provided (for spaces), otherwise fall back to currentWorkspace or projectName
+  // Priority: spaceName > projectName > currentWorkspace > 'Workspace'
+  const displayWorkspaceName = spaceName || projectName || currentWorkspace?.name || 'Workspace';
 
   const selectedVersion = versions.find(v => v.id === selectedVersionId);
 
@@ -91,45 +102,60 @@ export function StudioNavbar({
             href={basePath}
             className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
           >
-            <LayoutDashboard className="h-3.5 w-3.5" />
-            {currentWorkspace?.name || 'Workspace'}
+            <FolderKanban className="h-3.5 w-3.5" />
+            {displayWorkspaceName}
           </Link>
-
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
 
           {process ? (
             <>
-              {process.project_id ? (
-                <Link
-                  href={`${basePath}/folders/${process.project_id}`}
-                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <FolderKanban className="h-3.5 w-3.5" />
-                  {projectName || 'Folder'}
-                </Link>
-              ) : (
-                <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <FolderKanban className="h-3.5 w-3.5" />
-                  {projectName || (workspaceType === 'personal' ? 'Personal' : 'Folder')}
-                </span>
-              )}
-              {folderPath.length > 0 && folderPath.map((folder, idx) => (
-                <span key={idx} className="flex items-center gap-1.5 text-muted-foreground">
+              {/* Show folder path if process is in a folder within a space (not a project) */}
+              {!process.project_id && folderPath && folderPath.length > 0 ? (
+                <>
+                  {folderPath.map((folder) => (
+                    <span key={folder.id} className="flex items-center gap-1.5">
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+                      <Link
+                        href={`${basePath}/folders/${folder.id}`}
+                        className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        <span className="truncate max-w-[120px]">{folder.name}</span>
+                      </Link>
+                    </span>
+                  ))}
+                </>
+              ) : process.project_id ? (
+                <>
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-                  <FolderKanban className="h-3.5 w-3.5" />
-                  <span className="truncate max-w-[120px]">{folder}</span>
-                </span>
-              ))}
+                  <Link
+                    href={`${basePath}/folders/${process.project_id}`}
+                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <FolderKanban className="h-3.5 w-3.5" />
+                    {projectName || 'Folder'}
+                  </Link>
+                  {folderPath && folderPath.length > 0 && folderPath.map((folder) => (
+                    <span key={folder.id} className="flex items-center gap-1.5">
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+                      <FolderOpen className="h-3.5 w-3.5" />
+                      <span className="truncate max-w-[120px] text-muted-foreground">{folder.name}</span>
+                    </span>
+                  ))}
+                </>
+              ) : null}
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
               <span className="flex items-center gap-1.5 font-medium text-foreground truncate max-w-[200px]">
-                <FileText className="h-3.5 w-3.5" />
+                <Workflow className="h-3.5 w-3.5" />
                 {process.name}
               </span>
             </>
           ) : (
-            <span className="font-medium text-foreground">
-              New Process
-            </span>
+            <>
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+              <span className="font-medium text-foreground">
+                New Process
+              </span>
+            </>
           )}
         </nav>
       </div>
@@ -170,6 +196,48 @@ export function StudioNavbar({
 
       {/* Right Section - Actions */}
       <div className="flex items-center gap-2">
+        {/* Undo/Redo */}
+        <div className="flex items-center gap-1 border-r border-border pr-2 mr-1">
+          <button
+            className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            title="Undo"
+          >
+            <Undo2 className="h-4 w-4" />
+          </button>
+          <button
+            className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            title="Redo"
+          >
+            <Redo2 className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Language Selector */}
+        <div className="relative group">
+          <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-accent transition-colors text-sm text-muted-foreground hover:text-foreground">
+            <Globe className="h-3.5 w-3.5" />
+            <span>EN</span>
+            <ChevronDown className="h-3 w-3" />
+          </button>
+          <div className="absolute top-full right-0 mt-1 p-1 bg-card border border-border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[100px]">
+            <button className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent rounded transition-colors">
+              English (EN)
+            </button>
+            <button className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent rounded transition-colors">
+              Português (PT)
+            </button>
+          </div>
+        </div>
+
+        {/* Settings */}
+        <button
+          className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+          title="Settings"
+        >
+          <Settings className="h-4 w-4" />
+        </button>
+
+        {/* Export */}
         <Button
           variant="outline"
           size="sm"
@@ -180,12 +248,13 @@ export function StudioNavbar({
           Export
         </Button>
 
+        {/* Save */}
         <Button
           variant="default"
           size="sm"
           onClick={onSave}
           disabled={isSaving || (!process && !projectId)}
-          className="bg-green-500/90 hover:bg-green-600 text-white min-w-[88px]"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[88px]"
         >
           <Save className="h-4 w-4 mr-1.5" />
           {isSaving ? 'Saving...' : 'Save'}

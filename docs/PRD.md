@@ -1,150 +1,171 @@
 # ProcessLab - PRD
 
-## 1. Visao e Objetivo
-- Produto: Plataforma SaaS de governanca e modelagem de processos ("GitHub de processos") com editor BPMN, copilot de IA e repositorio versionado de processos.
-- Problema: Fluxogramas entregues como "foto" nao tem historico, aprovacao, rastreabilidade nem atualizacao continua.
-- Objetivo: Permitir que consultores e empresas modelem, versionem, revisem, aprovem e auditem processos com apoio de IA, usando BPMN como notacao padrao e um formato interno JSON-first.
+## 1. Visão e Objetivo
+- **Produto**: Plataforma SaaS de modelagem de processos com editor BPMN e copilot de IA generativa
+- **Problema**: Consultorias e áreas internas de mapeamento de processos precisam de uma ferramenta moderna para criar, organizar e gerenciar processos de negócio com apoio de IA
+- **Objetivo**: Permitir que usuários modelem processos BPMN de forma eficiente usando IA generativa, organizando-os em workspaces, folders e processos de forma intuitiva
 
-## 2. Publico-Alvo
-- Consultor: cria/edita modelos, usa IA para rascunhos, quer produtividade e reutilizacao.
-- Process Owner (cliente): mantem processos ativos, aprova mudancas, precisa de rastreabilidade e compliance.
-- Revisor/Auditor: analisa alteracoes, solicita evidencias, gera relatorios de conformidade.
-- Usuario de negocio: consome processos ativos, comenta, sugere melhorias.
+## 2. Público-Alvo
+- **Consultor**: cria/edita modelos de processos, usa IA para rascunhos rápidos, precisa de produtividade
+- **Analista de Processos**: mantém processos organizados, cria novos processos a partir de documentos, exporta para apresentações
+- **Usuário de Negócio**: consome processos modelados, precisa visualizar e entender fluxos
 
-## 3. Metricas de Sucesso (inicial)
-- Tempo medio para gerar rascunho de processo a partir de insumos (P95).
-- Percentual de elementos com evidencia vinculada (meta >= 90% nas versoes aprovadas).
-- Tempo de aprovacao de mudanca (solicitacao -> aprovacao).
-- Adocao: processos ativos por cliente, usuarios ativos semanais.
-- Qualidade: taxa de lint OK em BPMN, precisao de grounding (respostas citam evidencia).
+## 3. Métricas de Sucesso (inicial)
+- Tempo médio para gerar rascunho de processo a partir de insumos (P95 < 60s)
+- Adoção: processos criados por usuário, usuários ativos semanais
+- Qualidade: taxa de lint OK em BPMN, satisfação com geração de IA
+- Organização: processos organizados em folders, uso de workspaces
 
-## 4. Escopo Funcional (MVP -> Evolucao)
-### MVP (Fase 1-2)
-- Editor BPMN (bpmn.io) integrado a formato interno `BPMN_JSON`; import/export XML.
-- Copilot basico: comandos de edicao e geracao a partir de texto/documentos (RAG inicial).
-- Repositorio por organizacao/projeto/processo; versionamento basico (criar nova versao, ativar).
-- Catalogo de processos com status (rascunho, em revisao, ativo).
-- Autenticacao simples; isolamento por organizacao.
-- Ingestao de documentos (TXT/PDF/DOCX) com chunking, embeddings e busca semantica inicial.
-- **Sistema de convites**: admins podem convidar usuarios via email; usuarios aceitam convite e definem senha.
-- **Conflitos de edicao**: deteccao de edicoes simultaneas com optimistic locking; modal de resolucao de conflitos.
-- **Audit log do sistema**: registro imutavel de acoes administrativas (criacao/remocao de usuarios, mudancas de permissao, exportacoes em massa).
-- **Gestao de API Keys**: BYOK para LLM e chaves de API para integracoes externas; rotacao e revogacao.
+## 4. Escopo Funcional
 
-### Colaboracao (Fase 3)
-- Comentarios ancorados em elementos/versoes; threads.
-- Fluxo de aprovacao (proposta -> revisao -> aprovacao) e promocao de versao ativa.
-- Notificacoes (email/Slack/Teams) para comentarios e approvals.
-- **Lixeira/Soft Delete**: recuperacao de processos/projetos deletados; exclusao permanente apos periodo configuravel (padrao 30 dias).
+### Core (Foco Principal)
 
-### Rastreabilidade e IA "excelente" (Fase 4)
-- Ingestao multimodal: texto, imagem (OCR), audio/video (ASR) com timestamps.
-- RAG robusto com metadados (fonte, pagina/timestamp, tipo de artefato, confidencialidade).
-- Copilot grounded: gera/edita apenas com evidencias; cita fontes; bloqueia alucinacoes.
-- Evidencias vinculadas a elementos/versoes; diff visual entre versoes.
-- Relatorios automaticos (POPs, resumos executivos, conformidade).
+#### 1. Armazenamento e Gestão de Processos
+- **Workspace (Organization/Personal)**: Espaços de trabalho organizacionais ou pessoais
+  - Organizações: múltiplos usuários, projetos compartilhados
+  - Espaço Pessoal: projetos privados do usuário
+- **Project**: Agrupa processos relacionados dentro de um workspace
+  - Projetos organizacionais: compartilhados entre membros
+  - Projetos pessoais: privados do usuário
+- **Folder**: Organização hierárquica de processos dentro de projetos
+  - Estrutura de pastas aninhadas (subfolders)
+  - Ordenação por posição
+  - Metadados opcionais (cor, ícone)
+- **Process**: Modelo de processo BPMN
+  - Pertence a um Project (e opcionalmente a um Folder)
+  - Múltiplas versões (histórico básico)
+  - Metadados: nome, descrição, tags
 
-### Enterprise (Fase 5)
-- SSO (SAML/OIDC), RBAC avancado, trilha de auditoria completa.
-- Multi-tenant forte, jobs assincronos, observabilidade (logs estruturados, metricas, tracing).
-- Integracoes: Jira, ServiceNow, ERP/CRM, webhooks e API publica.
-- UX avancada: visoes por papel/sistema/risco, paletas setoriais, alinhamento/distribuicao/layout refinados.
-- **Monitoramento de uso**: dashboard de consumo (IA tokens, armazenamento, membros) com alertas de quota e projecao de custos.
-- **Paginas de erro**: tratamento de "unhappy path" com paginas amigaveis para 403, 404, 500 e manutencao programada.
+**Hierarquia**: `Workspace → Project → Folder (opcional, hierárquico) → Process → Version`
+
+#### 2. Studio/Canvas para Criação e Edição
+- **Editor BPMN**: Editor visual baseado em bpmn.io
+  - Edição em formato interno `BPMN_JSON`
+  - Conversão para XML apenas em import/export
+  - Operações: adicionar/editar/remover nós e fluxos
+  - Auto-layout (ELK.js) para organização automática
+  - Alinhamento e distribuição de elementos
+- **IA Generativa**: Copilot para auxiliar na criação
+  - Geração de processos a partir de texto/documentos
+  - Edição conversacional ("adicionar etapa de aprovação")
+  - Ingestão de documentos (PDF, DOCX, TXT) com RAG básico
+  - Sugestões inteligentes durante edição
+- **Versionamento Básico**: Salvar versões anteriores
+  - Criar nova versão com mensagem de commit
+  - Histórico de versões (lista simples)
+  - Ativar/restaurar versão anterior
+  - **NÃO inclui**: diff visual, branches, merge, aprovação
+- **Export/Download**: Múltiplos formatos
+  - XML BPMN 2.0
+  - PNG/PDF do diagrama
+  - JSON interno
+- **Save**: Salvar processo no workspace/folder/project atual
+
+### Funcionalidades Secundárias
+
+- **Autenticação**: Login/Register, JWT, isolamento por organização
+- **Busca**: Busca simples por nome/descrição de processos
+- **Lint Básico**: Validação de regras BPMN básicas
+
+### Funcionalidades Removidas (Não no Escopo)
+
+- ❌ Fluxo de aprovação/review
+- ❌ Diff visual entre versões
+- ❌ Audit log completo do sistema
+- ❌ Sistema de convites complexo
+- ❌ Gestão de API Keys
+- ❌ Comentários ancorados
+- ❌ Rastreabilidade complexa (evidências vinculadas)
+- ❌ Relatórios automáticos
+- ❌ Integrações enterprise (Jira, ServiceNow, etc.)
+- ❌ SSO/RBAC avançado
+- ❌ Notificações (email/Slack/Teams)
 
 ## 5. Requisitos Funcionais
-1) Modelagem BPMN
-   - Editar sempre em `BPMN_JSON`; converter para XML so em import/export/visualizacao.
-   - Operacoes: adicionar/editar/remover nos e fluxos; auto-layout (ELK); alinhamento/distribuicao; cores por tipo/status.
-2) Versionamento
-   - Criar versoes com mensagem de mudanca; ativar versao; manter historico.
-   - Diff visual (elementos/fluxos adicionados/removidos/renomeados).
-3) Aprovacao/Review
-   - Criar proposta de mudanca; revisao e aprovacao antes de tornar ativa.
-   - Comentarios ancorados; status de threads (aberta/resolvida).
-4) RAG/IA
-   - Ingestao multimodal (texto/OCR/ASR) com chunking + embeddings; filtros por organizacao/projeto/processo.
-   - Copilot grounded: citar fonte (artefato + pagina/timestamp); negar criacao sem evidencia.
-   - Lint pos-edicao (BPMN rules).
-5) Rastreabilidade
-   - Armazenar em `meta` dos elementos: `sourceArtifactId`, `page/timestamp`, tipo de evidencia.
-   - Tela de evidencias por versao/elemento.
-6) Catalogo e Busca
-   - Lista de processos por organizacao/projeto; filtros (area, dono, status, risco).
-   - Busca semantica em artefatos e processos (RAG).
-7) Exportacao
-   - XML BPMN 2.0; PNG/PDF do diagrama; JSON interno; relatorios (POPs/resumos) com citacoes.
-8) Integracoes
-   - Webhooks para mudancas de processo/versao; conectores Slack/Teams para notificacoes.
-9) Gestao de Usuarios e Convites (Fase 2)
-   - Admins podem criar convites por email com role definida (viewer/editor/admin).
-   - Usuarios convidados acessam rota publica `/invite/[token]` para definir senha e entrar na organizacao.
-   - Convites expiram apos periodo configuravel (padrao 7 dias).
-10) Conflitos de Edicao (Fase 2)
-    - Optimistic locking: versoes incluem timestamp/etag; salvar verifica se base mudou.
-    - Se conflito detectado (409 Conflict), frontend exibe modal com opcoes:
-      - Sobrescrever (Force Push): apenas admin, descarta mudancas do servidor.
-      - Salvar como Copia: cria novo processo/branch com mudancas locais.
-      - Mesclar/Ver Diff: abre comparador visual antes de salvar.
-11) Audit Log do Sistema (Fase 2)
-    - Registro imutavel de acoes administrativas: criacao/remocao de usuarios, mudancas de permissao, exportacoes em massa, alteracoes de plano.
-    - Log inclui: timestamp, usuario, IP, user agent, tipo de evento, recurso afetado, snapshots before/after.
-    - Interface de visualizacao com filtros e exportacao (CSV/JSON) para compliance.
-12) Soft Delete e Lixeira (Fase 3)
-    - Exclusao de processos/projetos e "soft" (marca `deleted_at`, nao remove do banco).
-    - Interface de lixeira permite restaurar ou excluir permanentemente.
-    - Exclusao permanente automatica apos periodo de retencao (padrao 30 dias, configuravel).
-13) Gestao de API Keys (Fase 2)
-    - Criacao de chaves BYOK para LLM (nao persistidas, usadas apenas no request).
-    - Criacao de chaves de API para integracoes externas (com rotacao e revogacao).
-    - Logs de uso por chave; mascara de seguranca (mostra apenas ultimos 4 caracteres).
-14) Monitoramento de Uso (Fase 5)
-    - Dashboard de consumo: tokens de IA, armazenamento (GB), membros ativos.
-    - Graficos de tendencia; alertas de quota (80%, 90%, 100%).
-    - Projecao de custos e comparacao com limites do plano.
 
-## 6. Requisitos Nao Funcionais
-- Seguranca: BYOK (nao persistir chaves), jamais logar segredos; RBAC por organizacao; CORS/TrustedHost configuravel.
-- Performance: ingestao/geracao P95 < 60s em MVP; UI responsiva; layout automatico em segundos para diagramas medios.
-- Escalabilidade: suporte a multiplas organizacoes; filas para ingest/IA; pooling de DB; cache de embeddings/layout.
-- Confiabilidade: health checks; timeouts e retries; graceful degradation (fallback de IA/layout).
-- Observabilidade: logs estruturados (JSON), `request_id`, metricas (latencia, erros, throughput), tracing na pipeline de geracao/edicao/RAG.
-- Compliance: auditoria de acoes (quem mudou o que, aprovado por quem); politicas de retencao de artefatos/transcricoes conforme cliente; audit log do sistema para acoes administrativas.
-- Conflitos de edicao: optimistic locking previne perda de dados em edicoes simultaneas; interface de resolucao de conflitos.
-- Recuperacao de dados: soft delete permite restaurar processos/projetos deletados acidentalmente; periodo de retencao configuravel.
+### 1. Hierarquia Workspace/Folder/Process
+- Criar/editar/deletar workspaces (organizações)
+- Criar/editar/deletar projetos dentro de workspaces
+- Criar/editar/deletar folders hierárquicos dentro de projetos
+- Criar/editar/deletar processos dentro de folders ou diretamente em projetos
+- Navegação fluida: Workspace → Project → Folder → Process → Studio
+- Visualização em árvore da hierarquia
 
-## 7. Arquitetura de Referencia (atual + alvo)
-- Monorepo (`processlab`): `apps/api` (FastAPI), `apps/web` (Next.js 16 / React 19 + bpmn.io), `packages/shared-schemas` (BPMN_JSON schema/types/models).
-- Fonte de verdade: `BPMN_JSON` (`packages/shared-schemas/src/bpmn_json.schema.json`); tipos gerados TS/Pydantic.
-- Editor: bpmn-js como motor; ELK para layout; UI React/Next.
-- Backend:
-  - API: ingest/generate/edit/export/search; versionamento; auditoria.
-  - Services: agents (synthesis, linter, layout stub), bpmn converters, RAG (retriever/indexer/embeddings), ingestion (docx/pdf/ocr/audio/video na fase 4), workers (Celery).
-  - DB: Postgres + pgvector para embeddings.
-  - Storage: MinIO para artefatos.
-- IA/RAG: embeddings + retriever; grounding obrigatorio; prompts centralizados (quando existir `packages/prompts`).
+### 2. Studio/Canvas
+- Abrir processo no editor BPMN
+- Editar elementos (tasks, gateways, events, flows)
+- Auto-layout automático
+- Salvar processo (cria nova versão)
+- Carregar versão anterior
+- Exportar em múltiplos formatos (XML, PNG, PDF, JSON)
 
-## 8. Roadmap por Fase (resumo)
-- F1 (MVP interno): editor+copilot basico, ingest TXT/PDF, versionamento simples, catalogo, auth basica.
-- F2 (Git de processos inicial): versoes com mensagem/ativacao, diff visual, catalogo com filtros, auditoria reforcada.
-- F3 (colaboracao): comentarios ancorados, fluxo de aprovacao, notificacoes, papeis.
-- F4 (rastreabilidade/IA forte): ingestao multimodal (OCR/ASR), RAG robusto, copilot grounded com citacoes, evidencias por elemento, relatorios.
-- F5 (enterprise): SSO/RBAC avancado, multi-tenant forte, observabilidade, integracoes profundas, UX avancada.
+### 3. IA Generativa
+- Ingestão de documentos (PDF, DOCX, TXT)
+- Geração de processo a partir de texto/documentos
+- Edição conversacional ("adicionar etapa X após Y")
+- RAG básico para contexto dos documentos
+- Lint pós-edição (validação BPMN básica)
 
-## 9. Dependencias e Restricoes
-- Basear editor em bpmn.io inicialmente; manter contrato JSON para eventual troca.
-- Manter schema unico; proibido tipos divergentes.
-- Sujeito a limites de custo/uso de LLMs; BYOK obrigatorio em clientes sensiveis.
-- Garantir encoding/acentuacao correta em docs/codigo (evitar caracteres corrompidos).
+### 4. Versionamento Básico
+- Criar nova versão com mensagem de commit
+- Listar histórico de versões
+- Ativar/restaurar versão anterior
+- **NÃO inclui**: diff visual, comparação lado a lado, branches
 
-## 10. Riscos e Mitigacoes
-- Alucinacao da IA: grounding obrigatorio, citacoes, lint, testes de precisao/recall RAG.
-- Escala de ingestao/IA: usar filas/workers; limites de tamanho (30MB por upload na base); transcricao pode ser custosa -> processar assincrono.
-- Seguranca multi-tenant: isolar dados por organizacao; testes de permissao; revisao de logs sem dados sensiveis.
-- Adocao do usuario: UX de edicao/colaboracao clara; diffs visuais; "por que" das mudancas acessivel (evidencias).
+### 5. Autenticação e Acesso
+- Login/Register
+- JWT tokens
+- Isolamento por organização
+- Acesso a projetos pessoais e organizacionais
 
-## 11. Criterios de Aceite (MVP)
-- Criar/abrir processos por organizacao/projeto; gerar rascunho via IA a partir de pelo menos um documento; editar com copilot; salvar versao e ativar.
-- Exportar XML e JSON interno; lint basico sem erros criticos.
-- Catalogo com status; historico de versoes visivel; auditoria registrada.
-- Autenticacao basica e isolamento por organizacao; BYOK sem persistir ou logar chaves.
+## 6. Requisitos Não Funcionais
+
+- **Segurança**: JWT, isolamento por organização, CORS configurável
+- **Performance**: Geração de processo P95 < 60s, UI responsiva, layout automático em segundos
+- **Escalabilidade**: Suporte a múltiplas organizações, filas para ingest/IA, pooling de DB
+- **Confiabilidade**: Health checks, timeouts e retries, graceful degradation (fallback de IA)
+- **Observabilidade**: Logs estruturados (JSON), `request_id`, métricas básicas
+- **Usabilidade**: Interface intuitiva, navegação clara, feedback visual
+
+## 7. Arquitetura de Referência
+
+- **Monorepo**: `apps/api` (FastAPI), `apps/web` (Next.js 16 / React 19 + bpmn.io), `packages/shared-schemas` (BPMN_JSON schema/types/models)
+- **Fonte de verdade**: `BPMN_JSON` (`packages/shared-schemas/src/bpmn_json.schema.json`); tipos gerados TS/Pydantic
+- **Editor**: bpmn-js como motor; ELK para layout; UI React/Next
+- **Backend**:
+  - API: ingest/generate/edit/export; versionamento básico; hierarquia (workspace/folder/process)
+  - Services: agents (synthesis, linter, layout), bpmn converters, RAG (retriever/indexer/embeddings), ingestion (docx/pdf), workers (Celery)
+  - DB: Postgres + pgvector para embeddings
+  - Storage: MinIO para artefatos
+- **IA/RAG**: embeddings + retriever; prompts centralizados
+
+## 8. Roadmap Simplificado
+
+- **Fase 1 (MVP)**: Editor BPMN + IA básica + Hierarquia básica + Versionamento simples
+- **Fase 2 (Polimento)**: Melhorias na hierarquia, IA mais robusta, export avançado, UX refinada
+- **Fase 3 (Escala)**: Performance, observabilidade, melhorias de IA
+
+## 9. Dependências e Restrições
+
+- Basear editor em bpmn.io inicialmente; manter contrato JSON para eventual troca
+- Manter schema único; proibido tipos divergentes
+- Sujeito a limites de custo/uso de LLMs
+- Garantir encoding/accentuação correta em docs/código
+
+## 10. Riscos e Mitigações
+
+- **Alucinação da IA**: Lint pós-edição, validação de estrutura BPMN
+- **Escala de ingestão/IA**: Usar filas/workers; limites de tamanho (30MB por upload)
+- **Segurança multi-tenant**: Isolar dados por organização; testes de permissão
+- **Adoção do usuário**: UX intuitiva, onboarding claro, feedback visual
+
+## 11. Critérios de Aceite (MVP)
+
+- Criar/abrir processos por workspace/project/folder
+- Gerar rascunho via IA a partir de pelo menos um documento
+- Editar com copilot conversacional
+- Salvar versão e restaurar versão anterior
+- Exportar XML e JSON interno
+- Lint básico sem erros críticos
+- Navegação fluida na hierarquia workspace/folder/process
+- Autenticação básica e isolamento por organização

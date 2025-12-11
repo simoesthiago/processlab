@@ -13,12 +13,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from slugify import slugify
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user, require_organization_access
+from app.core.dependencies import get_current_user, require_organization_access, require_role
 from app.core.exceptions import ResourceNotFoundError, ValidationError
 from app.db.models import Folder, Organization, OrganizationMember, ProcessModel, User
 from app.db.session import get_db
 from app.schemas.auth import ProcessResponse
-from app.schemas.hierarchy import FolderTree, FolderCreate
+from app.schemas.hierarchy import FolderTree, FolderCreate, FolderUpdate
 from app.schemas.spaces import (
     RecentsResponse,
     RecentItem,
@@ -26,8 +26,14 @@ from app.schemas.spaces import (
     SpaceDetailResponse,
     SpaceListResponse,
     SpaceProcessCreate,
+    SpaceProcessUpdate,
     SpaceSummary,
     SpaceTreeResponse,
+    FolderMoveRequest,
+    ProcessMoveRequest,
+    FolderPathResponse,
+    FolderPathItem,
+    SpaceStatsResponse,
 )
 
 router = APIRouter()
@@ -412,6 +418,280 @@ def create_space_folder(
     )
 
 
+@router.get("/spaces/{space_id}/folders/{folder_id}", response_model=FolderTree)
+def get_space_folder(
+    space_id: str,
+    folder_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get details of a specific folder within a space."""
+    is_private = space_id == "private"
+    organization_id = None if is_private else space_id
+    user_id = current_user.id if is_private else None
+
+    if not is_private:
+        require_organization_access(current_user, space_id, db=db)
+
+    folder = (
+        db.query(Folder)
+        .filter(
+            Folder.id == folder_id,
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .first()
+    )
+    if not folder:
+        raise ResourceNotFoundError("Folder", folder_id)
+
+    # Ensure folder belongs to the target space
+    if is_private:
+        if folder.user_id != user_id or folder.organization_id is not None:
+            raise ValidationError("Folder must belong to the private space")
+    else:
+        if folder.organization_id != organization_id:
+            raise ValidationError("Folder must belong to the target space")
+
+    # Get children and processes
+    children = (
+        db.query(Folder)
+        .filter(
+            Folder.parent_folder_id == folder_id,
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .order_by(Folder.position, Folder.name)
+        .all()
+    )
+    processes_here = (
+        db.query(ProcessModel)
+        .filter(
+            ProcessModel.folder_id == folder_id,
+            ProcessModel.deleted_at == None,  # noqa: E711
+        )
+        .order_by(ProcessModel.position, ProcessModel.name)
+        .all()
+    )
+
+    # Build response
+    return FolderTree(
+        id=folder.id,
+        project_id=folder.project_id,
+        organization_id=folder.organization_id,
+        user_id=folder.user_id,
+        parent_folder_id=folder.parent_folder_id,
+        name=folder.name,
+        description=folder.description,
+        color=folder.color,
+        icon=folder.icon,
+        position=folder.position or 0,
+        created_at=folder.created_at,
+        updated_at=folder.updated_at,
+        process_count=len(processes_here),
+        child_count=len(children),
+        processes=[ProcessResponse.from_orm(p) for p in processes_here],
+        children=[
+            FolderTree(
+                id=child.id,
+                project_id=child.project_id,
+                organization_id=child.organization_id,
+                user_id=child.user_id,
+                parent_folder_id=child.parent_folder_id,
+                name=child.name,
+                description=child.description,
+                color=child.color,
+                icon=child.icon,
+                position=child.position or 0,
+                created_at=child.created_at,
+                updated_at=child.updated_at,
+                process_count=0,  # Simplified for nested children
+                child_count=0,
+                processes=[],
+                children=[],
+            )
+            for child in children
+        ],
+    )
+
+
+def _validate_no_cycle_space_folder(db: Session, folder: Folder, new_parent_id: str | None):
+    """Ensure we never create circular references when moving folders in spaces."""
+    if new_parent_id is None:
+        return
+
+    if new_parent_id == folder.id:
+        raise ValidationError("Folder cannot be its own parent")
+
+    current = (
+        db.query(Folder)
+        .filter(Folder.id == new_parent_id, Folder.deleted_at == None)  # noqa: E711
+        .first()
+    )
+    if not current:
+        raise ResourceNotFoundError("Folder", new_parent_id)
+
+    while current.parent_folder_id:
+        if current.parent_folder_id == folder.id:
+            raise ValidationError("Cannot move folder inside its own subtree")
+        current = (
+            db.query(Folder)
+            .filter(Folder.id == current.parent_folder_id, Folder.deleted_at == None)  # noqa: E711
+            .first()
+        )
+        if not current:
+            break
+
+
+@router.patch("/spaces/{space_id}/folders/{folder_id}", response_model=FolderTree)
+def update_space_folder(
+    space_id: str,
+    folder_id: str,
+    folder_data: FolderUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update a folder within a space (rename, recolor, move, etc.)."""
+    is_private = space_id == "private"
+    organization_id = None if is_private else space_id
+    user_id = current_user.id if is_private else None
+
+    if not is_private:
+        require_organization_access(current_user, space_id, db=db)
+        require_role(current_user, ["editor", "admin"])
+
+    folder = (
+        db.query(Folder)
+        .filter(
+            Folder.id == folder_id,
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .first()
+    )
+    if not folder:
+        raise ResourceNotFoundError("Folder", folder_id)
+
+    # Ensure folder belongs to the target space
+    if is_private:
+        if folder.user_id != user_id or folder.organization_id is not None:
+            raise ValidationError("Folder must belong to the private space")
+    else:
+        if folder.organization_id != organization_id:
+            raise ValidationError("Folder must belong to the target space")
+
+    # Handle move/parent change
+    if folder_data.parent_folder_id is not None:
+        if folder_data.parent_folder_id:
+            new_parent = (
+                db.query(Folder)
+                .filter(
+                    Folder.id == folder_data.parent_folder_id,
+                    Folder.deleted_at == None,  # noqa: E711
+                )
+                .first()
+            )
+            if not new_parent:
+                raise ResourceNotFoundError("Folder", folder_data.parent_folder_id)
+            # Validate parent belongs to same space
+            if is_private:
+                if new_parent.user_id != user_id or new_parent.organization_id is not None:
+                    raise ValidationError("Parent folder must belong to the same space")
+            else:
+                if new_parent.organization_id != organization_id:
+                    raise ValidationError("Parent folder must belong to the same space")
+        _validate_no_cycle_space_folder(db, folder, folder_data.parent_folder_id)
+        folder.parent_folder_id = folder_data.parent_folder_id
+
+    if folder_data.name is not None:
+        folder.name = folder_data.name
+    if folder_data.description is not None:
+        folder.description = folder_data.description
+    if folder_data.color is not None:
+        folder.color = folder_data.color
+    if folder_data.icon is not None:
+        folder.icon = folder_data.icon
+    if folder_data.position is not None:
+        folder.position = folder_data.position
+
+    db.commit()
+    db.refresh(folder)
+
+    # Get counts
+    processes_here = (
+        db.query(ProcessModel)
+        .filter(
+            ProcessModel.folder_id == folder.id,
+            ProcessModel.deleted_at == None,  # noqa: E711
+        )
+        .count()
+    )
+    children_here = (
+        db.query(Folder)
+        .filter(
+            Folder.parent_folder_id == folder.id,
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .count()
+    )
+
+    # Get direct children and processes for response
+    children = (
+        db.query(Folder)
+        .filter(
+            Folder.parent_folder_id == folder.id,
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .order_by(Folder.position, Folder.name)
+        .all()
+    )
+    processes_list = (
+        db.query(ProcessModel)
+        .filter(
+            ProcessModel.folder_id == folder.id,
+            ProcessModel.deleted_at == None,  # noqa: E711
+        )
+        .order_by(ProcessModel.position, ProcessModel.name)
+        .all()
+    )
+
+    return FolderTree(
+        id=folder.id,
+        project_id=folder.project_id,
+        organization_id=folder.organization_id,
+        user_id=folder.user_id,
+        parent_folder_id=folder.parent_folder_id,
+        name=folder.name,
+        description=folder.description,
+        color=folder.color,
+        icon=folder.icon,
+        position=folder.position or 0,
+        created_at=folder.created_at,
+        updated_at=folder.updated_at,
+        process_count=processes_here,
+        child_count=children_here,
+        processes=[ProcessResponse.from_orm(p) for p in processes_list],
+        children=[
+            FolderTree(
+                id=child.id,
+                project_id=child.project_id,
+                organization_id=child.organization_id,
+                user_id=child.user_id,
+                parent_folder_id=child.parent_folder_id,
+                name=child.name,
+                description=child.description,
+                color=child.color,
+                icon=child.icon,
+                position=child.position or 0,
+                created_at=child.created_at,
+                updated_at=child.updated_at,
+                process_count=0,
+                child_count=0,
+                processes=[],
+                children=[],
+            )
+            for child in children
+        ],
+    )
+
+
 @router.delete("/spaces/{space_id}/folders/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_space_folder(
     space_id: str,
@@ -426,6 +706,7 @@ def delete_space_folder(
 
     if not is_private:
         require_organization_access(current_user, space_id, db=db)
+        require_role(current_user, ["editor", "admin"])
 
     folder = (
         db.query(Folder)
@@ -466,6 +747,7 @@ def create_space_process(
 
     if not is_private:
         require_organization_access(current_user, space_id, db=db)
+        require_role(current_user, ["editor", "admin"])
 
     if payload.folder_id:
         folder = (
@@ -497,6 +779,531 @@ def create_space_process(
     db.refresh(process)
 
     return ProcessResponse.from_orm(process)
+
+
+@router.get("/spaces/{space_id}/processes/{process_id}", response_model=ProcessResponse)
+def get_space_process(
+    space_id: str,
+    process_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get details of a specific process within a space."""
+    is_private = space_id == "private"
+    organization_id = None if is_private else space_id
+    user_id = current_user.id if is_private else None
+
+    if not is_private:
+        require_organization_access(current_user, space_id, db=db)
+
+    process = (
+        db.query(ProcessModel)
+        .filter(
+            ProcessModel.id == process_id,
+            ProcessModel.deleted_at == None,  # noqa: E711
+        )
+        .first()
+    )
+    if not process:
+        raise ResourceNotFoundError("Process", process_id)
+
+    # Ensure process belongs to the target space
+    if is_private:
+        if process.user_id != user_id or process.organization_id is not None:
+            raise ValidationError("Process must belong to the private space")
+    else:
+        if process.organization_id != organization_id:
+            raise ValidationError("Process must belong to the target space")
+
+    # Get version count
+    from sqlalchemy import func
+    from app.db.models import ModelVersion
+
+    version_count = (
+        db.query(func.count(ModelVersion.id))
+        .filter(ModelVersion.process_id == process_id)
+        .scalar()
+    )
+
+    response = ProcessResponse.from_orm(process)
+    response.version_count = version_count
+    return response
+
+
+@router.patch("/spaces/{space_id}/processes/{process_id}", response_model=ProcessResponse)
+def update_space_process(
+    space_id: str,
+    process_id: str,
+    payload: SpaceProcessUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update a process within a space (rename, move, etc.)."""
+    is_private = space_id == "private"
+    organization_id = None if is_private else space_id
+    user_id = current_user.id if is_private else None
+
+    if not is_private:
+        require_organization_access(current_user, space_id, db=db)
+        require_role(current_user, ["editor", "admin"])
+
+    process = (
+        db.query(ProcessModel)
+        .filter(
+            ProcessModel.id == process_id,
+            ProcessModel.deleted_at == None,  # noqa: E711
+        )
+        .first()
+    )
+    if not process:
+        raise ResourceNotFoundError("Process", process_id)
+
+    # Ensure process belongs to the target space
+    if is_private:
+        if process.user_id != user_id or process.organization_id is not None:
+            raise ValidationError("Process must belong to the private space")
+    else:
+        if process.organization_id != organization_id:
+            raise ValidationError("Process must belong to the target space")
+
+    # Handle folder move
+    if payload.folder_id is not None:
+        if payload.folder_id:
+            folder = (
+                db.query(Folder)
+                .filter(
+                    Folder.id == payload.folder_id,
+                    Folder.deleted_at == None,  # noqa: E711
+                )
+                .first()
+            )
+            if not folder:
+                raise ResourceNotFoundError("Folder", payload.folder_id)
+            # Validate folder belongs to same space
+            if is_private:
+                if folder.user_id != user_id or folder.organization_id is not None:
+                    raise ValidationError("Folder must belong to the same space")
+            else:
+                if folder.organization_id != organization_id:
+                    raise ValidationError("Folder must belong to the same space")
+        process.folder_id = payload.folder_id
+
+    if payload.name is not None:
+        process.name = payload.name
+    if payload.description is not None:
+        process.description = payload.description
+
+    db.commit()
+    db.refresh(process)
+
+    # Get version count
+    from sqlalchemy import func
+    from app.db.models import ModelVersion
+
+    version_count = (
+        db.query(func.count(ModelVersion.id))
+        .filter(ModelVersion.process_id == process_id)
+        .scalar()
+    )
+
+    response = ProcessResponse.from_orm(process)
+    response.version_count = version_count
+    return response
+
+
+@router.delete("/spaces/{space_id}/processes/{process_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_space_process(
+    space_id: str,
+    process_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a process within a space (soft delete)."""
+    is_private = space_id == "private"
+    organization_id = None if is_private else space_id
+    user_id = current_user.id if is_private else None
+
+    if not is_private:
+        require_organization_access(current_user, space_id, db=db)
+        require_role(current_user, ["editor", "admin"])
+
+    process = (
+        db.query(ProcessModel)
+        .filter(
+            ProcessModel.id == process_id,
+            ProcessModel.deleted_at == None,  # noqa: E711
+        )
+        .first()
+    )
+    if not process:
+        raise ResourceNotFoundError("Process", process_id)
+
+    # Ensure process belongs to the target space
+    if is_private:
+        if process.user_id != user_id or process.organization_id is not None:
+            raise ValidationError("Process must belong to the private space")
+    else:
+        if process.organization_id != organization_id:
+            raise ValidationError("Process must belong to the target space")
+
+    process.deleted_at = datetime.utcnow()
+    db.commit()
+    return None
+
+
+@router.patch("/spaces/{space_id}/folders/{folder_id}/move", response_model=FolderTree)
+def move_space_folder(
+    space_id: str,
+    folder_id: str,
+    payload: FolderMoveRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Move a folder to a new parent within the same space."""
+    is_private = space_id == "private"
+    organization_id = None if is_private else space_id
+    user_id = current_user.id if is_private else None
+
+    if not is_private:
+        require_organization_access(current_user, space_id, db=db)
+        require_role(current_user, ["editor", "admin"])
+
+    folder = (
+        db.query(Folder)
+        .filter(
+            Folder.id == folder_id,
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .first()
+    )
+    if not folder:
+        raise ResourceNotFoundError("Folder", folder_id)
+
+    # Ensure folder belongs to the target space
+    if is_private:
+        if folder.user_id != user_id or folder.organization_id is not None:
+            raise ValidationError("Folder must belong to the private space")
+    else:
+        if folder.organization_id != organization_id:
+            raise ValidationError("Folder must belong to the target space")
+
+    # Validate new parent if provided
+    if payload.parent_folder_id:
+        new_parent = (
+            db.query(Folder)
+            .filter(
+                Folder.id == payload.parent_folder_id,
+                Folder.deleted_at == None,  # noqa: E711
+            )
+            .first()
+        )
+        if not new_parent:
+            raise ResourceNotFoundError("Folder", payload.parent_folder_id)
+        # Validate parent belongs to same space
+        if is_private:
+            if new_parent.user_id != user_id or new_parent.organization_id is not None:
+                raise ValidationError("Parent folder must belong to the same space")
+        else:
+            if new_parent.organization_id != organization_id:
+                raise ValidationError("Parent folder must belong to the same space")
+        _validate_no_cycle_space_folder(db, folder, payload.parent_folder_id)
+    else:
+        # Moving to root - validate no cycle not needed
+        pass
+
+    folder.parent_folder_id = payload.parent_folder_id
+    db.commit()
+    db.refresh(folder)
+
+    # Get counts and children for response
+    processes_here = (
+        db.query(ProcessModel)
+        .filter(
+            ProcessModel.folder_id == folder.id,
+            ProcessModel.deleted_at == None,  # noqa: E711
+        )
+        .count()
+    )
+    children_here = (
+        db.query(Folder)
+        .filter(
+            Folder.parent_folder_id == folder.id,
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .count()
+    )
+
+    children = (
+        db.query(Folder)
+        .filter(
+            Folder.parent_folder_id == folder.id,
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .order_by(Folder.position, Folder.name)
+        .all()
+    )
+    processes_list = (
+        db.query(ProcessModel)
+        .filter(
+            ProcessModel.folder_id == folder.id,
+            ProcessModel.deleted_at == None,  # noqa: E711
+        )
+        .order_by(ProcessModel.position, ProcessModel.name)
+        .all()
+    )
+
+    return FolderTree(
+        id=folder.id,
+        project_id=folder.project_id,
+        organization_id=folder.organization_id,
+        user_id=folder.user_id,
+        parent_folder_id=folder.parent_folder_id,
+        name=folder.name,
+        description=folder.description,
+        color=folder.color,
+        icon=folder.icon,
+        position=folder.position or 0,
+        created_at=folder.created_at,
+        updated_at=folder.updated_at,
+        process_count=processes_here,
+        child_count=children_here,
+        processes=[ProcessResponse.from_orm(p) for p in processes_list],
+        children=[
+            FolderTree(
+                id=child.id,
+                project_id=child.project_id,
+                organization_id=child.organization_id,
+                user_id=child.user_id,
+                parent_folder_id=child.parent_folder_id,
+                name=child.name,
+                description=child.description,
+                color=child.color,
+                icon=child.icon,
+                position=child.position or 0,
+                created_at=child.created_at,
+                updated_at=child.updated_at,
+                process_count=0,
+                child_count=0,
+                processes=[],
+                children=[],
+            )
+            for child in children
+        ],
+    )
+
+
+@router.patch("/spaces/{space_id}/processes/{process_id}/move", response_model=ProcessResponse)
+def move_space_process(
+    space_id: str,
+    process_id: str,
+    payload: ProcessMoveRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Move a process to a new folder within the same space."""
+    is_private = space_id == "private"
+    organization_id = None if is_private else space_id
+    user_id = current_user.id if is_private else None
+
+    if not is_private:
+        require_organization_access(current_user, space_id, db=db)
+        require_role(current_user, ["editor", "admin"])
+
+    process = (
+        db.query(ProcessModel)
+        .filter(
+            ProcessModel.id == process_id,
+            ProcessModel.deleted_at == None,  # noqa: E711
+        )
+        .first()
+    )
+    if not process:
+        raise ResourceNotFoundError("Process", process_id)
+
+    # Ensure process belongs to the target space
+    if is_private:
+        if process.user_id != user_id or process.organization_id is not None:
+            raise ValidationError("Process must belong to the private space")
+    else:
+        if process.organization_id != organization_id:
+            raise ValidationError("Process must belong to the target space")
+
+    # Validate new folder if provided
+    if payload.folder_id:
+        folder = (
+            db.query(Folder)
+            .filter(
+                Folder.id == payload.folder_id,
+                Folder.deleted_at == None,  # noqa: E711
+            )
+            .first()
+        )
+        if not folder:
+            raise ResourceNotFoundError("Folder", payload.folder_id)
+        # Validate folder belongs to same space
+        if is_private:
+            if folder.user_id != user_id or folder.organization_id is not None:
+                raise ValidationError("Folder must belong to the same space")
+        else:
+            if folder.organization_id != organization_id:
+                raise ValidationError("Folder must belong to the same space")
+
+    process.folder_id = payload.folder_id
+    db.commit()
+    db.refresh(process)
+
+    # Get version count
+    from sqlalchemy import func
+    from app.db.models import ModelVersion
+
+    version_count = (
+        db.query(func.count(ModelVersion.id))
+        .filter(ModelVersion.process_id == process_id)
+        .scalar()
+    )
+
+    response = ProcessResponse.from_orm(process)
+    response.version_count = version_count
+    return response
+
+
+@router.get("/spaces/{space_id}/folders/{folder_id}/path", response_model=FolderPathResponse)
+def get_folder_path(
+    space_id: str,
+    folder_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get the full path from root to a folder."""
+    is_private = space_id == "private"
+    organization_id = None if is_private else space_id
+    user_id = current_user.id if is_private else None
+
+    if not is_private:
+        require_organization_access(current_user, space_id, db=db)
+
+    folder = (
+        db.query(Folder)
+        .filter(
+            Folder.id == folder_id,
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .first()
+    )
+    if not folder:
+        raise ResourceNotFoundError("Folder", folder_id)
+
+    # Ensure folder belongs to the target space
+    if is_private:
+        if folder.user_id != user_id or folder.organization_id is not None:
+            raise ValidationError("Folder must belong to the private space")
+    else:
+        if folder.organization_id != organization_id:
+            raise ValidationError("Folder must belong to the target space")
+
+    # Build path by traversing up the parent chain
+    path_items: List[FolderPathItem] = []
+    current = folder
+    visited = set()  # Prevent infinite loops
+
+    while current and current.id not in visited:
+        visited.add(current.id)
+        path_items.insert(0, FolderPathItem(id=current.id, name=current.name))
+        if current.parent_folder_id:
+            current = (
+                db.query(Folder)
+                .filter(
+                    Folder.id == current.parent_folder_id,
+                    Folder.deleted_at == None,  # noqa: E711
+                )
+                .first()
+            )
+            if not current:
+                break
+            # Validate parent belongs to same space
+            if is_private:
+                if current.user_id != user_id or current.organization_id is not None:
+                    break
+            else:
+                if current.organization_id != organization_id:
+                    break
+        else:
+            break
+
+    return FolderPathResponse(
+        folder_id=folder.id,
+        folder_name=folder.name,
+        path=path_items,
+    )
+
+
+@router.get("/spaces/{space_id}/stats", response_model=SpaceStatsResponse)
+def get_space_stats(
+    space_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get statistics for a space."""
+    is_private = space_id == "private"
+    organization_id = None if is_private else space_id
+    user_id = current_user.id if is_private else None
+
+    if not is_private:
+        require_organization_access(current_user, space_id, db=db)
+
+    # Count all folders in space
+    total_folders = (
+        db.query(Folder)
+        .filter(
+            Folder.organization_id == organization_id if not is_private else None,
+            Folder.user_id == user_id if is_private else None,
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .count()
+    )
+
+    # Count root folders
+    root_folders = (
+        db.query(Folder)
+        .filter(
+            Folder.organization_id == organization_id if not is_private else None,
+            Folder.user_id == user_id if is_private else None,
+            Folder.parent_folder_id.is_(None),
+            Folder.deleted_at == None,  # noqa: E711
+        )
+        .count()
+    )
+
+    # Count all processes in space
+    total_processes = (
+        db.query(ProcessModel)
+        .filter(
+            ProcessModel.organization_id == organization_id if not is_private else None,
+            ProcessModel.user_id == user_id if is_private else None,
+            ProcessModel.deleted_at == None,  # noqa: E711
+        )
+        .count()
+    )
+
+    # Count root processes
+    root_processes = (
+        db.query(ProcessModel)
+        .filter(
+            ProcessModel.organization_id == organization_id if not is_private else None,
+            ProcessModel.user_id == user_id if is_private else None,
+            ProcessModel.folder_id.is_(None),
+            ProcessModel.deleted_at == None,  # noqa: E711
+        )
+        .count()
+    )
+
+    return SpaceStatsResponse(
+        space_id=space_id,
+        total_folders=total_folders,
+        total_processes=total_processes,
+        root_folders=root_folders,
+        root_processes=root_processes,
+    )
 
 
 @router.get("/users/me/recents", response_model=RecentsResponse)

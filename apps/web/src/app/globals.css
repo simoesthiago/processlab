@@ -528,6 +528,17 @@ html {
   background-color: transparent !important;
 }
 
+/* Grid pattern with dots for BPMN canvas */
+.djs-container .djs-canvas {
+  background-image: radial-gradient(circle, var(--muted-foreground) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-color: var(--background);
+}
+
+.djs-container .djs-canvas svg {
+  background-color: transparent;
+}
+
 /* Selection and highlight colors matching ProcessLab brand */
 .djs-element.selected .djs-outline {
   stroke: var(--primary) !important;

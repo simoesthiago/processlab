@@ -1,20 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { FileCard } from '@/components/files/FileCard';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-  LayoutDashboard,
-  LayoutGrid,
-  List,
-  ArrowUpDown,
-  SlidersHorizontal,
-  Search as SearchIcon,
-  Plus,
-} from 'lucide-react';
+import { LayoutDashboard } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -27,49 +18,35 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSpaces } from '@/contexts/SpacesContext';
 import { useRecentItems } from '@/hooks/useRecentItems';
-
-function SectionHeader({ title, onNewFolder }: { title: string; onNewFolder?: () => void }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="text-2xl font-semibold text-neutral-900">{title}</h2>
-      <div className="flex items-center gap-2 text-neutral-500">
-        <Button variant="ghost" size="icon" className="h-9 w-9" title="Grid view">
-          <LayoutGrid className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-9 w-9" title="List view">
-          <List className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-9 w-9" title="Sort">
-          <ArrowUpDown className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-9 w-9" title="Filter">
-          <SlidersHorizontal className="h-4 w-4" />
-        </Button>
-        <div className="hidden sm:flex items-center gap-2 rounded-md border px-2 h-9 bg-white">
-          <SearchIcon className="h-4 w-4 text-neutral-400" />
-          <Input
-            placeholder="Search"
-            className="h-7 border-0 bg-transparent px-0 text-sm focus-visible:ring-0"
-          />
-        </div>
-        {onNewFolder && (
-          <Button className="h-9 gap-2" onClick={onNewFolder}>
-            New Folder
-            <Plus className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
+import { SpaceToolbar, SortOption } from '@/components/spaces/SpaceToolbar';
+import { ViewMode } from '@/components/spaces/ViewToggle';
+import { ViewModes } from '@/components/spaces/ViewModes';
+import { useSearchFilter } from '@/components/spaces/SearchBar';
 
 export default function DashboardPage() {
-  const { spaces, trees, selectSpace, loadTree, createFolder } = useSpaces();
+  const { spaces, trees, selectSpace, loadTree, createFolder, createProcess } = useSpaces();
+  
+  // Load all team spaces
+  useEffect(() => {
+    spaces.filter((s) => s.type === 'team').forEach((space) => {
+      if (!trees[space.id]) {
+        selectSpace(space.id);
+        loadTree(space.id);
+      }
+    });
+  }, [spaces, trees, selectSpace, loadTree]);
   const { addRecentOptimistic, refreshRecents } = useRecentItems(12, { autoFetch: false });
   const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newProcessOpen, setNewProcessOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderDesc, setNewFolderDesc] = useState('');
+  const [newProcessName, setNewProcessName] = useState('');
+  const [newProcessDesc, setNewProcessDesc] = useState('');
   const [creating, setCreating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [sortBy, setSortBy] = useState<SortOption>('name');
+  const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(null);
 
   const privateSpace = useMemo(() => spaces.find((s) => s.id === 'private'), [spaces]);
   const privateTree = trees['private'];
@@ -84,11 +61,11 @@ export default function DashboardPage() {
     }
   }, [privateSpace, selectSpace, loadTree, trees]);
 
-  const handleCreateFolder = async () => {
-    if (!privateSpace || !newFolderName.trim()) return;
+  const handleCreateFolder = async (spaceId: string) => {
+    if (!newFolderName.trim()) return;
     setCreating(true);
     try {
-      const created = await createFolder(privateSpace.id, {
+      const created = await createFolder(spaceId, {
         name: newFolderName.trim(),
         description: newFolderDesc || undefined,
         parent_folder_id: null,
@@ -98,8 +75,8 @@ export default function DashboardPage() {
           id: created.id,
           name: created.name,
           type: 'folder',
-          space_id: privateSpaceId,
-          space_type: 'private',
+          space_id: spaceId,
+          space_type: spaceId === 'private' ? 'private' : 'team',
           parent_folder_id: created.parent_folder_id ?? null,
         });
         refreshRecents();
@@ -107,107 +84,150 @@ export default function DashboardPage() {
       setNewFolderName('');
       setNewFolderDesc('');
       setNewFolderOpen(false);
+      setCurrentSpaceId(null);
     } finally {
       setCreating(false);
     }
   };
 
+  const handleCreateProcess = async (spaceId: string) => {
+    if (!newProcessName.trim()) return;
+    setCreating(true);
+    try {
+      const created = await createProcess(spaceId, {
+        name: newProcessName.trim(),
+        description: newProcessDesc || undefined,
+        folder_id: null,
+      });
+      if (created?.id) {
+        addRecentOptimistic({
+          id: created.id,
+          name: created.name,
+          type: 'process',
+          space_id: spaceId,
+          space_type: spaceId === 'private' ? 'private' : 'team',
+          parent_folder_id: created.folder_id ?? null,
+        });
+        refreshRecents();
+      }
+      setNewProcessName('');
+      setNewProcessDesc('');
+      setNewProcessOpen(false);
+      setCurrentSpaceId(null);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const sortItems = <T extends { name: string }>(items: T[], sort: SortOption): T[] => {
+    const sorted = [...items];
+    switch (sort) {
+      case 'name':
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      case 'date':
+        return sorted; // TODO: Add date sorting when available
+      case 'type':
+        return sorted; // Already grouped by type
+      default:
+        return sorted;
+    }
+  };
+
+  const renderSpaceSection = (spaceId: string, spaceName: string) => {
+    const tree = trees[spaceId];
+    const allFolders = tree?.root_folders || [];
+    const allProcesses = tree?.root_processes || [];
+    
+    const filteredFolders = useSearchFilter(allFolders, searchQuery);
+    const filteredProcesses = useSearchFilter(allProcesses, searchQuery);
+    
+    const sortedFolders = sortItems(filteredFolders, sortBy);
+    const sortedProcesses = sortItems(filteredProcesses, sortBy);
+
+    return (
+      <section key={spaceId} className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-semibold text-neutral-900">{spaceName}</h2>
+        </div>
+        <SpaceToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          onNewFolder={() => {
+            setCurrentSpaceId(spaceId);
+            setNewFolderOpen(true);
+          }}
+          onNewProcess={() => {
+            setCurrentSpaceId(spaceId);
+            setNewProcessOpen(true);
+          }}
+        />
+        {!tree && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Carregando {spaceName}...</CardTitle>
+              <CardDescription>Buscando pastas e processos.</CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+        {tree && (
+          <ViewModes
+            viewMode={viewMode}
+            folders={sortedFolders}
+            processes={sortedProcesses}
+            spaceId={spaceId}
+            spaceName={spaceName}
+          />
+        )}
+        {tree && sortedFolders.length === 0 && sortedProcesses.length === 0 && searchQuery && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Nenhum resultado encontrado</CardTitle>
+              <CardDescription>Tente buscar com outros termos.</CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+        {tree && !tree.root_folders?.length && !tree.root_processes?.length && !searchQuery && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{spaceName} vazio</CardTitle>
+              <CardDescription>Use o botão "Novo" para criar pastas ou processos.</CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+      </section>
+    );
+  };
+
   return (
     <AppLayout>
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-8 py-8">
+      <div className="flex max-w-7xl flex-col gap-8 pr-10 py-8 mx-auto">
         <PageHeader
           title="Dashboard"
           breadcrumbs={[{ label: 'Dashboard', icon: LayoutDashboard }]}
         />
 
-        <section className="space-y-4">
-          <SectionHeader title="Private Space" onNewFolder={() => setNewFolderOpen(true)} />
-          {!privateTree && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Carregando Private Space...</CardTitle>
-                <CardDescription>Buscando pastas e processos.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-4 w-32 rounded bg-muted" />
-              </CardContent>
-            </Card>
-          )}
-          {privateTree && (
-            <>
-              {(privateTree.root_folders?.length || privateTree.root_processes?.length) ? (
-                <div className="flex flex-wrap gap-4">
-                  {privateTree.root_folders?.map((item) => (
-                    <FileCard
-                      key={item.id}
-                      title={item.name}
-                      description={item.description || ''}
-                      type="folder"
-                      meta={privateSpace?.name || 'Private Space'}
-                      processCount={item.process_count ?? item.processes?.length ?? 0}
-                      href={`/spaces/${privateSpaceId}/folders/${item.id}`}
-                      onVisit={() =>
-                        addRecentOptimistic({
-                          id: item.id,
-                          name: item.name,
-                          type: 'folder',
-                          space_id: privateSpaceId,
-                          space_type: 'private',
-                          parent_folder_id: item.parent_folder_id ?? null,
-                        })
-                      }
-                    />
-                  ))}
-                  {privateTree.root_processes?.map((proc) => (
-                    <FileCard
-                      key={proc.id}
-                      title={proc.name}
-                      description={proc.description || ''}
-                      type="process"
-                      meta={privateSpace?.name || 'Private Space'}
-                      processCount={1}
-                      href={`/spaces/${privateSpaceId}/processes/${proc.id}`}
-                      onVisit={() =>
-                        addRecentOptimistic({
-                          id: proc.id,
-                          name: proc.name,
-                          type: 'process',
-                          space_id: privateSpaceId,
-                          space_type: 'private',
-                          parent_folder_id: proc.folder_id ?? null,
-                        })
-                      }
-                    />
-                  ))}
-                </div>
-              ) : (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Private Space vazio</CardTitle>
-                    <CardDescription>Use “New Folder” para criar a primeira pasta.</CardDescription>
-                  </CardHeader>
-                </Card>
-              )}
-            </>
-          )}
-        </section>
-
-        <section className="space-y-4">
-          <SectionHeader title="Teams Space" />
-          <Card>
-            <CardHeader>
-              <CardTitle>Em breve</CardTitle>
-              <CardDescription>Use o menu lateral para navegar pelos spaces de time.</CardDescription>
-            </CardHeader>
-          </Card>
-        </section>
+        {privateSpace && renderSpaceSection(privateSpace.id, privateSpace.name)}
+        {spaces.filter((s) => s.type === 'team').map((teamSpace) => 
+          renderSpaceSection(teamSpace.id, teamSpace.name)
+        )}
       </div>
 
-      <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
+      <Dialog open={newFolderOpen} onOpenChange={(open) => {
+        setNewFolderOpen(open);
+        if (!open) {
+          setNewFolderName('');
+          setNewFolderDesc('');
+          setCurrentSpaceId(null);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Criar pasta</DialogTitle>
-            <DialogDescription>Adicione uma nova pasta no Private Space.</DialogDescription>
+            <DialogDescription>Adicione uma nova pasta.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
@@ -234,12 +254,69 @@ export default function DashboardPage() {
                 setNewFolderOpen(false);
                 setNewFolderName('');
                 setNewFolderDesc('');
+                setCurrentSpaceId(null);
               }}
             >
               Cancelar
             </Button>
-            <Button onClick={handleCreateFolder} disabled={!newFolderName.trim() || creating}>
+            <Button 
+              onClick={() => currentSpaceId && handleCreateFolder(currentSpaceId)} 
+              disabled={!newFolderName.trim() || creating || !currentSpaceId}
+            >
               {creating ? 'Criando...' : 'Criar pasta'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newProcessOpen} onOpenChange={(open) => {
+        setNewProcessOpen(open);
+        if (!open) {
+          setNewProcessName('');
+          setNewProcessDesc('');
+          setCurrentSpaceId(null);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar processo</DialogTitle>
+            <DialogDescription>Adicione um novo processo.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Nome</Label>
+              <Input
+                value={newProcessName}
+                onChange={(e) => setNewProcessName(e.target.value)}
+                placeholder="Ex: Processo de Vendas"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Descrição</Label>
+              <Input
+                value={newProcessDesc}
+                onChange={(e) => setNewProcessDesc(e.target.value)}
+                placeholder="Opcional"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setNewProcessOpen(false);
+                setNewProcessName('');
+                setNewProcessDesc('');
+                setCurrentSpaceId(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => currentSpaceId && handleCreateProcess(currentSpaceId)} 
+              disabled={!newProcessName.trim() || creating || !currentSpaceId}
+            >
+              {creating ? 'Criando...' : 'Criar processo'}
             </Button>
           </DialogFooter>
         </DialogContent>

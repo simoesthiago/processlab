@@ -22,6 +22,7 @@ interface ResizablePanelProps {
   headerContent?: ReactNode;
   onCollapsedChange?: (collapsed: boolean) => void;
   onWidthChange?: (width: number) => void;
+  showCollapseButton?: boolean;
 }
 
 export function ResizablePanel({
@@ -35,6 +36,7 @@ export function ResizablePanel({
   headerContent,
   onCollapsedChange,
   onWidthChange,
+  showCollapseButton = true,
 }: ResizablePanelProps) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [width, setWidth] = useState(defaultWidth);
@@ -144,23 +146,27 @@ export function ResizablePanel({
         </div>
       </div>
 
-      {/* Header with collapse button */}
-      <div className="flex items-center justify-between h-12 px-3 border-b border-border shrink-0">
-        <div className="flex-1 min-w-0">
-          {headerContent}
-        </div>
-        <button
-          onClick={toggleCollapsed}
-          className="p-1.5 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground ml-2"
-          title="Collapse panel"
-        >
-          {position === 'right' ? (
-            <PanelRightClose className="h-4 w-4" />
-          ) : (
-            <PanelRight className="h-4 w-4" />
+      {/* Header with collapse button - only render if there's content or collapse button */}
+      {(headerContent || showCollapseButton) && (
+        <div className="flex items-center justify-between h-12 px-3 border-b border-border shrink-0">
+          <div className="flex-1 min-w-0">
+            {headerContent}
+          </div>
+          {showCollapseButton && (
+            <button
+              onClick={toggleCollapsed}
+              className="p-1.5 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground ml-2"
+              title="Collapse panel"
+            >
+              {position === 'right' ? (
+                <PanelRightClose className="h-4 w-4" />
+              ) : (
+                <PanelRight className="h-4 w-4" />
+              )}
+            </button>
           )}
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">

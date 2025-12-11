@@ -1,0 +1,95 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useSpaces, SpaceFolder } from '@/contexts/SpacesContext';
+
+interface FolderEditModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  spaceId: string;
+  folder: SpaceFolder | null;
+  onSuccess?: () => void;
+}
+
+export function FolderEditModal({ open, onOpenChange, spaceId, folder, onSuccess }: FolderEditModalProps) {
+  const { updateFolder } = useSpaces();
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [updating, setUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (folder) {
+      setName(folder.name || '');
+      setDescription(folder.description || '');
+      setError(null);
+    }
+  }, [folder, open]);
+
+  const handleSubmit = async () => {
+    if (!folder || !name.trim()) return;
+    setError(null);
+    setUpdating(true);
+    try {
+      await updateFolder(spaceId, folder.id, {
+        name: name.trim(),
+        description: description.trim() || undefined,
+      });
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (e: any) {
+      setError(e?.message || 'Erro ao atualizar pasta');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (!folder) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar pasta</DialogTitle>
+          <DialogDescription>Atualize as informações da pasta.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          {error && (
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">{error}</div>
+          )}
+          <div className="space-y-1">
+            <Label>Nome</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nome da pasta"
+              disabled={updating}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Descrição</Label>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Opcional"
+              disabled={updating}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={updating}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSubmit} disabled={!name.trim() || updating}>
+            {updating ? 'Salvando...' : 'Salvar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

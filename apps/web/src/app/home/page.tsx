@@ -78,92 +78,64 @@ export default function HomePage() {
     ];
   }, [privateSpace, privateTree]);
 
-  const teamItems: CardItem[] = useMemo(() => {
-    if (!teamSpaces.length) return [];
-    return teamSpaces.flatMap((space) => {
-      const tree = trees[space.id];
-      if (!tree) return [];
-      return [
-        ...(tree.root_folders || []).map((folder) => ({
-          id: folder.id,
-          name: folder.name,
-          description: folder.description,
-          type: 'folder' as const,
-          spaceId: space.id,
-          spaceType: 'team' as const,
-          parent_folder_id: folder.parent_folder_id ?? null,
-          processes: folder.processes,
-        })),
-        ...(tree.root_processes || []).map((proc) => ({
-          id: proc.id,
-          name: proc.name,
-          description: proc.description,
-          type: 'process' as const,
-          spaceId: space.id,
-          spaceType: 'team' as const,
-          parent_folder_id: proc.folder_id ?? null,
-        })),
-      ];
-    });
-  }, [teamSpaces, trees]);
+  // Team items are now handled per-space in the render
 
   return (
     <AppLayout>
-      <div className="px-8 py-8 bg-white">
-        <div className="max-w-7xl space-y-10">
-          <PageHeader
-            title="Home"
-            description={`Welcome back, ${name}`}
-            breadcrumbs={[{ label: 'Home', icon: HomeIcon }]}
-          />
+      <div className="max-w-7xl pr-10 py-8 bg-white space-y-10 mx-auto">
+        <PageHeader
+          title="Home"
+          description={`Welcome back, ${name}`}
+          breadcrumbs={[{ label: 'Home', icon: HomeIcon }]}
+        />
 
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-lg font-semibold text-neutral-900">
-              <Clock3 className="h-5 w-5 text-neutral-500" />
-              <span>Recently Visited</span>
+        <section className="space-y-3">
+          <div className="flex items-center gap-2 text-lg font-semibold text-neutral-900">
+            <Clock3 className="h-5 w-5 text-neutral-500" />
+            <span>Recently Visited</span>
+          </div>
+          <div className="h-px bg-neutral-200" />
+          {recentsLoading && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Carregando itens recentes...</CardTitle>
+                <CardDescription>Buscando suas últimas pastas e processos.</CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+          {!recentsLoading && !recents.length && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Nenhum item recente</CardTitle>
+                <CardDescription>Abra uma pasta ou processo para vê-lo aqui.</CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+          {!recentsLoading && recents.length > 0 && (
+            <div className="flex flex-wrap gap-4">
+              {recents.map((item) => {
+                const spaceName =
+                  item.space_type === 'private'
+                    ? 'Private Space'
+                    : teamSpaces.find((s) => s.id === item.space_id)?.name || 'Team Space';
+                const spaceIdForRoute = item.space_type === 'private' ? 'private' : item.space_id || '';
+                const processCount = item.type === 'folder' ? 0 : 1;
+                return (
+                  <FileCard
+                    key={`${item.space_id}-${item.id}`}
+                    title={item.name}
+                    type={item.type}
+                    meta={spaceName}
+                    processCount={processCount}
+                    href={buildHref(spaceIdForRoute, item.type, item.id)}
+                  />
+                );
+              })}
             </div>
-            <div className="h-px bg-neutral-200" />
-            {recentsLoading && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Carregando itens recentes...</CardTitle>
-                  <CardDescription>Buscando suas últimas pastas e processos.</CardDescription>
-                </CardHeader>
-              </Card>
-            )}
-            {!recentsLoading && !recents.length && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Nenhum item recente</CardTitle>
-                  <CardDescription>Abra uma pasta ou processo para vê-lo aqui.</CardDescription>
-                </CardHeader>
-              </Card>
-            )}
-            {!recentsLoading && recents.length > 0 && (
-              <div className="flex flex-wrap gap-4">
-                {recents.map((item) => {
-                  const spaceName =
-                    item.space_type === 'private'
-                      ? 'Private Space'
-                      : teamSpaces.find((s) => s.id === item.space_id)?.name || 'Team Space';
-                  const spaceIdForRoute = item.space_type === 'private' ? 'private' : item.space_id || '';
-                  const processCount = item.type === 'folder' ? 0 : 1;
-                  return (
-                    <FileCard
-                      key={`${item.space_id}-${item.id}`}
-                      title={item.name}
-                      type={item.type}
-                      meta={spaceName}
-                      processCount={processCount}
-                      href={buildHref(spaceIdForRoute, item.type, item.id)}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </section>
+          )}
+        </section>
 
-          <div className="space-y-10">
+        <div className="space-y-10">
             <section className="space-y-3">
               <div className="flex items-center gap-2 text-lg font-semibold text-neutral-900">
                 <LayoutGrid className="h-5 w-5 text-neutral-500" />
@@ -211,50 +183,75 @@ export default function HomePage() {
               )}
             </section>
 
-            <section className="space-y-3">
-              <div className="flex items-center gap-2 text-lg font-semibold text-neutral-900">
-                <Users className="h-5 w-5 text-neutral-500" />
-                <span>Teams Space</span>
-              </div>
-              <div className="h-px bg-neutral-200" />
-              {!teamSpaces.length && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Sem spaces de time</CardTitle>
-                    <CardDescription>Participe de um time para ver os cards aqui.</CardDescription>
-                  </CardHeader>
-                </Card>
-              )}
-              {teamSpaces.length > 0 && teamItems.length === 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Carregando spaces de time...</CardTitle>
-                    <CardDescription>Buscando pastas e processos dos times.</CardDescription>
-                  </CardHeader>
-                </Card>
-              )}
-              {teamItems.length > 0 && (
-                <div className="flex flex-wrap gap-4">
-                  {teamItems.map((item) => {
-                    const spaceName = teamSpaces.find((s) => s.id === item.spaceId)?.name || 'Team Space';
-                    return (
-                      <FileCard
-                        key={`${item.spaceId}-${item.id}`}
-                        title={item.name}
-                        description={item.description || undefined}
-                        type={item.type}
-                        meta={spaceName}
-                        processCount={item.type === 'folder' ? item.process_count ?? item.processes?.length ?? 0 : 1}
-                        href={buildHref(item.spaceId, item.type, item.id)}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </section>
+            {teamSpaces.map((teamSpace) => {
+                const teamTree = trees[teamSpace.id];
+                const teamSpaceItems: CardItem[] = teamTree
+                  ? [
+                      ...(teamTree.root_folders || []).map((folder) => ({
+                        id: folder.id,
+                        name: folder.name,
+                        description: folder.description,
+                        type: 'folder' as const,
+                        spaceId: teamSpace.id,
+                        spaceType: 'team' as const,
+                        parent_folder_id: folder.parent_folder_id ?? null,
+                        processes: folder.processes,
+                      })),
+                      ...(teamTree.root_processes || []).map((proc) => ({
+                        id: proc.id,
+                        name: proc.name,
+                        description: proc.description,
+                        type: 'process' as const,
+                        spaceId: teamSpace.id,
+                        spaceType: 'team' as const,
+                        parent_folder_id: proc.folder_id ?? null,
+                      })),
+                    ]
+                  : [];
+
+                return (
+                  <section key={teamSpace.id} className="space-y-3">
+                    <div className="flex items-center gap-2 text-lg font-semibold text-neutral-900">
+                      <Users className="h-5 w-5 text-neutral-500" />
+                      <span>{teamSpace.name}</span>
+                    </div>
+                    <div className="h-px bg-neutral-200" />
+                    {!teamTree && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Carregando {teamSpace.name}...</CardTitle>
+                          <CardDescription>Buscando pastas e processos.</CardDescription>
+                        </CardHeader>
+                      </Card>
+                    )}
+                    {teamTree && teamSpaceItems.length === 0 && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>{teamSpace.name} vazio</CardTitle>
+                          <CardDescription>Crie uma pasta ou processo para começar.</CardDescription>
+                        </CardHeader>
+                      </Card>
+                    )}
+                    {teamSpaceItems.length > 0 && (
+                      <div className="flex flex-wrap gap-4">
+                        {teamSpaceItems.map((item) => (
+                          <FileCard
+                            key={`${item.spaceId}-${item.id}`}
+                            title={item.name}
+                            description={item.description || undefined}
+                            type={item.type}
+                            meta={teamSpace.name}
+                            processCount={item.type === 'folder' ? item.process_count ?? item.processes?.length ?? 0 : 1}
+                            href={buildHref(item.spaceId, item.type, item.id)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
           </div>
         </div>
-      </div>
     </AppLayout>
   );
 }

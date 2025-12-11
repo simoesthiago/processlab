@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@processlab/shared-schemas": "workspace:*",
+    "@radix-ui/react-slot": "^1.0.4",
     "bpmn-js": "^17.11.1",
     "bpmn-js-bpmnlint": "^0.23.0",
     "bpmn-js-differ": "^3.1.0",

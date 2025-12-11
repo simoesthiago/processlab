@@ -30,6 +30,7 @@ export interface SpaceFolder {
   parent_folder_id?: string | null;
   children: SpaceFolder[];
   processes: SpaceProcess[];
+  process_count?: number;
 }
 
 export interface SpaceTree {
@@ -45,11 +46,21 @@ interface SpacesContextType {
   loading: boolean;
   selectSpace: (spaceId: string) => void;
   refreshSpaces: () => Promise<void>;
+  createSpace: (payload: { name: string; description?: string }) => Promise<Space>;
   loadTree: (spaceId: string) => Promise<void>;
+  refreshTree: (spaceId: string) => Promise<void>;
   createFolder: (spaceId: string, payload: { name: string; description?: string; parent_folder_id?: string | null }) => Promise<SpaceFolder>;
+  updateFolder: (spaceId: string, folderId: string, payload: { name?: string; description?: string; parent_folder_id?: string | null; color?: string; icon?: string }) => Promise<SpaceFolder>;
+  moveFolder: (spaceId: string, folderId: string, parentFolderId: string | null) => Promise<SpaceFolder>;
   createProcess: (spaceId: string, payload: { name: string; description?: string; folder_id?: string | null }) => Promise<SpaceProcess>;
+  updateProcess: (spaceId: string, processId: string, payload: { name?: string; description?: string; folder_id?: string | null }) => Promise<SpaceProcess>;
+  moveProcess: (spaceId: string, processId: string, folderId: string | null) => Promise<SpaceProcess>;
   deleteFolder: (spaceId: string, folderId: string) => Promise<void>;
+  deleteProcess: (spaceId: string, processId: string) => Promise<void>;
   getFolder: (spaceId: string, folderId: string) => SpaceFolder | null;
+  getProcess: (spaceId: string, processId: string) => Promise<SpaceProcess>;
+  getFolderPath: (spaceId: string, folderId: string) => Promise<Array<{ id: string; name: string }>>;
+  getSpaceStats: (spaceId: string) => Promise<{ total_folders: number; total_processes: number; root_folders: number; root_processes: number }>;
 }
 
 const SpacesContext = createContext<SpacesContextType | undefined>(undefined);
@@ -87,9 +98,37 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authHeaders, selectedSpaceId, token]);
 
+  const createSpace = useCallback(
+    async (payload: { name: string; description?: string }): Promise<Space> => {
+      if (!token) throw new Error('Not authenticated');
+      const resp = await fetch(`${API_URL}/api/v1/spaces`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) {
+        const errorText = await resp.text();
+        throw new Error(`Failed to create space: ${errorText}`);
+      }
+      const data = await resp.json();
+      await refreshSpaces();
+      return data;
+    },
+    [authHeaders, refreshSpaces, token]
+  );
+
   const loadTree = useCallback(
-    async (spaceId: string) => {
+    async (spaceId: string, forceRefresh: boolean = false) => {
       if (!token) return;
+      
+      // Use cache if available and not forcing refresh
+      if (!forceRefresh && trees[spaceId]) {
+        return;
+      }
+      
       setLoading(true);
       try {
         const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/tree`, {
@@ -105,7 +144,7 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     },
-    [authHeaders, token]
+    [authHeaders, token, trees]
   );
 
   const selectSpace = useCallback(
@@ -185,6 +224,13 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
     [authHeaders, loadTree, token]
   );
 
+  const refreshTree = useCallback(
+    async (spaceId: string) => {
+      await loadTree(spaceId, true); // Force refresh
+    },
+    [loadTree]
+  );
+
   const getFolder = useCallback(
     (spaceId: string, folderId: string): SpaceFolder | null => {
       const tree = trees[spaceId];
@@ -198,6 +244,173 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       return null;
     },
     [trees]
+  );
+
+  const updateFolder = useCallback(
+    async (
+      spaceId: string,
+      folderId: string,
+      payload: { name?: string; description?: string; parent_folder_id?: string | null; color?: string; icon?: string }
+    ) => {
+      if (!token) throw new Error('Not authenticated');
+      const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/folders/${folderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) {
+        const errorText = await resp.text();
+        throw new Error(`Failed to update folder: ${errorText}`);
+      }
+      const data: SpaceFolder = await resp.json();
+      await loadTree(spaceId);
+      return data;
+    },
+    [authHeaders, loadTree, token]
+  );
+
+  const getProcess = useCallback(
+    async (spaceId: string, processId: string): Promise<SpaceProcess> => {
+      if (!token) throw new Error('Not authenticated');
+      const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/processes/${processId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+      });
+      if (!resp.ok) {
+        throw new Error('Failed to load process');
+      }
+      const data: SpaceProcess = await resp.json();
+      return data;
+    },
+    [authHeaders, token]
+  );
+
+  const updateProcess = useCallback(
+    async (
+      spaceId: string,
+      processId: string,
+      payload: { name?: string; description?: string; folder_id?: string | null }
+    ) => {
+      if (!token) throw new Error('Not authenticated');
+      const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/processes/${processId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) {
+        const errorText = await resp.text();
+        throw new Error(`Failed to update process: ${errorText}`);
+      }
+      const data: SpaceProcess = await resp.json();
+      await loadTree(spaceId);
+      return data;
+    },
+    [authHeaders, loadTree, token]
+  );
+
+  const deleteProcess = useCallback(
+    async (spaceId: string, processId: string) => {
+      if (!token) throw new Error('Not authenticated');
+      const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/processes/${processId}`, {
+        method: 'DELETE',
+        headers: {
+          ...authHeaders,
+        },
+      });
+      if (!resp.ok) {
+        throw new Error('Failed to delete process');
+      }
+      await loadTree(spaceId);
+    },
+    [authHeaders, loadTree, token]
+  );
+
+  const moveFolder = useCallback(
+    async (spaceId: string, folderId: string, parentFolderId: string | null) => {
+      if (!token) throw new Error('Not authenticated');
+      const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/folders/${folderId}/move`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify({ parent_folder_id: parentFolderId }),
+      });
+      if (!resp.ok) {
+        const errorText = await resp.text();
+        throw new Error(`Failed to move folder: ${errorText}`);
+      }
+      const data: SpaceFolder = await resp.json();
+      await loadTree(spaceId);
+      return data;
+    },
+    [authHeaders, loadTree, token]
+  );
+
+  const moveProcess = useCallback(
+    async (spaceId: string, processId: string, folderId: string | null) => {
+      if (!token) throw new Error('Not authenticated');
+      const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/processes/${processId}/move`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify({ folder_id: folderId }),
+      });
+      if (!resp.ok) {
+        const errorText = await resp.text();
+        throw new Error(`Failed to move process: ${errorText}`);
+      }
+      const data: SpaceProcess = await resp.json();
+      await loadTree(spaceId);
+      return data;
+    },
+    [authHeaders, loadTree, token]
+  );
+
+  const getFolderPath = useCallback(
+    async (spaceId: string, folderId: string): Promise<Array<{ id: string; name: string }>> => {
+      if (!token) throw new Error('Not authenticated');
+      const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/folders/${folderId}/path`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+      });
+      if (!resp.ok) {
+        throw new Error('Failed to load folder path');
+      }
+      const data = await resp.json();
+      return data.path || [];
+    },
+    [authHeaders, token]
+  );
+
+  const getSpaceStats = useCallback(
+    async (spaceId: string): Promise<{ total_folders: number; total_processes: number; root_folders: number; root_processes: number }> => {
+      if (!token) throw new Error('Not authenticated');
+      const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/stats`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+      });
+      if (!resp.ok) {
+        throw new Error('Failed to load space stats');
+      }
+      const data = await resp.json();
+      return data;
+    },
+    [authHeaders, token]
   );
 
   useEffect(() => {
@@ -217,11 +430,21 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
     loading,
     selectSpace,
     refreshSpaces,
+    createSpace,
     loadTree,
+    refreshTree,
     createFolder,
+    updateFolder,
+    moveFolder,
     createProcess,
+    updateProcess,
+    moveProcess,
     deleteFolder,
+    deleteProcess,
     getFolder,
+    getProcess,
+    getFolderPath,
+    getSpaceStats,
   };
 
   return <SpacesContext.Provider value={value}>{children}</SpacesContext.Provider>;

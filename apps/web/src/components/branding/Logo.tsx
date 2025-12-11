@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+import { useState } from 'react';
 
 interface LogoProps {
   variant?: 'horizontal' | 'vertical' | 'icon';
@@ -18,6 +18,7 @@ export function Logo({
   height,
   showText = true 
 }: LogoProps) {
+  const [imgError, setImgError] = useState(false);
   
   // Default dimensions based on variant
   const defaultDimensions = {
@@ -36,21 +37,32 @@ export function Logo({
   return (
     <div 
       className={cn(
-        'flex items-center gap-3 select-none',
-        variant === 'vertical' && 'flex-col text-center gap-4',
+        'flex items-center gap-2 select-none',
+        variant === 'vertical' && 'flex-col text-center gap-1.5',
         className
       )}
       style={{ width: variant === 'icon' ? iconSize : 'auto' }}
     >
       {/* ProcessLab Logo Image */}
-      <Image
-        src="/processlab_logo.png"
-        alt="ProcessLab Logo"
-        width={iconSize}
-        height={iconSize}
-        className="shrink-0"
-        priority
-      />
+      {!imgError ? (
+        <img
+          src="/logo_processlab.png"
+          alt="ProcessLab Logo"
+          width={iconSize}
+          height={iconSize}
+          className="shrink-0 object-contain"
+          style={{ width: iconSize, height: iconSize }}
+          onError={() => setImgError(true)}
+          loading="eager"
+        />
+      ) : (
+        <div 
+          className="shrink-0 bg-primary/10 rounded flex items-center justify-center"
+          style={{ width: iconSize, height: iconSize }}
+        >
+          <span className="text-primary font-bold text-xs">P</span>
+        </div>
+      )}
 
       {/* Text Part */}
       {variant !== 'icon' && showText && (

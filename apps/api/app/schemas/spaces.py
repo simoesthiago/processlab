@@ -75,3 +75,48 @@ class SpaceProcessCreate(BaseModel):
     description: Optional[str] = None
     folder_id: Optional[str] = None
 
+
+class SpaceProcessUpdate(BaseModel):
+    """Update a process within a space."""
+
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    folder_id: Optional[str] = Field(None, description="Move to folder (null to move to root)")
+
+
+class FolderMoveRequest(BaseModel):
+    """Request to move a folder to a new parent."""
+
+    parent_folder_id: Optional[str] = Field(None, description="New parent folder ID (null to move to root)")
+
+
+class ProcessMoveRequest(BaseModel):
+    """Request to move a process to a new folder."""
+
+    folder_id: Optional[str] = Field(None, description="New folder ID (null to move to root)")
+
+
+class FolderPathItem(BaseModel):
+    """Single item in folder path."""
+
+    id: str
+    name: str
+
+
+class FolderPathResponse(BaseModel):
+    """Response with full path to a folder."""
+
+    folder_id: str
+    folder_name: str
+    path: List[FolderPathItem] = Field(default_factory=list, description="Path from root to folder")
+
+
+class SpaceStatsResponse(BaseModel):
+    """Statistics for a space."""
+
+    space_id: str
+    total_folders: int
+    total_processes: int
+    root_folders: int
+    root_processes: int
+
