@@ -21,7 +21,7 @@ import {
 
 export type ExportFormat = 'xml' | 'png' | 'pdf' | 'json';
 
-interface ExportOptions {
+export interface ExportOptions {
   format: ExportFormat;
   // PNG options
   pngQuality?: 'low' | 'medium' | 'high';

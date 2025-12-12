@@ -27,10 +27,6 @@ import {
   PaintBucket,
   Search,
   Clock,
-  Layers,
-  Layers3,
-  MoveHorizontal,
-  MoveVertical,
   Palette,
   AlignHorizontalJustifyStart,
   AlignHorizontalJustifyCenter,
@@ -38,13 +34,17 @@ import {
   AlignVerticalJustifyStart,
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
+  Layers,
+  Layers3,
+  MoveHorizontal,
+  MoveVertical,
 } from 'lucide-react';
 
 import { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
 
 interface FormatToolbarProps {
   className?: string;
-  editorRef?: React.RefObject<BpmnEditorRef>;
+  editorRef?: React.RefObject<BpmnEditorRef | null>;
   selectedElements?: any[];
   onWizardClick?: () => void;
   onHistoryClick?: () => void;
@@ -820,7 +820,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
           )}
         </div>
         
-        {/* Vertical Alignment Dropdown */}
+        {false && (
         <div className="relative format-toolbar-dropdown">
           <button 
             onClick={(e) => {
@@ -940,176 +940,16 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* Divider */}
       <div className="h-6 w-px bg-border mx-1" />
 
-      {/* Group 3: Arrange */}
-      <div className="relative format-toolbar-dropdown">
-      <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsArrangeMenuOpen(!isArrangeMenuOpen);
-          }}
-          disabled={!hasSelection}
-          className={cn(
-            "h-8 px-1.5 rounded-md hover:bg-accent transition-colors flex items-center gap-0.5 text-muted-foreground hover:text-foreground",
-            isArrangeMenuOpen && "bg-accent text-foreground",
-            !hasSelection && "opacity-50 cursor-not-allowed"
-          )}
-          title="Arrange Elements"
-          aria-label="Arrange elements"
-          type="button"
-        >
-          {/* Custom Arrange Icon - Three overlapping squares */}
-          <svg
-            className="h-3.5 w-3.5"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            {/* Bottom-left square (orange/yellow) */}
-            <rect x="2" y="8" width="6" height="6" fill="#FFB84D" stroke="#E67E22" strokeWidth="1.5" rx="0.5"/>
-            {/* Middle square (white with border) */}
-            <rect x="5" y="5" width="6" height="6" fill="white" stroke="currentColor" strokeWidth="1.5" rx="0.5"/>
-            {/* Top-right square (white with border) */}
-            <rect x="8" y="2" width="6" height="6" fill="white" stroke="currentColor" strokeWidth="1.5" rx="0.5"/>
-          </svg>
-          <ChevronDown className="h-2.5 w-2.5" />
-        </button>
-          {isArrangeMenuOpen && (
-            <div
-              data-dropdown-menu
-              className="absolute top-full right-0 mt-1 p-2 bg-card border border-border rounded-md shadow-lg z-50 min-w-[220px]"
-            >
-              <div className="flex flex-col text-sm">
-                <div className="px-2 py-1 text-[11px] font-medium text-muted-foreground">Agrupar Objetos</div>
-                <button
-                  onClick={() => {
-                    setIsArrangeMenuOpen(false);
-                    editorRef?.current?.groupElements();
-                  }}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
-                  title="Group"
-                >
-                  <Layers className="h-4 w-4 text-blue-600" />
-                  <span>Agrupar</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsArrangeMenuOpen(false);
-                    editorRef?.current?.ungroupElements();
-                  }}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
-                  title="Ungroup"
-                >
-                  <Layers3 className="h-4 w-4 text-blue-600" />
-                  <span>Desagrupar</span>
-                </button>
-
-                <div className="h-px bg-border my-2" />
-
-                <div className="px-2 py-1 text-[11px] font-medium text-muted-foreground">Alinhar Objetos</div>
-
-                <button
-                  onClick={() => {
-                    setIsArrangeMenuOpen(false);
-                    editorRef?.current?.alignElements('left');
-                  }}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
-                  title="Align Left"
-                >
-                  <AlignHorizontalJustifyStart className="h-4 w-4 text-blue-600" />
-                  <span>Alinhar à Esquerda</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsArrangeMenuOpen(false);
-                    editorRef?.current?.alignElements('center');
-                  }}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
-                  title="Align Center"
-                >
-                  <AlignHorizontalJustifyCenter className="h-4 w-4 text-blue-600" />
-                  <span>Alinhar Centralizado</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsArrangeMenuOpen(false);
-                    editorRef?.current?.alignElements('right');
-                  }}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
-                  title="Align Right"
-                >
-                  <AlignHorizontalJustifyEnd className="h-4 w-4 text-blue-600" />
-                  <span>Alinhar à Direita</span>
-                </button>
-
-                <div className="h-px bg-border my-2" />
-
-                <button
-                  onClick={() => {
-                    setIsArrangeMenuOpen(false);
-                    editorRef?.current?.alignElements('top');
-                  }}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
-                  title="Align Top"
-                >
-                  <AlignVerticalJustifyStart className="h-4 w-4 text-blue-600" />
-                  <span>Alinhar à Parte Superior</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsArrangeMenuOpen(false);
-                    editorRef?.current?.alignElements('middle');
-                  }}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
-                  title="Align Middle"
-                >
-                  <AlignVerticalJustifyCenter className="h-4 w-4 text-blue-600" />
-                  <span>Alinhar ao Meio</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsArrangeMenuOpen(false);
-                    editorRef?.current?.alignElements('bottom');
-                  }}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
-                  title="Align Bottom"
-                >
-                  <AlignVerticalJustifyEnd className="h-4 w-4 text-blue-600" />
-                  <span>Alinhar à Parte Inferior</span>
-                </button>
-
-                <div className="h-px bg-border my-2" />
-
-                <button
-                  onClick={() => {
-                    setIsArrangeMenuOpen(false);
-                    editorRef?.current?.distributeElements('horizontal');
-                  }}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
-                  title="Distribute Horizontally"
-                >
-                  <MoveHorizontal className="h-4 w-4 text-blue-600" />
-                  <span>Distribuir na Horizontal</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsArrangeMenuOpen(false);
-                    editorRef?.current?.distributeElements('vertical');
-                  }}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
-                  title="Distribute Vertically"
-                >
-                  <MoveVertical className="h-4 w-4 text-blue-600" />
-                  <span>Distribuir na Vertical</span>
-                </button>
-              </div>
-            </div>
-          )}
-      </div>
+      {/* Group 3: Arrange (disabled) */}
+      {false && (
+        {/* Arrange removed */}
+      )}
 
       {/* Simulation (placed before action buttons) */}
       <button

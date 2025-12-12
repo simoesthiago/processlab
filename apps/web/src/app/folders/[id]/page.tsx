@@ -26,8 +26,7 @@ export default function FolderPage({ params }: { params: { id: string } }) {
           title={folderName}
           description="Processes and subfolders inside this space."
           breadcrumbs={[
-            { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-            { label: 'Teams Space', href: '/dashboard', icon: Users },
+            { label: 'Private Space', href: '/spaces/private', icon: LayoutDashboard },
             { label: folderName, icon: FolderOpen },
           ]}
           actions={<SectionToolbar title={folderName} variant="blue" newLabel="New" />}

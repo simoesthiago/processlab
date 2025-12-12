@@ -8,14 +8,10 @@
  */
 
 import { Sidebar } from './Sidebar';
-import { WorkspaceSwitcher } from './WorkspaceSwitcher';
-import { UserProfile } from './UserProfile';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
   FolderKanban,
-  Settings,
   ArrowLeft,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -25,35 +21,21 @@ interface WorkspaceLayoutProps {
 }
 
 export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
-  const { getWorkspaceBasePath, canAdmin } = useWorkspace();
   const { logout } = useAuth();
-  const basePath = getWorkspaceBasePath();
 
   const workspaceNavigation = [
     {
-      name: 'Dashboard',
-      href: basePath,
+      name: 'Private Space',
+      href: '/spaces/private',
       icon: LayoutDashboard,
       exact: true,
-    },
-    {
-      name: 'Settings',
-      href: `${basePath}/settings`,
-      icon: Settings,
-      // Only show settings if user can admin, but for now we'll filter in the map or just show it
-      // The sidebar doesn't support conditional rendering per item easily without logic there
-      // For now, let's keep it simple as per requirements. 
-      // If we need to hide it, we should filter this array.
     },
     {
       name: 'Classification Framework',
       href: '/classification-framework',
       icon: FolderKanban,
     },
-  ].filter(item => {
-    if (item.name === 'Settings') return canAdmin();
-    return true;
-  });
+  ];
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
@@ -70,11 +52,6 @@ export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
               </button>
             </div>
 
-            <div className="mb-10">
-              <UserProfile />
-            </div>
-
-            <WorkspaceSwitcher />
           </div>
         }
         navigationItems={workspaceNavigation}

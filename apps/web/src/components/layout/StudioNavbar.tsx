@@ -33,12 +33,13 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Search,
 } from 'lucide-react';
 
 interface Process {
   id: string;
   name: string;
-  project_id: string;
+  project_id?: string | null;
 }
 
 interface Version {
@@ -62,8 +63,9 @@ interface StudioNavbarProps {
   folderPath?: Array<{ id: string; name: string }>;
   workspaceType?: 'personal' | 'organization';
   projectId?: string;
-  editorRef?: React.RefObject<BpmnEditorRef>;
+  editorRef?: React.RefObject<BpmnEditorRef | null>;
   onSettingsClick?: () => void;
+  onSearchClick?: () => void;
 }
 
 export function StudioNavbar({
@@ -82,6 +84,7 @@ export function StudioNavbar({
   projectId,
   editorRef,
   onSettingsClick,
+  onSearchClick,
 }: StudioNavbarProps) {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
@@ -358,14 +361,25 @@ export function StudioNavbar({
           </button>
         </div>
 
-        {/* Settings */}
-        <button
-          onClick={onSettingsClick}
-          className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-          title="Settings"
-        >
-          <Settings className="h-4 w-4" />
-        </button>
+        {/* Search & Settings */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onSearchClick}
+            className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            title="Search (Ctrl+F)"
+            aria-label="Open search"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+          <button
+            onClick={onSettingsClick}
+            className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            title="Settings"
+            aria-label="Open settings"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
+        </div>
 
         {/* Export */}
         <Button

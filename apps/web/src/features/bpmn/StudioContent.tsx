@@ -24,7 +24,6 @@ import ConflictModal from '@/features/versioning/ConflictModal';
 import BpmnEditor, { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
 import Copilot from '@/features/copiloto/Copilot';
 import ProcessWizard from '@/features/copiloto/ProcessWizard';
-import Citations from '@/features/citations/Citations';
 import SearchPanel from '@/components/panels/SearchPanel';
 import { Toast, ToastType } from '@/components/ui/toast';
 import { ExportModal, ExportFormat, ExportOptions } from '@/components/modals/ExportModal';
@@ -84,7 +83,7 @@ export default function StudioContent({
   workspaceType,
   basePath,
 }: StudioContentProps) {
-  const editorRef = useRef<BpmnEditorRef>(null);
+  const editorRef = useRef<BpmnEditorRef | null>(null);
   const router = useRouter();
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
@@ -390,11 +389,18 @@ export default function StudioContent({
   const performSave = async (
     params: { message: string; changeType: 'major' | 'minor' | 'patch'; force?: boolean }
   ): Promise<boolean> => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/8d2dad52-93a3-4b5c-b696-cd1bb1d21cac', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H2', location: 'StudioContent.tsx:performSave', message: 'performSave entry', data: { hasProcess: !!process, projectId, workspaceId, changeType: params.changeType, force: !!params.force }, timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
+
     // If process doesn't exist yet, create it first
     let currentProcess = process;
     if (!currentProcess) {
       // Check if we have a workspace (space) to create in
       if (workspaceId && !projectId) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/8d2dad52-93a3-4b5c-b696-cd1bb1d21cac', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H2', location: 'StudioContent.tsx:performSave', message: 'creating process in space', data: { workspaceId }, timestamp: Date.now() }) }).catch(() => {});
+        // #endregion
         try {
           const createRes = await fetch(`${API_URL}/api/v1/spaces/${workspaceId}/processes`, {
             method: 'POST',
@@ -418,6 +424,10 @@ export default function StudioContent({
           currentProcess = created;
           setProcess(created);
           setProcessName(created.name || 'New Process');
+
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/8d2dad52-93a3-4b5c-b696-cd1bb1d21cac', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H2', location: 'StudioContent.tsx:performSave', message: 'process created', data: { newProcessId: created?.id }, timestamp: Date.now() }) }).catch(() => {});
+          // #endregion
 
           // Redirect to canonical process URL in space
           router.replace(`/spaces/${workspaceId}/processes/${created.id}`);
@@ -454,8 +464,8 @@ export default function StudioContent({
           setProcessName(created.name || 'New Process');
 
           // Redirect to canonical process URL
-          // Legacy project path removed; send user to dashboard as canonical
-          router.replace('/dashboard');
+          // Legacy project path removed; send user to Private Space
+          router.replace('/spaces/private');
         } catch (err: any) {
           console.error("Create process failed:", err);
           setToast({ message: `Failed to create process: ${err.message || 'Unknown error'}`, type: 'error' });
@@ -487,6 +497,10 @@ export default function StudioContent({
     if (!params.force && selectedVersionEtag) {
       headers['If-Match'] = selectedVersionEtag;
     }
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/8d2dad52-93a3-4b5c-b696-cd1bb1d21cac', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H3', location: 'StudioContent.tsx:performSave', message: 'posting version', data: { processId: processIdToUse, etag: headers['If-Match'] || null, parentVersionId: selectedVersionId }, timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
 
     const response = await fetch(`${API_URL}/api/v1/processes/${processIdToUse}/versions`, {
       method: 'POST',
@@ -538,6 +552,10 @@ export default function StudioContent({
   };
 
   const handleConfirmSave = async (message: string, changeType: 'major' | 'minor' | 'patch') => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/8d2dad52-93a3-4b5c-b696-cd1bb1d21cac', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H1', location: 'StudioContent.tsx:handleConfirmSave', message: 'handleConfirmSave entry', data: { hasProcess: !!process, projectId, workspaceId, changeType }, timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
+
     // Check if we have process OR projectId (for creation)
     if (!process && !projectId) return false;
 
@@ -824,6 +842,9 @@ export default function StudioContent({
   };
 
   const handleSelectVersion = async (versionId: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/8d2dad52-93a3-4b5c-b696-cd1bb1d21cac', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H4', location: 'StudioContent.tsx:handleSelectVersion', message: 'select version', data: { versionId, versionsCount: versions.length }, timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
     setSelectedVersionId(versionId);
     const match = versions.find((v) => v.id === versionId);
     setSelectedVersionEtag(match?.etag);
@@ -853,6 +874,9 @@ export default function StudioContent({
         const data = await res.json();
         const xml = data.xml || '';
         console.log('[StudioContent] loadVersionXml - Loaded XML length:', xml.length);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/8d2dad52-93a3-4b5c-b696-cd1bb1d21cac', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H4', location: 'StudioContent.tsx:loadVersionXml', message: 'loaded version xml', data: { processId, versionId, xmlLength: xml.length }, timestamp: Date.now() }) }).catch(() => {});
+        // #endregion
         return xml;
       }
     } catch (err) {
@@ -919,6 +943,23 @@ export default function StudioContent({
     setRightPanelCollapsed(false);
   };
 
+  const handleOpenHistoryFromSettings = () => {
+    setRightPanelMode('history');
+    setRightPanelCollapsed(false);
+    setIsSettingsModalOpen(false);
+  };
+
+  const handleToggleWizardPanel = () => {
+    if (rightPanelMode === 'wizard' && !rightPanelCollapsed) {
+      setRightPanelCollapsed(true);
+      return;
+    }
+    setRightPanelMode('wizard');
+    setRightPanelCollapsed(false);
+  };
+
+  const isWizardPanelOpen = rightPanelMode === 'wizard' && !rightPanelCollapsed;
+
   return (
     <div className="flex flex-col h-screen w-full bg-background">
       {/* Professional Navbar */}
@@ -937,15 +978,15 @@ export default function StudioContent({
         workspaceType={workspaceType}
         projectId={projectId}
         editorRef={editorRef}
+        onSettingsClick={() => setIsSettingsModalOpen(true)}
+        onSearchClick={() => openRightPanel('search')}
       />
 
       {/* Navbar 2 (Fixed) - Format Toolbar */}
       <FormatToolbar 
         editorRef={editorRef} 
         selectedElements={selectedElements}
-        onWizardClick={() => openRightPanel('wizard')}
-        onHistoryClick={() => openRightPanel('history')}
-        onSearchClick={() => openRightPanel('search')}
+        onWizardClick={handleToggleWizardPanel}
       />
 
       {/* Main Content Area */}
@@ -999,12 +1040,9 @@ export default function StudioContent({
                   loadProcess(process.id);
                 }
               }}
-              onCollapse={() => {
-                setRightPanelCollapsed(true);
-              }}
             />
           )}
-          {rightPanelMode === 'history' && (
+          {rightPanelMode === 'history' && versions.length > 0 && (
             <VersionTimeline
               versions={versions}
               selectedVersionId={selectedVersionId}
@@ -1022,7 +1060,7 @@ export default function StudioContent({
           )}
           {rightPanelMode === 'search' && (
             <SearchPanel
-              editorRef={editorRef}
+              editorRef={editorRef as React.RefObject<BpmnEditorRef>}
               onClose={() => {
                 setRightPanelCollapsed(true);
               }}
@@ -1071,6 +1109,7 @@ export default function StudioContent({
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
+        onOpenHistory={handleOpenHistoryFromSettings}
         onSettingsChange={(settings) => {
           setEditorSettings(settings);
           // Apply settings to editor

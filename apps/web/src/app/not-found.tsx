@@ -58,10 +58,10 @@ export default function NotFound() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Go Back
           </Button>
-          <Link href="/dashboard">
+          <Link href="/spaces/private">
             <Button>
               <Home className="h-4 w-4 mr-2" />
-              Dashboard
+              Private Space
             </Button>
           </Link>
         </div>

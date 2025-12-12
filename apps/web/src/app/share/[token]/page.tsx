@@ -12,11 +12,10 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { 
-  FileText, 
-  Loader2, 
-  Lock, 
-  AlertCircle, 
+import {
+  FileText,
+  Loader2,
+  AlertCircle,
   User,
   Eye,
   Edit,
@@ -51,7 +50,7 @@ export default function SharedProjectPage({ params }: PageProps) {
     if (!authLoading) {
       validateShareAccess();
     }
-  }, [shareToken, authLoading, isAuthenticated]);
+  }, [shareToken, authLoading]);
 
   const validateShareAccess = async () => {
     setLoading(true);
@@ -72,8 +71,7 @@ export default function SharedProjectPage({ params }: PageProps) {
         if (response.status === 404) {
           setError('This share link is invalid or has expired.');
         } else if (response.status === 401) {
-          // Need to authenticate
-          setError('auth_required');
+          setError('This shared link is not available or requires permission.');
         } else {
           setError('Unable to access this shared project.');
         }
@@ -105,37 +103,6 @@ export default function SharedProjectPage({ params }: PageProps) {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Loading shared project...</p>
         </div>
-      </div>
-    );
-  }
-
-  // Auth required error
-  if (error === 'auth_required') {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardHeader className="text-center">
-            <div className="mx-auto p-3 bg-amber-100 dark:bg-amber-900/30 rounded-full w-fit mb-4">
-              <Lock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-            </div>
-            <CardTitle>Authentication Required</CardTitle>
-            <CardDescription>
-              You need to sign in to view this shared project.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Link href={`/login?redirect=/share/${shareToken}`} className="block">
-              <Button className="w-full">
-                Sign In to Continue
-              </Button>
-            </Link>
-            <Link href={`/register?redirect=/share/${shareToken}`} className="block">
-              <Button variant="outline" className="w-full">
-                Create an Account
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
       </div>
     );
   }
@@ -225,9 +192,9 @@ export default function SharedProjectPage({ params }: PageProps) {
                 Open Project
               </Button>
               {isAuthenticated && (
-                <Link href="/dashboard">
+                <Link href="/spaces/private">
                   <Button variant="outline">
-                    Go to Dashboard
+                    Go to Private Space
                   </Button>
                 </Link>
               )}

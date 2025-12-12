@@ -78,10 +78,10 @@ export default function Error({
             <RotateCw className="h-4 w-4 mr-2" />
             Try Again
           </Button>
-          <Link href="/dashboard">
+          <Link href="/spaces/private">
             <Button>
               <Home className="h-4 w-4 mr-2" />
-              Dashboard
+              Private Space
             </Button>
           </Link>
         </div>

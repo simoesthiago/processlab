@@ -12,13 +12,9 @@ import {
   Lock,
   Workflow,
   Home,
-  LayoutDashboard,
   LogOut,
-  HelpCircle,
   FolderKanban,
   Search,
-  Settings,
-  Trash2,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -39,10 +35,7 @@ import { Button } from '@/components/ui/button';
 
 const navLinks = [
   { name: 'Search', href: '/search', icon: Search },
-  { name: 'Home', href: '/home', icon: Home },
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Settings', href: '/settings', icon: Settings },
-  { name: 'Trash', href: '/trash', icon: Trash2 },
+  { name: 'Private Space', href: '/spaces/private', icon: Home },
 ];
 
 interface NewItemState {
@@ -263,14 +256,6 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
             >
               <LogOut className="h-5 w-5" />
             </button>
-            <Link
-              className="rounded p-1 hover:text-foreground"
-              href="/help"
-              title="Help"
-              aria-label="Help"
-            >
-              <HelpCircle className="h-5 w-5" />
-            </Link>
             <Link
               className="rounded p-1 hover:text-foreground"
               href="/classification-framework"

@@ -6,9 +6,6 @@ import { cn } from '@/lib/utils';
 import {
     ChevronRight,
     LayoutDashboard,
-    FileText,
-    BarChart,
-    Settings
 } from 'lucide-react';
 
 export function Navbar() {
@@ -16,19 +13,13 @@ export function Navbar() {
 
     // Generate breadcrumbs based on pathname
     const getBreadcrumbs = () => {
-        const crumbs = [
+        return [
             {
-                label: 'Dashboard',
-        href: '/dashboard',
+                label: 'Private Space',
+                href: '/spaces/private',
                 icon: LayoutDashboard,
-            }
+            },
         ];
-
-        if (pathname === '/settings') {
-            crumbs.push({ label: 'Settings', href: '/settings', icon: Settings });
-        }
-
-        return crumbs;
     };
 
     const breadcrumbs = getBreadcrumbs();

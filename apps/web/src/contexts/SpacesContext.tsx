@@ -4,6 +4,19 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { useAuth } from './AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const DEFAULT_SPACE: Space = {
+  id: 'private',
+  name: 'Private Space',
+  description: null,
+  type: 'private',
+  role: 'owner',
+  is_protected: true,
+};
+const DEFAULT_TREE: SpaceTree = {
+  space_id: 'private',
+  root_folders: [],
+  root_processes: [],
+};
 
 export type SpaceType = 'private' | 'team';
 
@@ -83,53 +96,52 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
     loadedTreesRef.current = new Set(Object.keys(trees));
   }, [trees]);
 
-  const refreshSpaces = useCallback(async () => {
-    if (!token) {
-      setSpaces([]);
-      return;
-    }
-    const resp = await fetch(`${API_URL}/api/v1/spaces`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders,
-      },
+  const ensureDefaultSpace = useCallback(() => {
+    setSpaces([DEFAULT_SPACE]);
+    setSelectedSpaceId('private');
+    setTrees((prev) => {
+      if (prev['private']) return prev;
+      return { ...prev, ['private']: DEFAULT_TREE };
     });
-    if (!resp.ok) throw new Error('Failed to load spaces');
-    const data = await resp.json();
-    setSpaces(data.spaces || []);
-    if (!selectedSpaceId && data.spaces?.length) {
-      // Prefer private space if present
-      const preferred = data.spaces.find((s: Space) => s.id === 'private') || data.spaces[0];
-      setSelectedSpaceId(preferred.id);
-    }
-  }, [authHeaders, selectedSpaceId, token]);
+    loadedTreesRef.current.add('private');
+  }, []);
 
-  const createSpace = useCallback(
-    async (payload: { name: string; description?: string }): Promise<Space> => {
-      if (!token) throw new Error('Not authenticated');
+  const refreshSpaces = useCallback(async () => {
+    try {
       const resp = await fetch(`${API_URL}/api/v1/spaces`, {
-        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...authHeaders,
         },
-        body: JSON.stringify(payload),
       });
+
       if (!resp.ok) {
-        const errorText = await resp.text();
-        throw new Error(`Failed to create space: ${errorText}`);
+        ensureDefaultSpace();
+        return;
       }
+
       const data = await resp.json();
-      await refreshSpaces();
-      return data;
+      const spacesFromApi: Space[] = data.spaces || [];
+      const privateFromApi = spacesFromApi.find((s) => s.id === 'private') || spacesFromApi[0];
+      const finalSpace = privateFromApi ?? DEFAULT_SPACE;
+
+      setSpaces([finalSpace]);
+      setSelectedSpaceId(finalSpace.id);
+    } catch (err) {
+      console.error('Failed to load spaces, falling back to default:', err);
+      ensureDefaultSpace();
+    }
+  }, [authHeaders, selectedSpaceId, ensureDefaultSpace]);
+
+  const createSpace = useCallback(
+    async (_payload: { name: string; description?: string }): Promise<Space> => {
+      throw new Error('Space creation is disabled in local mode.');
     },
-    [authHeaders, refreshSpaces, token]
+    [authHeaders, refreshSpaces]
   );
 
   const loadTree = useCallback(
     async (spaceId: string, forceRefresh: boolean = false) => {
-      if (!token) return;
-      
       // Check cache using ref to avoid dependency on trees state
       if (!forceRefresh && loadedTreesRef.current.has(spaceId)) {
         return; // Already loaded (ref is kept in sync with state via useEffect)
@@ -153,11 +165,19 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
           }
           return prev;
         });
+      } catch (err) {
+        console.error('Failed to load space tree, using default:', err);
+        if (spaceId === 'private') {
+          setTrees((prev) => {
+            loadedTreesRef.current.add(spaceId);
+            return { ...prev, [spaceId]: prev[spaceId] ?? DEFAULT_TREE };
+          });
+        }
       } finally {
         setLoading(false);
       }
     },
-    [authHeaders, token]
+    [authHeaders]
   );
 
   const selectSpace = useCallback(
@@ -177,7 +197,6 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
 
   const createFolder = useCallback(
     async (spaceId: string, payload: { name: string; description?: string; parent_folder_id?: string | null }) => {
-      if (!token) throw new Error('Not authenticated');
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/folders`, {
         method: 'POST',
         headers: {
@@ -197,12 +216,11 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       await loadTree(spaceId);
       return data;
     },
-    [authHeaders, loadTree, token]
+    [authHeaders, loadTree]
   );
 
   const createProcess = useCallback(
     async (spaceId: string, payload: { name: string; description?: string; folder_id?: string | null }) => {
-      if (!token) throw new Error('Not authenticated');
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/processes`, {
         method: 'POST',
         headers: {
@@ -222,12 +240,11 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       await loadTree(spaceId);
       return data;
     },
-    [authHeaders, loadTree, token]
+    [authHeaders, loadTree]
   );
 
   const deleteFolder = useCallback(
     async (spaceId: string, folderId: string) => {
-      if (!token) throw new Error('Not authenticated');
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/folders/${folderId}`, {
         method: 'DELETE',
         headers: {
@@ -239,7 +256,7 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       }
       await loadTree(spaceId);
     },
-    [authHeaders, loadTree, token]
+    [authHeaders, loadTree]
   );
 
   const refreshTree = useCallback(
@@ -270,7 +287,6 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       folderId: string,
       payload: { name?: string; description?: string; parent_folder_id?: string | null; color?: string; icon?: string }
     ) => {
-      if (!token) throw new Error('Not authenticated');
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/folders/${folderId}`, {
         method: 'PATCH',
         headers: {
@@ -287,12 +303,11 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       await loadTree(spaceId);
       return data;
     },
-    [authHeaders, loadTree, token]
+    [authHeaders, loadTree]
   );
 
   const getProcess = useCallback(
     async (spaceId: string, processId: string): Promise<SpaceProcess> => {
-      if (!token) throw new Error('Not authenticated');
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/processes/${processId}`, {
         headers: {
           'Content-Type': 'application/json',
@@ -305,7 +320,7 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       const data: SpaceProcess = await resp.json();
       return data;
     },
-    [authHeaders, token]
+    [authHeaders]
   );
 
   const updateProcess = useCallback(
@@ -314,7 +329,6 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       processId: string,
       payload: { name?: string; description?: string; folder_id?: string | null }
     ) => {
-      if (!token) throw new Error('Not authenticated');
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/processes/${processId}`, {
         method: 'PATCH',
         headers: {
@@ -331,12 +345,11 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       await loadTree(spaceId);
       return data;
     },
-    [authHeaders, loadTree, token]
+    [authHeaders, loadTree]
   );
 
   const deleteProcess = useCallback(
     async (spaceId: string, processId: string) => {
-      if (!token) throw new Error('Not authenticated');
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/processes/${processId}`, {
         method: 'DELETE',
         headers: {
@@ -348,12 +361,11 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       }
       await loadTree(spaceId);
     },
-    [authHeaders, loadTree, token]
+    [authHeaders, loadTree]
   );
 
   const moveFolder = useCallback(
     async (spaceId: string, folderId: string, parentFolderId: string | null) => {
-      if (!token) throw new Error('Not authenticated');
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/folders/${folderId}/move`, {
         method: 'PATCH',
         headers: {
@@ -370,12 +382,11 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       await loadTree(spaceId);
       return data;
     },
-    [authHeaders, loadTree, token]
+    [authHeaders, loadTree]
   );
 
   const moveProcess = useCallback(
     async (spaceId: string, processId: string, folderId: string | null) => {
-      if (!token) throw new Error('Not authenticated');
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/processes/${processId}/move`, {
         method: 'PATCH',
         headers: {
@@ -392,12 +403,11 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       await loadTree(spaceId);
       return data;
     },
-    [authHeaders, loadTree, token]
+    [authHeaders, loadTree]
   );
 
   const getFolderPath = useCallback(
     async (spaceId: string, folderId: string): Promise<Array<{ id: string; name: string }>> => {
-      if (!token) throw new Error('Not authenticated');
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/folders/${folderId}/path`, {
         headers: {
           'Content-Type': 'application/json',
@@ -410,12 +420,11 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       const data = await resp.json();
       return data.path || [];
     },
-    [authHeaders, token]
+    [authHeaders]
   );
 
   const getSpaceStats = useCallback(
     async (spaceId: string): Promise<{ total_folders: number; total_processes: number; root_folders: number; root_processes: number }> => {
-      if (!token) throw new Error('Not authenticated');
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/stats`, {
         headers: {
           'Content-Type': 'application/json',
@@ -428,18 +437,16 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       const data = await resp.json();
       return data;
     },
-    [authHeaders, token]
+    [authHeaders]
   );
 
   useEffect(() => {
     if (isAuthenticated) {
       refreshSpaces().catch((err) => console.error(err));
     } else {
-      setSpaces([]);
-      setSelectedSpaceId(null);
-      setTrees({});
+      ensureDefaultSpace();
     }
-  }, [isAuthenticated, refreshSpaces]);
+  }, [isAuthenticated, refreshSpaces, ensureDefaultSpace]);
 
   const value: SpacesContextType = {
     spaces,

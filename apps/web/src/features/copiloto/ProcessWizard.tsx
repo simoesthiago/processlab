@@ -11,10 +11,8 @@ import { useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { BPMN_JSON } from '@processlab/shared-schemas';
 import { 
-  Sparkles, 
   Send, 
   Plus,
-  PanelRightClose,
 } from 'lucide-react';
 
 interface ProcessWizardProps {
@@ -22,7 +20,6 @@ interface ProcessWizardProps {
   bpmnXml?: string;
   modelVersionId?: string;
   onEditApplied: (newBpmn: BPMN_JSON, newVersionId: string) => void;
-  onCollapse?: () => void;
 }
 
 const SUGGESTIONS = [
@@ -32,7 +29,7 @@ const SUGGESTIONS = [
   'Insert a time event for deadlines',
 ];
 
-export default function ProcessWizard({ bpmn, bpmnXml, modelVersionId, onEditApplied, onCollapse }: ProcessWizardProps) {
+export default function ProcessWizard({ bpmn, bpmnXml, modelVersionId, onEditApplied }: ProcessWizardProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -85,28 +82,6 @@ export default function ProcessWizard({ bpmn, bpmnXml, modelVersionId, onEditApp
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Header with tabs */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <div className="flex items-center gap-1">
-          <button className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-primary/10 text-primary">
-            <Sparkles className="h-3.5 w-3.5" />
-            Wizard
-          </button>
-          <button className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
-            Citations
-          </button>
-        </div>
-        {onCollapse && (
-          <button 
-            onClick={onCollapse}
-            className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
-            title="Collapse panel"
-          >
-            <PanelRightClose className="h-5 w-5" />
-          </button>
-        )}
-      </div>
-
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="flex flex-col items-center justify-center h-full text-center">

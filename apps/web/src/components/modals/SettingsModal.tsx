@@ -37,6 +37,7 @@ import {
   Keyboard,
   Download,
   X,
+  Clock,
 } from 'lucide-react';
 
 export interface EditorSettings {
@@ -107,12 +108,14 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSettingsChange?: (settings: EditorSettings) => void;
+  onOpenHistory?: () => void;
 }
 
 export function SettingsModal({
   isOpen,
   onClose,
   onSettingsChange,
+  onOpenHistory,
 }: SettingsModalProps) {
   const [settings, setSettings] = useState<EditorSettings>(DEFAULT_SETTINGS);
   const [activeTab, setActiveTab] = useState('editor');
@@ -165,7 +168,7 @@ export function SettingsModal({
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="editor" className="flex items-center gap-1.5">
               <Grid3x3 className="h-3.5 w-3.5" />
               Editor
@@ -181,6 +184,10 @@ export function SettingsModal({
             <TabsTrigger value="export" className="flex items-center gap-1.5">
               <Download className="h-3.5 w-3.5" />
               Export
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" />
+              History
             </TabsTrigger>
           </TabsList>
 
@@ -419,6 +426,26 @@ export function SettingsModal({
                   </div>
                 ))}
               </div>
+            </div>
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history" className="space-y-4 mt-4">
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Open the version history panel to review and restore previous versions of the process.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  onOpenHistory?.();
+                  onClose();
+                }}
+                className="flex items-center gap-2"
+              >
+                <Clock className="h-4 w-4" />
+                Open Version History
+              </Button>
             </div>
           </TabsContent>
 

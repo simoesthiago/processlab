@@ -34,6 +34,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const LOCAL_USER: User = {
+  id: 'local-user',
+  email: 'local@processlab',
+  full_name: 'Local User',
+  is_active: true,
+  is_superuser: true,
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -48,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Fetch user info with stored token
       fetchUserInfo(storedToken);
     } else {
+      setUser(LOCAL_USER);
       setLoading(false);
     }
   }, []);
@@ -67,13 +75,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Token is invalid, clear it
         localStorage.removeItem('auth_token');
         setToken(null);
-        setUser(null);
+        setUser(LOCAL_USER);
       }
     } catch (error) {
       console.error('Failed to fetch user info:', error);
       localStorage.removeItem('auth_token');
       setToken(null);
-      setUser(null);
+      setUser(LOCAL_USER);
     } finally {
       setLoading(false);
     }
@@ -214,12 +222,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     localStorage.removeItem('auth_token');
     setToken(null);
-    setUser(null);
+    setUser(LOCAL_USER);
+    setLoading(false);
   };
 
   const refreshUser = async () => {
     if (token) {
       await fetchUserInfo(token);
+    } else {
+      setUser(LOCAL_USER);
     }
   };
 
@@ -233,7 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     token,
     loading,
-    isAuthenticated: !!user && !!token,
+    isAuthenticated: !!user,
     login,
     register,
     logout,

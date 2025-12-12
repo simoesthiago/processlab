@@ -137,6 +137,12 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             console.log('[BpmnEditor] getXml called, returning XML length:', xml.length);
             return xml;
         },
+        getSvg: async () => {
+            if (!modelerRef.current) throw new Error("Editor not initialized");
+            const modeler = modelerRef.current;
+            const { svg } = await modeler.saveSVG({ format: true });
+            return svg;
+        },
         getSelectedElements: () => {
             if (!modelerRef.current) return [];
             const selection = modelerRef.current.get('selection');
@@ -443,48 +449,49 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             const canvas = modelerRef.current.get('canvas');
             
             // Get bounding boxes for all selected elements
-            const bboxes = selectedElements.map((element: any) => {
-                return canvas.getAbsoluteBBox(element);
+            const bboxes: Array<{ x: number; y: number; width: number; height: number }> = selectedElements.map((element: any) => {
+                const bb = canvas.getAbsoluteBBox(element);
+                return { x: bb.x, y: bb.y, width: bb.width, height: bb.height };
             });
             
             // Calculate alignment value based on direction
             if (direction === 'left') {
-                const alignValue = Math.min(...bboxes.map(b => b.x));
+                const alignValue = Math.min(...bboxes.map((b) => b.x));
                 selectedElements.forEach((element: any, index: number) => {
                     const bbox = bboxes[index];
                     const deltaX = alignValue - bbox.x;
                     modeling.moveShape(element, { x: element.x + deltaX, y: element.y });
                 });
             } else if (direction === 'right') {
-                const alignValue = Math.max(...bboxes.map(b => b.x + b.width));
+                const alignValue = Math.max(...bboxes.map((b) => b.x + b.width));
                 selectedElements.forEach((element: any, index: number) => {
                     const bbox = bboxes[index];
                     const deltaX = alignValue - (bbox.x + bbox.width);
                     modeling.moveShape(element, { x: element.x + deltaX, y: element.y });
                 });
             } else if (direction === 'center') {
-                const alignValue = bboxes.reduce((sum, b) => sum + b.x + b.width / 2, 0) / bboxes.length;
+                const alignValue = bboxes.reduce((sum: number, b: { x: number; width: number }) => sum + b.x + b.width / 2, 0) / bboxes.length;
                 selectedElements.forEach((element: any, index: number) => {
                     const bbox = bboxes[index];
                     const deltaX = alignValue - (bbox.x + bbox.width / 2);
                     modeling.moveShape(element, { x: element.x + deltaX, y: element.y });
                 });
             } else if (direction === 'top') {
-                const alignValue = Math.min(...bboxes.map(b => b.y));
+                const alignValue = Math.min(...bboxes.map((b) => b.y));
                 selectedElements.forEach((element: any, index: number) => {
                     const bbox = bboxes[index];
                     const deltaY = alignValue - bbox.y;
                     modeling.moveShape(element, { x: element.x, y: element.y + deltaY });
                 });
             } else if (direction === 'bottom') {
-                const alignValue = Math.max(...bboxes.map(b => b.y + b.height));
+                const alignValue = Math.max(...bboxes.map((b) => b.y + b.height));
                 selectedElements.forEach((element: any, index: number) => {
                     const bbox = bboxes[index];
                     const deltaY = alignValue - (bbox.y + bbox.height);
                     modeling.moveShape(element, { x: element.x, y: element.y + deltaY });
                 });
             } else if (direction === 'middle') {
-                const alignValue = bboxes.reduce((sum, b) => sum + b.y + b.height / 2, 0) / bboxes.length;
+                const alignValue = bboxes.reduce((sum: number, b: { y: number; height: number }) => sum + b.y + b.height / 2, 0) / bboxes.length;
                 selectedElements.forEach((element: any, index: number) => {
                     const bbox = bboxes[index];
                     const deltaY = alignValue - (bbox.y + bbox.height / 2);
@@ -503,26 +510,27 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             const canvas = modelerRef.current.get('canvas');
             
             // Get bounding boxes for all selected elements
-            const bboxes = selectedElements.map((element: any) => {
-                return canvas.getAbsoluteBBox(element);
+            const bboxes: Array<{ x: number; y: number; width: number; height: number }> = selectedElements.map((element: any) => {
+                const bb = canvas.getAbsoluteBBox(element);
+                return { x: bb.x, y: bb.y, width: bb.width, height: bb.height };
             });
             
             if (direction === 'horizontal') {
                 // Sort by x position
                 const sorted = selectedElements
                     .map((element: any, index: number) => ({ element, bbox: bboxes[index] }))
-                    .sort((a, b) => a.bbox.x - b.bbox.x);
+                    .sort((a: { bbox: { x: number } }, b: { bbox: { x: number } }) => a.bbox.x - b.bbox.x);
                 
                 // Calculate total width and spacing
                 const leftmost = sorted[0].bbox.x;
                 const rightmost = sorted[sorted.length - 1].bbox.x + sorted[sorted.length - 1].bbox.width;
                 const totalWidth = rightmost - leftmost;
-                const totalElementWidth = sorted.reduce((sum, item) => sum + item.bbox.width, 0);
+                const totalElementWidth = sorted.reduce((sum: number, item: { bbox: { width: number } }) => sum + item.bbox.width, 0);
                 const spacing = (totalWidth - totalElementWidth) / (sorted.length - 1);
                 
                 // Distribute elements evenly
                 let currentX = leftmost;
-                sorted.forEach((item, index) => {
+                sorted.forEach((item: { element: any; bbox: { x: number; width: number } }, index: number) => {
                     if (index > 0) {
                         const deltaX = currentX - item.bbox.x;
                         modeling.moveShape(item.element, { x: item.element.x + deltaX, y: item.element.y });
@@ -533,18 +541,18 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                 // Sort by y position
                 const sorted = selectedElements
                     .map((element: any, index: number) => ({ element, bbox: bboxes[index] }))
-                    .sort((a, b) => a.bbox.y - b.bbox.y);
+                    .sort((a: { bbox: { y: number } }, b: { bbox: { y: number } }) => a.bbox.y - b.bbox.y);
                 
                 // Calculate total height and spacing
                 const topmost = sorted[0].bbox.y;
                 const bottommost = sorted[sorted.length - 1].bbox.y + sorted[sorted.length - 1].bbox.height;
                 const totalHeight = bottommost - topmost;
-                const totalElementHeight = sorted.reduce((sum, item) => sum + item.bbox.height, 0);
+                const totalElementHeight = sorted.reduce((sum: number, item: { bbox: { height: number } }) => sum + item.bbox.height, 0);
                 const spacing = (totalHeight - totalElementHeight) / (sorted.length - 1);
                 
                 // Distribute elements evenly
                 let currentY = topmost;
-                sorted.forEach((item, index) => {
+                sorted.forEach((item: { element: any; bbox: { y: number; height: number } }, index: number) => {
                     if (index > 0) {
                         const deltaY = currentY - item.bbox.y;
                         modeling.moveShape(item.element, { x: item.element.x, y: item.element.y + deltaY });
@@ -604,7 +612,7 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
     }));
 
     useEffect(() => {
-        let modeler: unknown;
+        let modeler: any;
 
         const initModeler = async () => {
             try {
@@ -627,103 +635,6 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                 });
 
                 modelerRef.current = modeler;
-
-                // Listen to selection changes
-                const selection = modeler.get('selection');
-                const eventBus = modeler.get('eventBus');
-                
-                eventBus.on('selection.changed', () => {
-                    const selectedElements = selection.get();
-                    if (onSelectionChange) {
-                        onSelectionChange(selectedElements);
-                    }
-                });
-
-                // Listen to command stack changes (for undo/redo state)
-                const commandStack = modeler.get('commandStack');
-                eventBus.on('commandStack.changed', () => {
-                    // Trigger re-render if needed (could be used to update undo/redo button states)
-                    // For now, we'll handle this via the ref methods
-                });
-
-                // Note: Keyboard shortcuts for Delete/Backspace are handled in StudioContent.tsx
-                // to avoid conflicts with bpmn-js keyboard API
-
-                // Enhanced drag & drop handling
-                const canvas = modeler.get('canvas');
-                const elementFactory = modeler.get('elementFactory');
-                const create = modeler.get('create');
-
-                // Handle drop events from ElementsSidebar
-                const handleDrop = (event: DragEvent) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    const dragData = event.dataTransfer?.getData('application/bpmn-element');
-                    if (!dragData) return;
-
-                    try {
-                        const elementData = JSON.parse(dragData);
-                        const canvasElement = canvas.getRootElement();
-                        
-                        // Get drop position relative to canvas
-                        const canvasRect = (event.target as HTMLElement)?.closest('.djs-container')?.getBoundingClientRect();
-                        if (!canvasRect) return;
-                        
-                        const x = event.clientX - canvasRect.left;
-                        const y = event.clientY - canvasRect.top;
-                        
-                        // Convert to canvas coordinates
-                        const position = canvas.getPosition({ x, y });
-                        
-                        // Apply snap to grid (if enabled)
-                        let snappedX = position.x;
-                        let snappedY = position.y;
-                        if (editorSettings.gridSnap) {
-                            snappedX = Math.round(position.x / editorSettings.gridSize) * editorSettings.gridSize;
-                            snappedY = Math.round(position.y / editorSettings.gridSize) * editorSettings.gridSize;
-                        }
-
-                        // Create element shape
-                        const shape = elementFactory.createShape({
-                            type: elementData.type
-                        });
-
-                        // Start creation at snapped position
-                        create.start(event, shape, {
-                            x: snappedX,
-                            y: snappedY
-                        });
-                    } catch (err) {
-                        console.error('Failed to handle drop:', err);
-                    }
-                };
-
-                // Add drop handlers to canvas after it's ready
-                setTimeout(() => {
-                    const canvasElement = containerRef.current?.querySelector('.djs-container');
-                    if (canvasElement) {
-                        canvasElement.addEventListener('dragover', (e: Event) => {
-                            e.preventDefault();
-                            const dragEvent = e as DragEvent;
-                            if (dragEvent.dataTransfer) {
-                                dragEvent.dataTransfer.dropEffect = 'copy';
-                            }
-                        });
-                        canvasElement.addEventListener('drop', handleDrop);
-                    }
-                }, 100);
-
-                // Listen to create events for visual feedback
-                eventBus.on('create.start', () => {
-                    const canvasElement = containerRef.current?.querySelector('.bpmn-editor-container');
-                    canvasElement?.classList.add('dragging-element');
-                });
-
-                eventBus.on('create.end', () => {
-                    const canvasElement = containerRef.current?.querySelector('.bpmn-editor-container');
-                    canvasElement?.classList.remove('dragging-element');
-                });
 
                 // Import minimal XML to ensure modeler is ready
                 const xmlToImport = initialXml || MINIMAL_BPMN_XML;

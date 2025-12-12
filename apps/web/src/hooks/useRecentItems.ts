@@ -36,13 +36,14 @@ export function useRecentItems(limit = 12, options: UseRecentItemsOptions = {}) 
   );
 
   const refreshRecents = useCallback(async () => {
-    if (!token) return;
     setLoading(true);
     try {
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       const resp = await fetch(`${API_URL}/api/v1/users/me/recents?limit=${limit}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
       });
       if (!resp.ok) throw new Error('Failed to load recents');
       const data = await resp.json();

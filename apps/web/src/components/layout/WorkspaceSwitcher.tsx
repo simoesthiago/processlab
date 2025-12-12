@@ -35,12 +35,8 @@ export function WorkspaceSwitcher() {
     setCurrentWorkspace(workspace);
     setIsOpen(false);
 
-    // Navigate to the new workspace's dashboard
-    if (workspace.type === 'personal') {
-      router.push('/home');
-    } else {
-      router.push('/dashboard');
-    }
+    // Navigate to the single space view
+    router.push('/spaces/private');
   };
 
   const handleSelectPersonal = () => {

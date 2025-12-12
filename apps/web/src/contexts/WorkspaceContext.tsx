@@ -170,11 +170,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   // Get base path for current workspace
   const getWorkspaceBasePath = useCallback(() => {
-    if (!currentWorkspace) return '/';
-    if (currentWorkspace.type === 'personal') {
-      return '/home';
-    }
-    return '/dashboard';
+    return '/spaces/private';
   }, [currentWorkspace]);
 
   // Check if user can edit in current workspace
