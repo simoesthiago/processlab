@@ -12,6 +12,9 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { PlusCircle, FileText, FolderOpen, LogOut, Settings, BarChart } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -68,34 +71,32 @@ function DashboardContent() {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <div className="min-h-screen bg-background">
             {/* Header */}
-            <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+            <header className="border-b bg-card">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div>
-                            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                            <h1 className="text-2xl font-bold text-foreground">
                                 ProcessLab
                             </h1>
                         </div>
 
                         <div className="flex items-center gap-4">
-                            <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                                <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                            <div className="text-sm text-muted-foreground">
+                                <span className="font-medium text-foreground">
                                     {user?.full_name || user?.email}
                                 </span>
                                 {user?.role && (
-                                    <span className="ml-2 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-medium">
+                                    <span className="ml-2 px-2 py-0.5 bg-secondary text-secondary-foreground rounded text-xs font-medium">
                                         {user.role}
                                     </span>
                                 )}
                             </div>
-                            <button
-                                onClick={handleLogout}
-                                className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition"
-                            >
+                            <Button variant="ghost" size="sm" onClick={handleLogout}>
+                                <LogOut className="mr-2 h-4 w-4" />
                                 Logout
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -105,110 +106,153 @@ function DashboardContent() {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Welcome Section */}
                 <div className="mb-8">
-                    <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">
+                    <h2 className="text-3xl font-bold tracking-tight mb-2">
                         Welcome back, {user?.full_name?.split(' ')[0] || 'there'}!
                     </h2>
-                    <p className="text-zinc-600 dark:text-zinc-400">
+                    <p className="text-muted-foreground">
                         Manage your business process models and projects
                     </p>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Link href="/catalog" className="block">
+                        <Card className="hover:bg-accent/50 transition-colors h-full">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileText className="h-5 w-5 text-primary" />
+                                    Process Catalog
+                                </CardTitle>
+                                <CardDescription>
+                                    Browse and filter all processes in your organization
+                                </CardDescription>
+                            </CardHeader>
+                        </Card>
+                    </Link>
+                    <Link href="/projects/new" className="block">
+                        <Card className="hover:bg-accent/50 transition-colors h-full">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <PlusCircle className="h-5 w-5 text-primary" />
+                                    Create New Project
+                                </CardTitle>
+                                <CardDescription>
+                                    Start a new project to organize your processes
+                                </CardDescription>
+                            </CardHeader>
+                        </Card>
+                    </Link>
                 </div>
 
                 {/* Projects Section */}
                 <div>
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-                            Projects
+                        <h3 className="text-2xl font-semibold tracking-tight">
+                            Your Projects
                         </h3>
-                        <Link
-                            href="/projects/new"
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition"
-                        >
-                            New Project
+                        <Link href="/projects/new">
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                New Project
+                            </Button>
                         </Link>
                     </div>
 
                     {loading ? (
                         <div className="flex items-center justify-center py-12">
-                            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                         </div>
                     ) : projects.length === 0 ? (
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-12 text-center">
-                            <div className="text-4xl mb-4">📁</div>
-                            <h4 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2">
-                                No projects yet
-                            </h4>
-                            <p className="text-zinc-600 dark:text-zinc-400 mb-6">
-                                Create your first project to get started with process modeling
-                            </p>
-                            <Link
-                                href="/projects/new"
-                                className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition"
-                            >
-                                Create Project
-                            </Link>
-                        </div>
+                        <Card className="text-center py-12">
+                            <CardContent className="pt-6">
+                                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                                    <FolderOpen className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                                <h4 className="text-lg font-semibold mb-2">
+                                    No projects yet
+                                </h4>
+                                <p className="text-muted-foreground mb-6">
+                                    Create your first project to get started with process modeling
+                                </p>
+                                <Link href="/projects/new">
+                                    <Button>Create Project</Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {projects.map((project) => (
                                 <Link
                                     key={project.id}
                                     href={`/projects/${project.id}/processes`}
-                                    className="block bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-lg transition group"
+                                    className="block group"
                                 >
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="text-3xl">📊</div>
-                                        <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                                            {project.process_count || 0} processes
-                                        </div>
-                                    </div>
-
-                                    <h4 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">
-                                        {project.name}
-                                    </h4>
-
-                                    {project.description && (
-                                        <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 mb-4">
-                                            {project.description}
-                                        </p>
-                                    )}
-
-                                    <div className="text-xs text-zinc-500 dark:text-zinc-500">
-                                        Created {new Date(project.created_at).toLocaleDateString()}
-                                    </div>
+                                    <Card className="h-full hover:border-primary/50 transition-colors">
+                                        <CardHeader>
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                                    <BarChart className="h-5 w-5" />
+                                                </div>
+                                                <span className="text-sm text-muted-foreground">
+                                                    {project.process_count || 0} processes
+                                                </span>
+                                            </div>
+                                            <CardTitle className="group-hover:text-primary transition-colors">
+                                                {project.name}
+                                            </CardTitle>
+                                            {project.description && (
+                                                <CardDescription className="line-clamp-2 mt-2">
+                                                    {project.description}
+                                                </CardDescription>
+                                            )}
+                                        </CardHeader>
+                                        <CardFooter>
+                                            <span className="text-xs text-muted-foreground">
+                                                Created {new Date(project.created_at).toLocaleDateString()}
+                                            </span>
+                                        </CardFooter>
+                                    </Card>
                                 </Link>
                             ))}
                         </div>
                     )}
                 </div>
 
-                {/* Quick Actions */}
+                {/* Coming Soon Features */}
                 <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Link
-                        href="/studio"
-                        className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-6 hover:shadow-xl transition group"
-                    >
-                        <div className="text-3xl mb-3">🎨</div>
-                        <h4 className="text-lg font-semibold mb-2">BPMN Studio</h4>
-                        <p className="text-blue-100 text-sm">
-                            Create and edit BPMN diagrams with AI assistance
-                        </p>
+                    <Link href="/studio" className="block">
+                        <Card className="bg-primary text-primary-foreground border-primary h-full hover:bg-primary/90 transition-colors">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileText className="h-5 w-5" />
+                                    BPMN Studio
+                                </CardTitle>
+                                <CardDescription className="text-primary-foreground/80">
+                                    Create and edit BPMN diagrams with AI assistance
+                                </CardDescription>
+                            </CardHeader>
+                        </Card>
                     </Link>
 
-                    <div className="bg-gradient-to-br from-zinc-700 to-zinc-800 text-white rounded-xl p-6 opacity-50 cursor-not-allowed">
-                        <div className="text-3xl mb-3">📈</div>
-                        <h4 className="text-lg font-semibold mb-2">Analytics</h4>
-                        <p className="text-zinc-300 text-sm">
-                            Coming soon
-                        </p>
-                    </div>
+                    <Card className="opacity-50 cursor-not-allowed h-full">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <BarChart className="h-5 w-5" />
+                                Analytics
+                            </CardTitle>
+                            <CardDescription>Coming soon</CardDescription>
+                        </CardHeader>
+                    </Card>
 
-                    <div className="bg-gradient-to-br from-zinc-700 to-zinc-800 text-white rounded-xl p-6 opacity-50 cursor-not-allowed">
-                        <div className="text-3xl mb-3">⚙️</div>
-                        <h4 className="text-lg font-semibold mb-2">Settings</h4>
-                        <p className="text-zinc-300 text-sm">
-                            Coming soon
-                        </p>
-                    </div>
+                    <Card className="opacity-50 cursor-not-allowed h-full">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Settings className="h-5 w-5" />
+                                Settings
+                            </CardTitle>
+                            <CardDescription>Coming soon</CardDescription>
+                        </CardHeader>
+                    </Card>
                 </div>
             </main>
         </div>

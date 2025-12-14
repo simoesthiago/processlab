@@ -84,10 +84,10 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 
 ---
 
-## 🔄 Trabalho em Andamento
+## ✅ Sprints Concluídos (Continuação)
 
-### Sprint 5 - UI de Versionamento Avançado 🔄
-**Status**: Em Andamento (Dezembro 2025)
+### Sprint 5 - UI de Versionamento Avançado ✅
+**Status**: Concluído (Dezembro 2025)
 
 #### Implementado:
 - ✅ Componente `VersionDiffViewer` para comparação visual de versões
@@ -95,21 +95,21 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 - ✅ Visualização lado a lado com highlights (vermelho=removido, verde=adicionado, amarelo=modificado)
 - ✅ Interface completa com legendas e informações das versões
 - ✅ Dependências instaladas: `bpmn-js-differ` e `bpmn-moddle`
-
-#### Pendente:
-- [ ] Integração do botão "Compare" na Timeline de Versões
-- [ ] Catálogo de Processos com filtros avançados (status, área, dono, projeto)
-- [ ] Funcionalidade de reverter/restore para versão anterior
+- ✅ Integração do botão "Compare" na Timeline de Versões (funcional e testado)
+- ✅ Catálogo de Processos com filtros avançados (status, dono, projeto, busca)
+  - Endpoint `/api/v1/processes` com filtros: status, owner, project_id, search
+  - Página `/catalog` com interface completa de filtros e grid de processos
+- ✅ Funcionalidade de reverter/restore para versão anterior (implementada e testada)
 
 ---
 
 ## 📋 Próximos Passos (Roadmap)
 
 #### Sprint 2.5 - Design System & UI/UX para Conversão 🎨
-**Status**: Planejado (Prioridade Alta - Fase 1)
+**Status**: Em Andamento (Prioridade Alta - Fase 1)
 **Objetivo**: Criar uma UI/UX que converta usuários e impressione empresas/consultores
 
-- [ ] Design system completo: tokens de design (cores, tipografia, espaçamento), componentes base reutilizáveis
+- [x] Design system completo: tokens de design (cores, tipografia, espaçamento), componentes base reutilizáveis
 - [ ] Onboarding e primeira impressão: landing page, tour guiado, empty states atrativos
 - [ ] Navegação intuitiva: breadcrumbs, menus contextuais, hierarquia visual clara
 - [ ] Microinterações e feedback: loading states elegantes, animações sutis, toasts informativos
@@ -131,10 +131,10 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 
 ### Geral
 - **Fases Concluídas**: 1 / 5 (Fase 1 em 100%)
-- **Sprints Concluídos**: 4 / 16 (incluindo Sprint 2.5 planejado)
-- **Sprints em Andamento**: 1 (Sprint 5 - ~33% concluído)
+- **Sprints Concluídos**: 5 / 16 (incluindo Sprint 2.5 planejado)
+- **Sprints em Andamento**: 0
 - **Sprints Planejados**: 1 (Sprint 2.5 - Design System & UI/UX)
-- **Progresso Global**: ~32%
+- **Progresso Global**: ~35%
 
 ### Fase 1 (MVP Interno)
 - **Progresso**: 100% ✅
@@ -150,11 +150,12 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 | **Geração BPMN** | ✅ Completo | 100% |
 | **Editor BPMN** | ✅ Completo | 100% |
 | **Auto-layout** | 🟡 Em ajustes | 90% |
-| **Versionamento** | 🟡 Em progresso | 90% |
+| **Versionamento** | ✅ Completo | 100% |
 | **Diff Visual** | ✅ Completo | 100% |
+| **Catálogo de Processos** | ✅ Completo | 100% |
 | **UI de Projetos** | ✅ Completo | 100% |
 | **Autenticação** | ✅ Completo | 100% |
-| **Design System / UI/UX** | 🟡 Planejado | 0% |
+| **Design System / UI/UX** | 🟡 Em Andamento | 20% |
 | **Colaboração** | ❌ Não iniciado | 0% |
 | **Rastreabilidade** | ❌ Não iniciado | 0% |
 
@@ -168,7 +169,7 @@ Concluímos a **Fase 1 (MVP Interno)** com sucesso! O sistema agora possui harde
 3. ✅ Implementar UI de Projetos e Dashboard
 4. ✅ Integrar Studio com sistema de projetos
 5. ✅ Concluir Sprint 4 (Versionamento Real)
-6. 🔄 Em andamento: Sprint 5 - Diff Visual (implementado, falta integração UI)
+6. ✅ Concluir Sprint 5 (Diff Visual, Catálogo, Restore)
 
 ### Próximas Semanas (Prioridade)
 - 🎨 **Sprint 2.5 - Design System & UI/UX**: Iniciar implementação do design system e polimento visual para melhorar conversão de usuários e impressão para empresas/consultores.
