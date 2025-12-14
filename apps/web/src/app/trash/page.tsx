@@ -6,3 +6,6 @@ export default function TrashRedirectPage() {
   redirect('/spaces/private');
 }
 
+
+
+

@@ -13,7 +13,7 @@ export default function ClassificationFrameworkPage() {
       <div className="max-w-7xl pr-10 py-8 space-y-6 mx-auto">
         <PageHeader
           title="Classification Framework"
-          description="Estruture seus processos com frameworks de referência como APQC / PCF para garantir consistência e comparabilidade entre áreas e clientes."
+          description="Structure your processes with reference frameworks such as APQC / PCF to ensure consistency and comparability across teams and clients."
           breadcrumbs={[{ label: 'Classification Framework', icon: FolderKanban }]}
         />
 
@@ -21,16 +21,16 @@ export default function ClassificationFrameworkPage() {
           <Card>
             <CardHeader>
               <CardTitle>APQC / PCF</CardTitle>
-              <CardDescription>Modelos de classificação prontos para importar.</CardDescription>
+              <CardDescription>Ready-to-import classification templates.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-3">
               <Button asChild variant="secondary">
-                <Link href="#">Ver catálogo APQC</Link>
+                <Link href="#">View APQC catalog</Link>
               </Button>
               <Button asChild variant="secondary">
-                <Link href="#">Ver catálogo PCF</Link>
+                <Link href="#">View PCF catalog</Link>
               </Button>
-              <Button variant="outline">Importar framework personalizado</Button>
+              <Button variant="outline">Import custom framework</Button>
             </CardContent>
           </Card>
         </div>

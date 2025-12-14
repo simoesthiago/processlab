@@ -6,3 +6,6 @@ export default function SettingsRedirectPage() {
   redirect('/spaces/private');
 }
 
+
+
+

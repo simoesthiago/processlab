@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { FolderKanban, Edit, Trash2 } from 'lucide-react';
+import { FolderKanban, Edit, Trash2, Lock } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -103,14 +103,14 @@ export default function SpacePage() {
 
   const handleDeleteFolder = async (folderId: string) => {
     if (!spaceId) return;
-    const confirmDelete = window.confirm('Apagar esta pasta? Itens dentro serão removidos.');
+    const confirmDelete = window.confirm('Delete this folder? Items inside will be removed.');
     if (!confirmDelete) return;
     setError(null);
     setDeletingFolderId(folderId);
     try {
       await deleteFolder(spaceId, folderId);
     } catch (e: any) {
-      setError(e?.message || 'Erro ao apagar pasta');
+      setError(e?.message || 'Error deleting folder');
     } finally {
       setDeletingFolderId(null);
     }
@@ -118,14 +118,14 @@ export default function SpacePage() {
 
   const handleDeleteProcess = async (processId: string) => {
     if (!spaceId) return;
-    const confirmDelete = window.confirm('Apagar este processo?');
+    const confirmDelete = window.confirm('Delete this process?');
     if (!confirmDelete) return;
     setError(null);
     setDeletingProcessId(processId);
     try {
       await deleteProcess(spaceId, processId);
     } catch (e: any) {
-      setError(e?.message || 'Erro ao apagar processo');
+      setError(e?.message || 'Error deleting process');
     } finally {
       setDeletingProcessId(null);
     }
@@ -141,11 +141,12 @@ export default function SpacePage() {
         description: newFolderDesc || undefined,
         parent_folder_id: null,
       });
+      await loadTree(spaceId);
       setNewFolderName('');
       setNewFolderDesc('');
       setNewFolderOpen(false);
     } catch (e: any) {
-      setError(e?.message || 'Erro ao criar pasta');
+      setError(e?.message || 'Error creating folder');
     } finally {
       setCreating(false);
     }
@@ -169,7 +170,7 @@ export default function SpacePage() {
         router.push(`/spaces/${spaceId}/processes/${created.id}`);
       }
     } catch (e: any) {
-      setError(e?.message || 'Erro ao criar processo');
+      setError(e?.message || 'Error creating process');
     } finally {
       setCreating(false);
     }
@@ -177,13 +178,12 @@ export default function SpacePage() {
 
   return (
     <AppLayout>
-      <div className="max-w-7xl pr-10 py-8 space-y-6 mx-auto">
+      <div className="mx-auto max-w-7xl px-8 py-8 space-y-6">
         <PageHeader
           title={space?.name || 'Space'}
-          description={space?.description || 'Pastas e processos neste space.'}
+          description={space?.description || 'Folders and processes in this space.'}
           breadcrumbs={[
-            { label: 'Spaces', icon: FolderKanban },
-            { label: space?.name || 'Space', icon: FolderKanban },
+            { label: space?.name || 'Space', icon: Lock },
           ]}
         />
 
@@ -203,7 +203,7 @@ export default function SpacePage() {
         {error && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-red-600">Erro</CardTitle>
+              <CardTitle className="text-red-600">Error</CardTitle>
               <CardDescription>{error}</CardDescription>
             </CardHeader>
           </Card>
@@ -226,23 +226,23 @@ export default function SpacePage() {
         {!tree && (
           <Card>
             <CardHeader>
-              <CardTitle>Carregando space...</CardTitle>
+              <CardTitle>Loading space...</CardTitle>
             </CardHeader>
           </Card>
         )}
         {tree && filteredFolders.length === 0 && filteredProcesses.length === 0 && searchQuery && (
           <Card>
             <CardHeader>
-              <CardTitle>Nenhum resultado encontrado</CardTitle>
-              <CardDescription>Tente buscar com outros termos.</CardDescription>
+              <CardTitle>No results found</CardTitle>
+              <CardDescription>Try searching with different terms.</CardDescription>
             </CardHeader>
           </Card>
         )}
         {tree && !tree.root_folders?.length && !tree.root_processes?.length && !searchQuery && (
           <Card>
             <CardHeader>
-              <CardTitle>Space vazio</CardTitle>
-              <CardDescription>Use o botão + na sidebar para criar pastas ou processos.</CardDescription>
+          <CardTitle>Empty space</CardTitle>
+          <CardDescription>Use the + button in the sidebar to create folders or processes.</CardDescription>
             </CardHeader>
           </Card>
         )}
@@ -288,12 +288,12 @@ export default function SpacePage() {
       }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Criar pasta</DialogTitle>
-            <DialogDescription>Adicione uma nova pasta.</DialogDescription>
+            <DialogTitle>Create folder</DialogTitle>
+            <DialogDescription>Add a new folder.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Nome</Label>
+              <Label>Name</Label>
               <Input
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
@@ -301,11 +301,11 @@ export default function SpacePage() {
               />
             </div>
             <div className="space-y-1">
-              <Label>Descrição</Label>
+              <Label>Description</Label>
               <Input
                 value={newFolderDesc}
                 onChange={(e) => setNewFolderDesc(e.target.value)}
-                placeholder="Opcional"
+                placeholder="Optional"
               />
             </div>
           </div>
@@ -318,10 +318,10 @@ export default function SpacePage() {
                 setNewFolderDesc('');
               }}
             >
-              Cancelar
+              Cancel
             </Button>
             <Button onClick={handleCreateFolder} disabled={!newFolderName.trim() || creating}>
-              {creating ? 'Criando...' : 'Criar pasta'}
+              {creating ? 'Creating...' : 'Create folder'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -336,24 +336,24 @@ export default function SpacePage() {
       }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Criar processo</DialogTitle>
-            <DialogDescription>Adicione um novo processo.</DialogDescription>
+            <DialogTitle>Create process</DialogTitle>
+            <DialogDescription>Add a new process.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Nome</Label>
+              <Label>Name</Label>
               <Input
                 value={newProcessName}
                 onChange={(e) => setNewProcessName(e.target.value)}
-                placeholder="Ex: Processo de Vendas"
+                placeholder="e.g., Sales Process"
               />
             </div>
             <div className="space-y-1">
-              <Label>Descrição</Label>
+              <Label>Description</Label>
               <Input
                 value={newProcessDesc}
                 onChange={(e) => setNewProcessDesc(e.target.value)}
-                placeholder="Opcional"
+                placeholder="Optional"
               />
             </div>
           </div>
@@ -366,10 +366,10 @@ export default function SpacePage() {
                 setNewProcessDesc('');
               }}
             >
-              Cancelar
+              Cancel
             </Button>
             <Button onClick={handleCreateProcess} disabled={!newProcessName.trim() || creating}>
-              {creating ? 'Criando...' : 'Criar processo'}
+              {creating ? 'Creating...' : 'Create process'}
             </Button>
           </DialogFooter>
         </DialogContent>

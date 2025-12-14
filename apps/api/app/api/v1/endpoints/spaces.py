@@ -1,8 +1,7 @@
 """
-Spaces endpoints (Notion-like navigation)
+Spaces endpoints (simplified for Private Space only)
 
 - Private Space tree
-- Team Space tree (active organization)
 - Recents for the current user
 """
 
@@ -10,30 +9,22 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from slugify import slugify
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user, require_organization_access, require_role
-from app.core.exceptions import ResourceNotFoundError, ValidationError
-from app.db.models import Folder, Organization, OrganizationMember, ProcessModel, User
+from app.core.dependencies import get_current_user
+from app.core.exceptions import ResourceNotFoundError, ValidationError, AuthorizationError
+from app.db.models import Folder, ProcessModel, User
 from app.db.session import get_db
 from app.schemas.auth import ProcessResponse
 from app.schemas.hierarchy import FolderTree, FolderCreate, FolderUpdate
 from app.schemas.spaces import (
     RecentsResponse,
     RecentItem,
-    SpaceCreate,
     SpaceDetailResponse,
     SpaceListResponse,
     SpaceProcessCreate,
-    SpaceProcessUpdate,
     SpaceSummary,
     SpaceTreeResponse,
-    FolderMoveRequest,
-    ProcessMoveRequest,
-    FolderPathResponse,
-    FolderPathItem,
-    SpaceStatsResponse,
 )
 
 router = APIRouter()
@@ -42,8 +33,7 @@ router = APIRouter()
 def _build_space_tree(
     folders: List[Folder],
     processes: List[ProcessModel],
-    space_type: str,
-    space_id: Optional[str],
+    space_id: str,
 ) -> SpaceTreeResponse:
     """Rebuild a tree from flat folder/process lists for a given space."""
     folder_children: Dict[str | None, List[Folder]] = {}
@@ -68,8 +58,6 @@ def _build_space_tree(
         processes_here = process_by_folder.get(folder.id, [])
         return FolderTree(
             id=folder.id,
-            project_id=folder.project_id,
-            organization_id=folder.organization_id,
             user_id=folder.user_id,
             parent_folder_id=folder.parent_folder_id,
             name=folder.name,
@@ -92,21 +80,8 @@ def _build_space_tree(
     ]
 
     return SpaceTreeResponse(
-        space_type=space_type, space_id=space_id, root_folders=[build_node(f) for f in roots], root_processes=root_processes
+        space_type="private", space_id=space_id, root_folders=[build_node(f) for f in roots], root_processes=root_processes
     )
-
-
-def _user_role_for_org(db: Session, org_id: str, user_id: str) -> Optional[str]:
-    membership = (
-        db.query(OrganizationMember)
-        .filter(
-            OrganizationMember.organization_id == org_id,
-            OrganizationMember.user_id == user_id,
-            OrganizationMember.deleted_at == None,  # noqa: E711
-        )
-        .first()
-    )
-    return membership.role if membership else None
 
 
 @router.get("/spaces/private/tree", response_model=SpaceTreeResponse)
@@ -120,7 +95,7 @@ def get_private_space_tree(
         .filter(
             Folder.user_id == current_user.id,
             Folder.organization_id.is_(None),
-            Folder.deleted_at == None,  # noqa: E711
+            Folder.deleted_at == None
         )
         .all()
     )
@@ -128,67 +103,19 @@ def get_private_space_tree(
         db.query(ProcessModel)
         .filter(
             ProcessModel.user_id == current_user.id,
-            ProcessModel.deleted_at == None,  # noqa: E711
+            ProcessModel.organization_id.is_(None),
+            ProcessModel.deleted_at == None
         )
         .all()
     )
-    return _build_space_tree(folders, processes, "private", current_user.id)
-
-
-@router.get("/spaces/team/tree", response_model=SpaceTreeResponse)
-def get_team_space_tree(
-    organization_id: Optional[str] = Query(
-        None, description="Target organization ID (defaults to active org)"
-    ),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Return root folders/processes for the active organization (Team Space)."""
-    target_org_id = organization_id or current_user.organization_id
-    if not target_org_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No active organization set for team space",
-        )
-
-    require_organization_access(current_user, target_org_id, db=db)
-
-    org_exists = (
-        db.query(Organization)
-        .filter(
-            Organization.id == target_org_id,
-            Organization.deleted_at == None,  # noqa: E711
-        )
-        .first()
-    )
-    if not org_exists:
-        raise ResourceNotFoundError("Organization", target_org_id)
-
-    folders = (
-        db.query(Folder)
-        .filter(
-            Folder.organization_id == target_org_id,
-            Folder.deleted_at == None,  # noqa: E711
-        )
-        .all()
-    )
-    processes = (
-        db.query(ProcessModel)
-        .filter(
-            ProcessModel.organization_id == target_org_id,
-            ProcessModel.deleted_at == None,  # noqa: E711
-        )
-        .all()
-    )
-    return _build_space_tree(folders, processes, "team", target_org_id)
+    return _build_space_tree(folders, processes, current_user.id)
 
 
 @router.get("/spaces", response_model=SpaceListResponse)
 def list_spaces(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
 ):
-    """List all spaces visible to the current user (private + org memberships)."""
+    """List all spaces visible to the current user (only private now)."""
     spaces: List[SpaceSummary] = [
         SpaceSummary(
             id="private",
@@ -199,74 +126,7 @@ def list_spaces(
             is_protected=True,
         )
     ]
-
-    memberships = (
-        db.query(OrganizationMember, Organization)
-        .join(Organization, Organization.id == OrganizationMember.organization_id)
-        .filter(
-            OrganizationMember.user_id == current_user.id,
-            OrganizationMember.deleted_at == None,  # noqa: E711
-            Organization.deleted_at == None,  # noqa: E711
-        )
-        .all()
-    )
-
-    for membership, org in memberships:
-        spaces.append(
-            SpaceSummary(
-                id=org.id,
-                name=org.name,
-                description=org.description,
-                type="team",
-                role=membership.role if membership.role in ["admin", "editor", "viewer"] else "viewer",
-                is_protected=False,
-            )
-        )
-
     return SpaceListResponse(spaces=spaces)
-
-
-@router.post("/spaces", response_model=SpaceDetailResponse, status_code=status.HTTP_201_CREATED)
-def create_space(
-    payload: SpaceCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Create a new team space (backed by Organization) and add creator as admin."""
-    base_slug = slugify(payload.name)
-    slug = base_slug
-    counter = 1
-    while db.query(Organization).filter(Organization.slug == slug).first():
-        slug = f"{base_slug}-{counter}"
-        counter += 1
-
-    org = Organization(
-        name=payload.name,
-        slug=slug,
-        description=payload.description,
-    )
-    db.add(org)
-    db.flush()
-
-    membership = OrganizationMember(
-        organization_id=org.id,
-        user_id=current_user.id,
-        role="admin",
-        status="active",
-    )
-    db.add(membership)
-    db.commit()
-    db.refresh(org)
-
-    return SpaceDetailResponse(
-        id=org.id,
-        name=org.name,
-        description=org.description,
-        type="team",
-        role="admin",
-        is_protected=False,
-        created_at=org.created_at,
-    )
 
 
 @router.get("/spaces/{space_id}/tree", response_model=SpaceTreeResponse)
@@ -275,39 +135,11 @@ def get_space_tree(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Generic tree endpoint for any space (private or team by org id)."""
-    if space_id == "private":
-        return get_private_space_tree(current_user=current_user, db=db)
-
-    require_organization_access(current_user, space_id, db=db)
-    org_exists = (
-        db.query(Organization)
-        .filter(
-            Organization.id == space_id,
-            Organization.deleted_at == None,  # noqa: E711
-        )
-        .first()
-    )
-    if not org_exists:
-        raise ResourceNotFoundError("Organization", space_id)
-
-    folders = (
-        db.query(Folder)
-        .filter(
-            Folder.organization_id == space_id,
-            Folder.deleted_at == None,  # noqa: E711
-        )
-        .all()
-    )
-    processes = (
-        db.query(ProcessModel)
-        .filter(
-            ProcessModel.organization_id == space_id,
-            ProcessModel.deleted_at == None,  # noqa: E711
-        )
-        .all()
-    )
-    return _build_space_tree(folders, processes, "team", space_id)
+    """Generic tree endpoint for any space (only supports 'private')."""
+    if space_id != "private":
+         raise ResourceNotFoundError("Space", space_id)
+         
+    return get_private_space_tree(current_user=current_user, db=db)
 
 
 def _cascade_delete_folder(db: Session, folder: Folder, now: datetime):
@@ -315,13 +147,13 @@ def _cascade_delete_folder(db: Session, folder: Folder, now: datetime):
     folder.deleted_at = now
     db.query(ProcessModel).filter(
         ProcessModel.folder_id == folder.id,
-        ProcessModel.deleted_at == None,  # noqa: E711
+        ProcessModel.deleted_at == None,
     ).update({"deleted_at": now})
     children = (
         db.query(Folder)
         .filter(
             Folder.parent_folder_id == folder.id,
-            Folder.deleted_at == None,  # noqa: E711
+            Folder.deleted_at == None,
         )
         .all()
     )
@@ -337,28 +169,23 @@ def create_space_folder(
     db: Session = Depends(get_db),
 ):
     """Create a folder under a space (root or nested)."""
-    is_private = space_id == "private"
-    organization_id = None if is_private else space_id
-    user_id = current_user.id if is_private else None
+    if space_id != "private":
+        raise ValidationError("Only private space is supported")
 
-    if not is_private:
-        require_organization_access(current_user, space_id, db=db)
+    user_id = current_user.id
 
     if folder_data.parent_folder_id:
         parent = (
             db.query(Folder)
             .filter(
                 Folder.id == folder_data.parent_folder_id,
-                Folder.deleted_at == None,  # noqa: E711
+                Folder.deleted_at == None,
             )
             .first()
         )
         if not parent:
             raise ResourceNotFoundError("Folder", folder_data.parent_folder_id)
-        # Validate parent belongs to same space
-        if (is_private and parent.user_id != user_id) or (
-            not is_private and parent.organization_id != organization_id
-        ):
+        if parent.user_id != user_id:
             raise ValidationError("Parent folder must belong to the same space")
 
     position = (
@@ -366,17 +193,14 @@ def create_space_folder(
         if folder_data.position is not None
         else db.query(Folder)
         .filter(
-            Folder.organization_id == organization_id,
             Folder.user_id == user_id,
             Folder.parent_folder_id == folder_data.parent_folder_id,
-            Folder.deleted_at == None,  # noqa: E711
+            Folder.deleted_at == None,
         )
         .count()
     )
 
     folder = Folder(
-        project_id=None,
-        organization_id=organization_id,
         user_id=user_id,
         parent_folder_id=folder_data.parent_folder_id,
         name=folder_data.name,
@@ -392,27 +216,10 @@ def create_space_folder(
     db.refresh(folder)
 
     # Response with counts
-    processes_here = (
-        db.query(ProcessModel)
-        .filter(
-            ProcessModel.folder_id == folder.id,
-            ProcessModel.deleted_at == None,  # noqa: E711
-        )
-        .count()
-    )
-    children_here = (
-        db.query(Folder)
-        .filter(
-            Folder.parent_folder_id == folder.id,
-            Folder.deleted_at == None,  # noqa: E711
-        )
-        .count()
-    )
-
     return FolderTree(
         **FolderTree.model_validate(folder).model_dump(),
-        process_count=processes_here,
-        child_count=children_here,
+        process_count=0,
+        child_count=0,
         processes=[],
         children=[],
     )
@@ -426,38 +233,29 @@ def get_space_folder(
     db: Session = Depends(get_db),
 ):
     """Get details of a specific folder within a space."""
-    is_private = space_id == "private"
-    organization_id = None if is_private else space_id
-    user_id = current_user.id if is_private else None
-
-    if not is_private:
-        require_organization_access(current_user, space_id, db=db)
+    if space_id != "private":
+        raise ValidationError("Only private space is supported")
 
     folder = (
         db.query(Folder)
         .filter(
             Folder.id == folder_id,
-            Folder.deleted_at == None,  # noqa: E711
+            Folder.deleted_at == None,
         )
         .first()
     )
     if not folder:
         raise ResourceNotFoundError("Folder", folder_id)
 
-    # Ensure folder belongs to the target space
-    if is_private:
-        if folder.user_id != user_id or folder.organization_id is not None:
-            raise ValidationError("Folder must belong to the private space")
-    else:
-        if folder.organization_id != organization_id:
-            raise ValidationError("Folder must belong to the target space")
+    if folder.user_id != current_user.id:
+        raise ValidationError("Folder must belong to the private space")
 
     # Get children and processes
     children = (
         db.query(Folder)
         .filter(
             Folder.parent_folder_id == folder_id,
-            Folder.deleted_at == None,  # noqa: E711
+            Folder.deleted_at == None,
         )
         .order_by(Folder.position, Folder.name)
         .all()
@@ -466,7 +264,7 @@ def get_space_folder(
         db.query(ProcessModel)
         .filter(
             ProcessModel.folder_id == folder_id,
-            ProcessModel.deleted_at == None,  # noqa: E711
+            ProcessModel.deleted_at == None,
         )
         .order_by(ProcessModel.position, ProcessModel.name)
         .all()
@@ -475,8 +273,6 @@ def get_space_folder(
     # Build response
     return FolderTree(
         id=folder.id,
-        project_id=folder.project_id,
-        organization_id=folder.organization_id,
         user_id=folder.user_id,
         parent_folder_id=folder.parent_folder_id,
         name=folder.name,
@@ -492,8 +288,6 @@ def get_space_folder(
         children=[
             FolderTree(
                 id=child.id,
-                project_id=child.project_id,
-                organization_id=child.organization_id,
                 user_id=child.user_id,
                 parent_folder_id=child.parent_folder_id,
                 name=child.name,
@@ -523,7 +317,7 @@ def _validate_no_cycle_space_folder(db: Session, folder: Folder, new_parent_id: 
 
     current = (
         db.query(Folder)
-        .filter(Folder.id == new_parent_id, Folder.deleted_at == None)  # noqa: E711
+        .filter(Folder.id == new_parent_id, Folder.deleted_at == None)
         .first()
     )
     if not current:
@@ -534,7 +328,7 @@ def _validate_no_cycle_space_folder(db: Session, folder: Folder, new_parent_id: 
             raise ValidationError("Cannot move folder inside its own subtree")
         current = (
             db.query(Folder)
-            .filter(Folder.id == current.parent_folder_id, Folder.deleted_at == None)  # noqa: E711
+            .filter(Folder.id == current.parent_folder_id, Folder.deleted_at == None)
             .first()
         )
         if not current:
@@ -550,32 +344,22 @@ def update_space_folder(
     db: Session = Depends(get_db),
 ):
     """Update a folder within a space (rename, recolor, move, etc.)."""
-    is_private = space_id == "private"
-    organization_id = None if is_private else space_id
-    user_id = current_user.id if is_private else None
-
-    if not is_private:
-        require_organization_access(current_user, space_id, db=db)
-        require_role(current_user, ["editor", "admin"])
+    if space_id != "private":
+        raise ValidationError("Only private space is supported")
 
     folder = (
         db.query(Folder)
         .filter(
             Folder.id == folder_id,
-            Folder.deleted_at == None,  # noqa: E711
+            Folder.deleted_at == None,
         )
         .first()
     )
     if not folder:
         raise ResourceNotFoundError("Folder", folder_id)
 
-    # Ensure folder belongs to the target space
-    if is_private:
-        if folder.user_id != user_id or folder.organization_id is not None:
-            raise ValidationError("Folder must belong to the private space")
-    else:
-        if folder.organization_id != organization_id:
-            raise ValidationError("Folder must belong to the target space")
+    if folder.user_id != current_user.id:
+        raise ValidationError("Folder must belong to the private space")
 
     # Handle move/parent change
     if folder_data.parent_folder_id is not None:
@@ -584,19 +368,15 @@ def update_space_folder(
                 db.query(Folder)
                 .filter(
                     Folder.id == folder_data.parent_folder_id,
-                    Folder.deleted_at == None,  # noqa: E711
+                    Folder.deleted_at == None,
                 )
                 .first()
             )
             if not new_parent:
                 raise ResourceNotFoundError("Folder", folder_data.parent_folder_id)
-            # Validate parent belongs to same space
-            if is_private:
-                if new_parent.user_id != user_id or new_parent.organization_id is not None:
-                    raise ValidationError("Parent folder must belong to the same space")
-            else:
-                if new_parent.organization_id != organization_id:
-                    raise ValidationError("Parent folder must belong to the same space")
+            if new_parent.user_id != current_user.id:
+                raise ValidationError("Parent folder must belong to the same space")
+        
         _validate_no_cycle_space_folder(db, folder, folder_data.parent_folder_id)
         folder.parent_folder_id = folder_data.parent_folder_id
 
@@ -614,82 +394,9 @@ def update_space_folder(
     db.commit()
     db.refresh(folder)
 
-    # Get counts
-    processes_here = (
-        db.query(ProcessModel)
-        .filter(
-            ProcessModel.folder_id == folder.id,
-            ProcessModel.deleted_at == None,  # noqa: E711
-        )
-        .count()
-    )
-    children_here = (
-        db.query(Folder)
-        .filter(
-            Folder.parent_folder_id == folder.id,
-            Folder.deleted_at == None,  # noqa: E711
-        )
-        .count()
-    )
-
-    # Get direct children and processes for response
-    children = (
-        db.query(Folder)
-        .filter(
-            Folder.parent_folder_id == folder.id,
-            Folder.deleted_at == None,  # noqa: E711
-        )
-        .order_by(Folder.position, Folder.name)
-        .all()
-    )
-    processes_list = (
-        db.query(ProcessModel)
-        .filter(
-            ProcessModel.folder_id == folder.id,
-            ProcessModel.deleted_at == None,  # noqa: E711
-        )
-        .order_by(ProcessModel.position, ProcessModel.name)
-        .all()
-    )
-
-    return FolderTree(
-        id=folder.id,
-        project_id=folder.project_id,
-        organization_id=folder.organization_id,
-        user_id=folder.user_id,
-        parent_folder_id=folder.parent_folder_id,
-        name=folder.name,
-        description=folder.description,
-        color=folder.color,
-        icon=folder.icon,
-        position=folder.position or 0,
-        created_at=folder.created_at,
-        updated_at=folder.updated_at,
-        process_count=processes_here,
-        child_count=children_here,
-        processes=[ProcessResponse.from_orm(p) for p in processes_list],
-        children=[
-            FolderTree(
-                id=child.id,
-                project_id=child.project_id,
-                organization_id=child.organization_id,
-                user_id=child.user_id,
-                parent_folder_id=child.parent_folder_id,
-                name=child.name,
-                description=child.description,
-                color=child.color,
-                icon=child.icon,
-                position=child.position or 0,
-                created_at=child.created_at,
-                updated_at=child.updated_at,
-                process_count=0,
-                child_count=0,
-                processes=[],
-                children=[],
-            )
-            for child in children
-        ],
-    )
+    # Simplified response construction (similar to get_space_folder logic is better but for speed: just basic tree node)
+    # Ideally should return full tree or updated node.
+    return get_space_folder(space_id, folder_id, current_user, db)
 
 
 @router.delete("/spaces/{space_id}/folders/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -699,33 +406,23 @@ def delete_space_folder(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Delete a folder within a space (private or team) with cascade on children and processes."""
-    is_private = space_id == "private"
-    organization_id = None if is_private else space_id
-    user_id = current_user.id if is_private else None
-
-    if not is_private:
-        require_organization_access(current_user, space_id, db=db)
-        require_role(current_user, ["editor", "admin"])
+    """Delete a folder within a space with cascade."""
+    if space_id != "private":
+        raise ValidationError("Only private space is supported")
 
     folder = (
         db.query(Folder)
         .filter(
             Folder.id == folder_id,
-            Folder.deleted_at == None,  # noqa: E711
+            Folder.deleted_at == None,
         )
         .first()
     )
     if not folder:
         raise ResourceNotFoundError("Folder", folder_id)
-
-    # Ensure folder belongs to the target space
-    if is_private:
-        if folder.user_id != user_id or folder.organization_id is not None:
-            raise ValidationError("Folder must belong to the private space")
-    else:
-        if folder.organization_id != organization_id:
-            raise ValidationError("Folder must belong to the target space")
+    
+    if folder.user_id != current_user.id:
+        raise ValidationError("Folder must belong to the private space")
 
     now = datetime.utcnow()
     _cascade_delete_folder(db, folder, now)
@@ -741,36 +438,28 @@ def create_space_process(
     db: Session = Depends(get_db),
 ):
     """Create a process directly under a space (root or inside a folder)."""
-    is_private = space_id == "private"
-    organization_id = None if is_private else space_id
-    user_id = current_user.id if is_private else None
-
-    if not is_private:
-        require_organization_access(current_user, space_id, db=db)
-        require_role(current_user, ["editor", "admin"])
-
+    if space_id != "private":
+         raise ValidationError("Only private space is supported")
+    
     if payload.folder_id:
         folder = (
             db.query(Folder)
             .filter(
                 Folder.id == payload.folder_id,
-                Folder.deleted_at == None,  # noqa: E711
+                Folder.deleted_at == None,
             )
             .first()
         )
         if not folder:
             raise ResourceNotFoundError("Folder", payload.folder_id)
-        if (is_private and folder.user_id != user_id) or (
-            not is_private and folder.organization_id != organization_id
-        ):
-            raise ValidationError("Folder must belong to the same space")
+        if folder.user_id != current_user.id:
+             raise ValidationError("Folder must belong to the same space")
+             
     process = ProcessModel(
-        project_id=None,
         folder_id=payload.folder_id,
         name=payload.name,
         description=payload.description,
-        organization_id=organization_id,
-        user_id=user_id,
+        user_id=current_user.id,
         created_by=current_user.id,
     )
 
@@ -789,32 +478,24 @@ def get_space_process(
     db: Session = Depends(get_db),
 ):
     """Get details of a specific process within a space."""
-    is_private = space_id == "private"
-    organization_id = None if is_private else space_id
-    user_id = current_user.id if is_private else None
-
-    if not is_private:
-        require_organization_access(current_user, space_id, db=db)
+    if space_id != "private":
+         raise ValidationError("Only private space is supported")
 
     process = (
         db.query(ProcessModel)
         .filter(
             ProcessModel.id == process_id,
-            ProcessModel.deleted_at == None,  # noqa: E711
+            ProcessModel.deleted_at == None
         )
         .first()
     )
+    
     if not process:
         raise ResourceNotFoundError("Process", process_id)
-
-    # Ensure process belongs to the target space
-    if is_private:
-        if process.user_id != user_id or process.organization_id is not None:
-            raise ValidationError("Process must belong to the private space")
-    else:
-        if process.organization_id != organization_id:
-            raise ValidationError("Process must belong to the target space")
-
+        
+    if process.user_id != current_user.id:
+          raise AuthorizationError("Access denied to this personal process")
+          
     # Get version count
     from sqlalchemy import func
     from app.db.models import ModelVersion

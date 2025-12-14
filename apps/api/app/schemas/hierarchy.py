@@ -46,8 +46,6 @@ class FolderResponse(BaseModel):
     """Response schema for folder metadata."""
 
     id: str
-    project_id: Optional[str] = None
-    organization_id: Optional[str] = None
     user_id: Optional[str] = None
     parent_folder_id: Optional[str] = None
     name: str
@@ -73,18 +71,8 @@ class FolderTree(FolderResponse):
     children: List["FolderTree"] = Field(default_factory=list)
     processes: List[ProcessResponse] = Field(default_factory=list)
 
+# ProjectHierarchyResponse completely removed as Projects are gone
 
-class ProjectHierarchyResponse(BaseModel):
-    """Combined response for a project's folder + process hierarchy."""
-
-    project_id: str
-    root_processes: List[ProcessResponse] = Field(
-        default_factory=list,
-        description="Processes that live directly under the project (no folder)",
-    )
-    folders: List[FolderTree] = Field(
-        default_factory=list, description="Root-level folders with nested children"
-    )
 
 
 # Resolve forward references for recursive models

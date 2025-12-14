@@ -1,4 +1,4 @@
-import { FileText, ArrowRight, Zap } from 'lucide-react';
+import { FileText, ArrowRight, Wand2 } from 'lucide-react';
 
 export function HeroVisualization() {
   return (
@@ -15,7 +15,7 @@ export function HeroVisualization() {
         className="absolute inset-0 flex items-center justify-center px-8 sm:px-12 py-4 sm:py-5 overflow-hidden"
       >
         <div
-          className="hero-scene flex flex-row flex-nowrap items-center justify-between gap-3 sm:gap-4 md:gap-5 origin-top text-center w-full max-w-[620px] sm:max-w-[720px]"
+          className="hero-scene flex flex-row flex-wrap md:flex-nowrap items-center justify-center md:justify-between gap-4 sm:gap-4 md:gap-5 origin-top text-center w-full max-w-[620px] sm:max-w-[720px]"
         >
           
           {/* Left: Documents */}
@@ -43,17 +43,20 @@ export function HeroVisualization() {
           </div>
 
           {/* Middle: Transformation */}
-          <div className="relative flex flex-col items-center justify-center gap-3 text-primary z-10 shrink-0 min-h-[150px] w-[96px] sm:w-[108px]">
+          <div className="relative flex flex-col items-center justify-center gap-3 text-black z-10 shrink-0 min-h-[150px] w-[96px] sm:w-[108px]">
             <div className="relative">
-              <div className="absolute inset-[-14px] sm:inset-[-18px] rounded-full bg-primary/15 blur-xl" aria-hidden />
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white dark:bg-slate-800 border border-primary/30 flex items-center justify-center shadow-lg shadow-primary/25">
-                <Zap className="w-6 h-6 sm:w-7 sm:h-7 text-primary" />
+              <div className="absolute inset-[-14px] sm:inset-[-18px] rounded-full bg-black/15 blur-xl" aria-hidden />
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white dark:bg-slate-800 border border-slate-500/30 flex items-center justify-center shadow-lg shadow-slate-500/25">
+                <Wand2 className="w-6 h-6 sm:w-7 sm:h-7 text-black" />
               </div>
             </div>
             <div className="relative h-[3px] w-20 sm:w-24 overflow-visible">
-              <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] bg-gradient-to-r from-primary/0 via-primary/70 to-primary/0 rounded-full blur-[1px]" />
-              <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] bg-gradient-to-r from-primary/10 via-primary to-primary/10 rounded-full" />
-              <ArrowRight className="absolute right-0 -mr-2 sm:-mr-1 top-1/2 -translate-y-1/2 w-6 h-6 sm:w-6 sm:h-6 text-primary" />
+              <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] bg-gradient-to-r from-black/0 via-black/70 to-black/0 rounded-full blur-[1px]" />
+              <div
+                className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] bg-gradient-to-r from-black/10 via-black/80 to-black/10 rounded-full"
+                style={{ backgroundSize: '200% 100%', animation: 'flowLine 1.8s linear infinite' }}
+              />
+              <ArrowRight className="absolute right-0 -mr-2 sm:-mr-1 top-1/2 -translate-y-1/2 w-6 h-6 sm:w-6 sm:h-6 text-black" />
             </div>
             <span className="text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-200 text-center">
               Process Wizard
@@ -151,6 +154,11 @@ export function HeroVisualization() {
 
         .animate-flow {
           animation: flow 2.4s linear infinite;
+        }
+
+        @keyframes flowLine {
+          0% { background-position: 0 0; }
+          100% { background-position: -200% 0; }
         }
 
         .animate-ping-slow {

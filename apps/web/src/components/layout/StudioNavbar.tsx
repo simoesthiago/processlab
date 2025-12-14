@@ -7,12 +7,13 @@
  * Shows workspace context, process info, version status, and actions.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
+import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import { cn } from '@/lib/utils';
 import {
   ChevronRight,
@@ -22,24 +23,25 @@ import {
   Clock,
   CheckCircle,
   ArrowLeft,
-  FolderKanban,
   FolderOpen,
   Workflow,
   Undo2,
   Redo2,
-  Settings,
   Globe,
   ChevronDown,
   ZoomIn,
   ZoomOut,
   Maximize2,
   Search,
+  Lock,
+  Trash2,
 } from 'lucide-react';
 
-interface Process {
+
+export interface Process {
   id: string;
   name: string;
-  project_id?: string | null;
+  folder_id?: string | null;
 }
 
 interface Version {
@@ -58,14 +60,11 @@ interface StudioNavbarProps {
   onSave: () => void;
   onExport: () => void;
   onActivateVersion?: (versionId: string) => void;
-  projectName?: string;
   spaceName?: string;
   folderPath?: Array<{ id: string; name: string }>;
-  workspaceType?: 'personal' | 'organization';
-  projectId?: string;
   editorRef?: React.RefObject<BpmnEditorRef | null>;
-  onSettingsClick?: () => void;
   onSearchClick?: () => void;
+  onDeleteProcess?: () => void;
 }
 
 export function StudioNavbar({
@@ -77,14 +76,11 @@ export function StudioNavbar({
   onSave,
   onExport,
   onActivateVersion,
-  projectName,
   spaceName,
   folderPath = [],
-  workspaceType,
-  projectId,
   editorRef,
-  onSettingsClick,
   onSearchClick,
+  onDeleteProcess,
 }: StudioNavbarProps) {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
@@ -135,7 +131,7 @@ export function StudioNavbar({
 
   const applyZoomFromInput = () => {
     if (!editorRef?.current) return;
-    
+
     const numericValue = parseInt(zoomInputValue);
     if (isNaN(numericValue) || numericValue < 20 || numericValue > 300) {
       // Reset to current zoom if invalid (getZoom returns percentage)
@@ -144,24 +140,52 @@ export function StudioNavbar({
       setCurrentZoom(zoom / 100);
       return;
     }
-    
+
     const zoomDecimal = numericValue / 100;
     editorRef.current.setZoom(zoomDecimal);
     setCurrentZoom(zoomDecimal);
   };
   const { currentWorkspace } = useWorkspace();
-  
-  // Use spaceName if provided (for spaces), otherwise fall back to currentWorkspace or projectName
-  // Priority: spaceName > projectName > currentWorkspace > 'Workspace'
-  const displayWorkspaceName = spaceName || projectName || currentWorkspace?.name || 'Workspace';
+
+  // Use spaceName if provided (for spaces), otherwise fall back to currentWorkspace
+  const displayWorkspaceName = spaceName || currentWorkspace?.name || 'Workspace';
 
   const selectedVersion = versions.find(v => v.id === selectedVersionId);
+  const breadcrumbItems = useMemo<BreadcrumbItem[]>(() => {
+    const items: BreadcrumbItem[] = [
+      {
+        label: spaceName || displayWorkspaceName,
+        href: basePath,
+        icon: FolderOpen,
+      },
+    ];
+
+    // Folder path inside space
+    if (folderPath && folderPath.length) {
+      folderPath.forEach((folder) => {
+        items.push({
+          label: folder.name,
+          href: `${basePath}/folders/${folder.id}`,
+          icon: FolderOpen,
+        });
+      });
+    }
+
+    if (process) {
+      items.push({
+        label: process.name,
+        icon: Workflow,
+      });
+    }
+
+    return items;
+  }, [basePath, displayWorkspaceName, folderPath, process, spaceName]);
 
   return (
     <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4 shrink-0">
       {/* Left Section - Back, Breadcrumbs */}
       <div className="flex items-center gap-3">
-        {/* Back to Workspace/Project */}
+        {/* Back to Workspace */}
         <Link
           href={basePath}
           className="p-2 bg-muted/60 hover:bg-muted rounded-md transition-colors text-muted-foreground hover:text-foreground shadow-sm"
@@ -171,67 +195,9 @@ export function StudioNavbar({
         </Link>
 
         {/* Breadcrumbs */}
-        <nav className="flex items-center gap-1.5 text-sm">
-          <Link
-            href={basePath}
-            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <FolderKanban className="h-3.5 w-3.5" />
-            {displayWorkspaceName}
-          </Link>
-
-          {process ? (
-            <>
-              {/* Show folder path if process is in a folder within a space (not a project) */}
-              {!process.project_id && folderPath && folderPath.length > 0 ? (
-                <>
-                  {folderPath.map((folder) => (
-                    <span key={folder.id} className="flex items-center gap-1.5">
-                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-                      <Link
-                        href={`${basePath}/folders/${folder.id}`}
-                        className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <FolderOpen className="h-3.5 w-3.5" />
-                        <span className="truncate max-w-[120px]">{folder.name}</span>
-                      </Link>
-                    </span>
-                  ))}
-                </>
-              ) : process.project_id ? (
-                <>
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-                  <Link
-                    href={`${basePath}/folders/${process.project_id}`}
-                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <FolderKanban className="h-3.5 w-3.5" />
-                    {projectName || 'Folder'}
-                  </Link>
-                  {folderPath && folderPath.length > 0 && folderPath.map((folder) => (
-                    <span key={folder.id} className="flex items-center gap-1.5">
-                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-                      <FolderOpen className="h-3.5 w-3.5" />
-                      <span className="truncate max-w-[120px] text-muted-foreground">{folder.name}</span>
-                    </span>
-                  ))}
-                </>
-              ) : null}
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-              <span className="flex items-center gap-1.5 font-medium text-foreground truncate max-w-[200px]">
-                <Workflow className="h-3.5 w-3.5" />
-                {process.name}
-              </span>
-            </>
-          ) : (
-            <>
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-              <span className="font-medium text-foreground">
-                New Process
-              </span>
-            </>
-          )}
-        </nav>
+        <div className="text-sm text-muted-foreground">
+          <Breadcrumbs items={breadcrumbItems} />
+        </div>
       </div>
 
       {/* Center Section - Version Info */}
@@ -281,8 +247,8 @@ export function StudioNavbar({
             disabled={!canUndo}
             className={cn(
               "p-1.5 rounded-md transition-colors",
-              canUndo 
-                ? "hover:bg-accent text-muted-foreground hover:text-foreground" 
+              canUndo
+                ? "hover:bg-accent text-muted-foreground hover:text-foreground"
                 : "text-muted-foreground/50 cursor-not-allowed"
             )}
             title="Undo (Ctrl+Z)"
@@ -298,8 +264,8 @@ export function StudioNavbar({
             disabled={!canRedo}
             className={cn(
               "p-1.5 rounded-md transition-colors",
-              canRedo 
-                ? "hover:bg-accent text-muted-foreground hover:text-foreground" 
+              canRedo
+                ? "hover:bg-accent text-muted-foreground hover:text-foreground"
                 : "text-muted-foreground/50 cursor-not-allowed"
             )}
             title="Redo (Ctrl+Y)"
@@ -361,7 +327,7 @@ export function StudioNavbar({
           </button>
         </div>
 
-        {/* Search & Settings */}
+        {/* Search & Delete */}
         <div className="flex items-center gap-1">
           <button
             onClick={onSearchClick}
@@ -371,14 +337,16 @@ export function StudioNavbar({
           >
             <Search className="h-4 w-4" />
           </button>
-          <button
-            onClick={onSettingsClick}
-            className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-            title="Settings"
-            aria-label="Open settings"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
+          {process && onDeleteProcess ? (
+            <button
+              onClick={onDeleteProcess}
+              className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
+              title="Delete process"
+              aria-label="Delete process"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
 
         {/* Export */}
@@ -397,7 +365,7 @@ export function StudioNavbar({
           variant="default"
           size="sm"
           onClick={onSave}
-          disabled={isSaving || (!process && !projectId)}
+          disabled={isSaving}
           className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[88px]"
         >
           <Save className="h-4 w-4 mr-1.5" />

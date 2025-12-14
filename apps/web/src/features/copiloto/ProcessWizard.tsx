@@ -10,9 +10,11 @@
 import { useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { BPMN_JSON } from '@processlab/shared-schemas';
-import { 
-  Send, 
+import {
+  Send,
   Plus,
+  Sparkles,
+  Wand2,
 } from 'lucide-react';
 
 interface ProcessWizardProps {
@@ -29,7 +31,7 @@ const SUGGESTIONS = [
   'Insert a time event for deadlines',
 ];
 
-export default function ProcessWizard({ bpmn, bpmnXml, modelVersionId, onEditApplied }: ProcessWizardProps) {
+export default function ProcessWizard({ bpmnXml, modelVersionId, onEditApplied }: ProcessWizardProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -40,7 +42,7 @@ export default function ProcessWizard({ bpmn, bpmnXml, modelVersionId, onEditApp
 
     const command = input;
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
-    
+
     setInput('');
     setIsLoading(true);
 
@@ -85,13 +87,11 @@ export default function ProcessWizard({ bpmn, bpmnXml, modelVersionId, onEditApp
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="flex flex-col items-center justify-center h-full text-center">
-          {/* ProcessLab Logo */}
+          {/* Magic Icon */}
           <div className="mb-0.1">
-            <img
-              src="/logo_processlab.png"
-              alt="ProcessLab Logo"
-              className="h-20 w-20 object-contain"
-            />
+            <div className="h-20 w-20 rounded-full bg-accent/30 flex items-center justify-center border border-accent/40 text-primary">
+              <Wand2 className="h-10 w-10" />
+            </div>
           </div>
 
           {/* Title and Description */}

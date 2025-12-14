@@ -46,6 +46,8 @@ export interface BpmnEditorRef {
         textColor?: string;
         textAlign?: 'left' | 'center' | 'right';
         verticalAlign?: 'top' | 'middle' | 'bottom';
+        /** Optional explicit targets (e.g., from toolbar selection mirror) */
+        targets?: any[];
     }) => void;
     /** Undo last action */
     undo: () => void;
@@ -119,6 +121,7 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
     const containerRef = useRef<HTMLDivElement>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const modelerRef = useRef<any>(null);
+    const lastSelectionRef = useRef<any[]>([]);
     const [isReady, setIsReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
     // Editor settings state
@@ -152,12 +155,243 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             if (!modelerRef.current) return;
             const modeling = modelerRef.current.get('modeling');
             const selection = modelerRef.current.get('selection');
-            const selectedElements = selection.get();
-            
+            const elementRegistry = modelerRef.current.get('elementRegistry');
+            const eventBus = modelerRef.current.get('eventBus');
+            const { targets, ...formatPayload } = format || {};
+            const selectionFromModeler = selection.get() || [];
+            const selectedElements =
+                (targets && targets.length ? targets : selectionFromModeler).length > 0
+                    ? targets && targets.length ? targets : selectionFromModeler
+                    : lastSelectionRef.current || [];
+
             if (selectedElements.length === 0) return;
 
+            const alignToTextAnchor: Record<'left' | 'center' | 'right', string> = {
+                left: 'start',
+                center: 'middle',
+                right: 'end',
+            };
+
+            const mergeDefined = (base: Record<string, any>, override: Record<string, any>) => {
+                const result = { ...base };
+                Object.entries(override).forEach(([key, value]) => {
+                    if (value !== undefined) {
+                        (result as any)[key] = value;
+                    }
+                });
+                return result;
+            };
+
+            const getStoredFormatting = (element: any) => {
+                const di = element?.di;
+                const attrs = di?.$attrs || {};
+                return {
+                    font: attrs['data-font-family'] || di?.FontName,
+                    fontSize: attrs['data-font-size'] || di?.FontSize,
+                    bold: (attrs['data-font-weight'] || di?.FontWeight) === 'bold',
+                    italic: (attrs['data-font-style'] || di?.FontStyle) === 'italic',
+                    underline: (attrs['data-text-decoration'] || di?.TextDecoration) === 'underline',
+                    textColor: attrs['data-font-color'] || di?.FontColor,
+                    textAlign: (attrs['data-text-align'] || di?.TextAlign) as 'left' | 'center' | 'right' | undefined,
+                };
+            };
+
+            const persistFormatting = (element: any, fmt: typeof formatPayload) => {
+                if (!element?.di) return;
+                const attrs = element.di.$attrs || (element.di.$attrs = {});
+                const diUpdates: Record<string, any> = {};
+
+                if (fmt.font !== undefined) {
+                    attrs['data-font-family'] = fmt.font;
+                    diUpdates.FontName = fmt.font;
+                }
+                if (fmt.fontSize !== undefined) {
+                    attrs['data-font-size'] = fmt.fontSize;
+                    diUpdates.FontSize = fmt.fontSize;
+                }
+                if (fmt.bold !== undefined) {
+                    const val = fmt.bold ? 'bold' : 'normal';
+                    attrs['data-font-weight'] = val;
+                    diUpdates.FontWeight = val;
+                }
+                if (fmt.italic !== undefined) {
+                    const val = fmt.italic ? 'italic' : 'normal';
+                    attrs['data-font-style'] = val;
+                    diUpdates.FontStyle = val;
+                }
+                if (fmt.underline !== undefined) {
+                    const val = fmt.underline ? 'underline' : 'none';
+                    attrs['data-text-decoration'] = val;
+                    diUpdates.TextDecoration = val;
+                }
+                if (fmt.textColor !== undefined) {
+                    attrs['data-font-color'] = fmt.textColor;
+                    diUpdates.FontColor = fmt.textColor;
+                }
+                if (fmt.textAlign !== undefined) {
+                    attrs['data-text-align'] = fmt.textAlign;
+                    diUpdates.TextAlign = fmt.textAlign;
+                }
+
+                // Push DI changes through modeling so the command stack and renderer know about them
+                if (Object.keys(diUpdates).length > 0) {
+                    modeling.updateProperties(element, { di: diUpdates });
+                }
+            };
+
+            const applyTextFormatting = (element: any, gfx?: SVGElement, overrides?: typeof formatPayload) => {
+                if (!element) return;
+                const registry = elementRegistry;
+                const graphics = gfx || registry.getGraphics(element);
+                const stored = getStoredFormatting(element);
+                const merged = mergeDefined(stored, overrides || {});
+
+                const normalizeFontSize = (size: any) => {
+                    if (size === undefined) return undefined;
+                    const num = Number(size);
+                    return Number.isFinite(num) ? num : undefined;
+                };
+
+                const fontSizeValue = normalizeFontSize(merged.fontSize);
+
+                const findTextNodes = (el: any) => {
+                    const svgNodes: SVGTextElement[] = [];
+                    const htmlNodes: HTMLElement[] = [];
+                    const labelNodes: SVGTextElement[] = [];
+                    if (el) {
+                        const g = registry.getGraphics(el);
+                        if (g) {
+                            g.querySelectorAll('text, tspan').forEach((n: any) => svgNodes.push(n));
+                            g.querySelectorAll('.djs-label').forEach((n: any) => labelNodes.push(n));
+                        }
+                        const id = el.id || el.businessObject?.id;
+                        if (id) {
+                            // element itself
+                            document
+                                .querySelectorAll(`[data-element-id="${id}"] text, [data-element-id="${id}"] tspan`)
+                                .forEach((n) => svgNodes.push(n as SVGTextElement));
+                            document
+                                .querySelectorAll(`[data-element-id="${id}"] .djs-label`)
+                                .forEach((n) => labelNodes.push(n as SVGTextElement));
+                            // typical external label id pattern: <elementId>_label
+                            const labelId = `${id}_label`;
+                            document
+                                .querySelectorAll(`[data-element-id="${labelId}"] text, [data-element-id="${labelId}"] tspan`)
+                                .forEach((n) => svgNodes.push(n as SVGTextElement));
+                            document
+                                .querySelectorAll(`[data-element-id="${labelId}"] .djs-label`)
+                                .forEach((n) => labelNodes.push(n as SVGTextElement));
+                            // Direct editing overlays (contenteditable div)
+                            document
+                                .querySelectorAll(
+                                    `[data-element-id="${id}"] .djs-direct-editing-content, .djs-direct-editing-content`
+                                )
+                                .forEach((n) => htmlNodes.push(n as HTMLElement));
+                        }
+                    }
+                    return { svgNodes, htmlNodes, labelNodes };
+                };
+
+                const applyTo = (el: any) => {
+                    if (!el) return;
+                    const { svgNodes, htmlNodes, labelNodes } = findTextNodes(el);
+                    svgNodes.forEach((textNode) => {
+                        if (merged.font !== undefined) {
+                            textNode.setAttribute('font-family', merged.font);
+                            (textNode as any).style.fontFamily = merged.font;
+                        }
+                        if (merged.fontSize !== undefined) {
+                            const sizeToUse = fontSizeValue ?? merged.fontSize;
+                            textNode.setAttribute('font-size', `${sizeToUse}`);
+                            (textNode as any).style.fontSize = `${sizeToUse}px`;
+                        }
+                        if (merged.bold !== undefined) {
+                            const weight = merged.bold ? 'bold' : 'normal';
+                            textNode.setAttribute('font-weight', weight);
+                            (textNode as any).style.fontWeight = weight;
+                        }
+                        if (merged.italic !== undefined) {
+                            const style = merged.italic ? 'italic' : 'normal';
+                            textNode.setAttribute('font-style', style);
+                            (textNode as any).style.fontStyle = style;
+                        }
+                        if (merged.underline !== undefined) {
+                            (textNode as any).style.textDecoration = merged.underline ? 'underline' : 'none';
+                        }
+                        if (merged.textColor !== undefined) {
+                            textNode.setAttribute('fill', merged.textColor);
+                            (textNode as any).style.fill = merged.textColor;
+                            (textNode as any).style.color = merged.textColor;
+                        }
+                        if (merged.textAlign !== undefined) {
+                            const key = merged.textAlign as keyof typeof alignToTextAnchor;
+                            const textAnchor = alignToTextAnchor[key] || 'start';
+                            textNode.setAttribute('text-anchor', textAnchor);
+                            (textNode as any).style.textAnchor = textAnchor;
+                            (textNode as any).style.textAlign = merged.textAlign;
+                        }
+                    });
+                    htmlNodes.forEach((node) => {
+                        if (merged.font !== undefined) node.style.fontFamily = merged.font;
+                        if (merged.fontSize !== undefined) node.style.fontSize = `${fontSizeValue ?? merged.fontSize}px`;
+                        if (merged.bold !== undefined) node.style.fontWeight = merged.bold ? '700' : '400';
+                        if (merged.italic !== undefined) node.style.fontStyle = merged.italic ? 'italic' : 'normal';
+                        if (merged.underline !== undefined)
+                            node.style.textDecoration = merged.underline ? 'underline' : 'none';
+                        if (merged.textColor !== undefined) node.style.color = merged.textColor;
+                        if (merged.textAlign !== undefined) node.style.textAlign = merged.textAlign;
+                    });
+                    labelNodes.forEach((node) => {
+                        if (merged.font !== undefined) (node as any).style.fontFamily = merged.font;
+                        if (merged.fontSize !== undefined)
+                            (node as any).style.fontSize = `${fontSizeValue ?? merged.fontSize}px`;
+                        if (merged.bold !== undefined) (node as any).style.fontWeight = merged.bold ? 'bold' : 'normal';
+                        if (merged.italic !== undefined) (node as any).style.fontStyle = merged.italic ? 'italic' : 'normal';
+                        if (merged.underline !== undefined)
+                            (node as any).style.textDecoration = merged.underline ? 'underline' : 'none';
+                        if (merged.textColor !== undefined) (node as any).style.color = merged.textColor;
+                        if (merged.textAlign !== undefined) (node as any).style.textAlign = merged.textAlign;
+                    });
+                };
+
+                applyTo(element);
+                applyTo(element.label);
+                if (element.labels && Array.isArray(element.labels)) {
+                    element.labels.forEach(applyTo);
+                }
+                if (element.labelTarget) {
+                    applyTo(element.labelTarget);
+                }
+            };
+
+            const changedElements: any[] = [];
+
+            const uniqById = (elements: any[]) => {
+                const seen = new Set<string>();
+                return elements.filter((el) => {
+                    const id = el?.id || el?.businessObject?.id;
+                    if (!id) return true;
+                    if (seen.has(id)) return false;
+                    seen.add(id);
+                    return true;
+                });
+            };
+
             selectedElements.forEach((element: any) => {
-                const updates: any = {};
+                const labelById = element?.id ? elementRegistry.get?.(`${element.id}_label`) : null;
+                const labelsByRelation =
+                    elementRegistry?.getAll?.().filter((el: any) => el?.labelTarget === element) || [];
+                const labelCandidates = [
+                    element,
+                    element.label,
+                    labelById,
+                    ...(element.labels || []),
+                    element.labelTarget,
+                    ...labelsByRelation,
+                ].filter(Boolean);
+                const targets = uniqById(labelCandidates);
+                // Helper to update any text nodes found for element and its label
+                const applyToTextNodes = (el: any) => applyTextFormatting(el, undefined, formatPayload);
 
                 // Color (stroke)
                 if (format.color !== undefined) {
@@ -169,61 +403,20 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                     modeling.setColor(element, { fill: format.fillColor });
                 }
 
-                // Text Color - Update label style
-                if (format.textColor !== undefined) {
-                    // Update text color via modeling.setColor for labels
-                    const label = element.labels && element.labels[0];
-                    if (label) {
-                        modeling.setColor(label, { stroke: format.textColor });
-                    }
-                    // Also update di:FontColor property
-                    updates['di:FontColor'] = format.textColor;
-                }
+                changedElements.push(...targets);
 
-                // Font
-                if (format.font !== undefined) {
-                    updates['di:FontName'] = format.font;
-                }
+                // Apply to text nodes immediately
+                targets.forEach((t) => applyToTextNodes(t));
 
-                // Font Size
-                if (format.fontSize !== undefined) {
-                    updates['di:FontSize'] = format.fontSize;
-                }
-
-                // Bold
-                if (format.bold !== undefined) {
-                    updates['di:FontWeight'] = format.bold ? 'bold' : 'normal';
-                }
-
-                // Italic
-                if (format.italic !== undefined) {
-                    updates['di:FontStyle'] = format.italic ? 'italic' : 'normal';
-                }
-
-                // Underline
-                if (format.underline !== undefined) {
-                    updates['di:TextDecoration'] = format.underline ? 'underline' : 'none';
-                }
-
-                // Text Align
-                if (format.textAlign !== undefined) {
-                    updates['di:TextAlign'] = format.textAlign;
-                }
-
-                // Vertical Align
-                if (format.verticalAlign !== undefined) {
-                    const verticalAlignMap: Record<string, string> = {
-                        'top': 'top',
-                        'middle': 'middle',
-                        'bottom': 'bottom'
-                    };
-                    updates['di:VerticalAlign'] = verticalAlignMap[format.verticalAlign] || format.verticalAlign;
-                }
-
-                if (Object.keys(updates).length > 0) {
-                    modeling.updateProperties(element, updates);
-                }
+                // Label color via modeling API (stroke + fill) so it persists
+                // Persist intended properties on DI via custom attrs + di:* for each target
+                targets.forEach((t: any) => persistFormatting(t, format));
             });
+
+            // Notify renderer to refresh (including labels)
+            if (changedElements.length > 0) {
+                eventBus.fire('elements.changed', { elements: changedElements });
+            }
         },
         undo: () => {
             if (!modelerRef.current) return;
@@ -674,6 +867,101 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             });
         }
     }, [initialXml, isReady]);
+
+    // Wire selection change events to propagate to parent
+    useEffect(() => {
+        if (!modelerRef.current || !isReady) return;
+        const modeler = modelerRef.current;
+        const eventBus = modeler.get('eventBus');
+        const selection = modeler.get('selection');
+        const elementRegistry = modeler.get('elementRegistry');
+        const alignToTextAnchor: Record<'left' | 'center' | 'right', string> = {
+            left: 'start',
+            center: 'middle',
+            right: 'end',
+        };
+
+        const getStoredFormatting = (element: any) => {
+            const di = element?.di;
+            const attrs = di?.$attrs || {};
+            return {
+                font: attrs['data-font-family'],
+                fontSize: attrs['data-font-size'],
+                bold: attrs['data-font-weight'] === 'bold',
+                italic: attrs['data-font-style'] === 'italic',
+                underline: attrs['data-text-decoration'] === 'underline',
+                textColor: attrs['data-font-color'],
+                textAlign: attrs['data-text-align'] as 'left' | 'center' | 'right' | undefined,
+            };
+        };
+
+        const applyTextFormatting = (element: any, gfx?: SVGElement) => {
+            if (!element) return;
+            const graphics = gfx || elementRegistry.getGraphics(element);
+            if (!graphics) return;
+            const stored = getStoredFormatting(element);
+            const applyTo = (el: any) => {
+                if (!el) return;
+                const g = elementRegistry.getGraphics(el);
+                if (!g) return;
+                const textNodes = g.querySelectorAll('text');
+                textNodes.forEach((textNode: SVGTextElement) => {
+                    if (stored.font !== undefined) {
+                        textNode.setAttribute('font-family', stored.font);
+                    }
+                    if (stored.fontSize !== undefined) {
+                        textNode.setAttribute('font-size', `${stored.fontSize}`);
+                    }
+                    if (stored.bold !== undefined) {
+                        textNode.setAttribute('font-weight', stored.bold ? 'bold' : 'normal');
+                    }
+                    if (stored.italic !== undefined) {
+                        textNode.setAttribute('font-style', stored.italic ? 'italic' : 'normal');
+                    }
+                    if (stored.underline !== undefined) {
+                        textNode.style.textDecoration = stored.underline ? 'underline' : 'none';
+                    }
+                    if (stored.textColor !== undefined) {
+                        textNode.setAttribute('fill', stored.textColor);
+                    }
+                    if (stored.textAlign !== undefined) {
+                        const textAnchor = alignToTextAnchor[stored.textAlign] || 'start';
+                        textNode.setAttribute('text-anchor', textAnchor);
+                    }
+                });
+            };
+
+            applyTo(element);
+            applyTo(element.label);
+        };
+
+        const handleSelectionChanged = (event: any) => {
+            const selectionService = modeler.get('selection');
+            const current = selectionService?.get?.() || event?.newSelection || [];
+            lastSelectionRef.current = current;
+            onSelectionChange?.(current);
+        };
+
+        const handleRender = (event: any) => {
+            const { element, gfx } = event || {};
+            applyTextFormatting(element, gfx);
+        };
+
+        eventBus.on('selection.changed', handleSelectionChanged);
+        eventBus.on('render.shape', handleRender);
+        eventBus.on('render.connection', handleRender);
+        eventBus.on('render.label', handleRender);
+
+        // Emit current selection once on mount
+        onSelectionChange?.(selection.get() || []);
+
+        return () => {
+            eventBus.off('selection.changed', handleSelectionChanged);
+            eventBus.off('render.shape', handleRender);
+            eventBus.off('render.connection', handleRender);
+            eventBus.off('render.label', handleRender);
+        };
+    }, [isReady, onSelectionChange]);
 
 
     if (error) {

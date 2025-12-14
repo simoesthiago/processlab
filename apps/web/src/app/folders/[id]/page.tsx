@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useParams } from 'next/navigation';
 import { SectionToolbar } from '@/components/layout/SectionToolbar';
 import { FileCard } from '@/components/files/FileCard';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -13,10 +14,11 @@ const childItems = [
   { id: 'c3', title: 'Vendor Onboarding', type: 'process' as const, description: 'Flow for new vendors' },
 ];
 
-export default function FolderPage({ params }: { params: { id: string } }) {
+export default function FolderPage() {
+  const params = useParams<{ id: string }>();
   const folderName = useMemo(
-    () => decodeURIComponent(params.id || '').replace(/-/g, ' ') || 'Folder',
-    [params.id]
+    () => decodeURIComponent(params?.id || '').replace(/-/g, ' ') || 'Folder',
+    [params?.id]
   );
 
   return (

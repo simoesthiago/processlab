@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSpaces } from '@/contexts/SpacesContext';
 import { BreadcrumbItem, Breadcrumbs } from '@/components/ui/breadcrumbs';
-import { FolderKanban, FolderOpen } from 'lucide-react';
+import { FolderOpen, Lock } from 'lucide-react';
 
 interface FolderBreadcrumbsProps {
   spaceId: string;
@@ -12,7 +12,8 @@ interface FolderBreadcrumbsProps {
 }
 
 export function FolderBreadcrumbs({ spaceId, folderId, spaceName }: FolderBreadcrumbsProps) {
-  const { getFolderPath } = useSpaces();
+  const { getFolderPath, getFolder } = useSpaces();
+  const currentFolder = folderId ? getFolder(spaceId, folderId) : null;
   const [path, setPath] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +26,13 @@ export function FolderBreadcrumbs({ spaceId, folderId, spaceName }: FolderBreadc
     setLoading(true);
     getFolderPath(spaceId, folderId)
       .then((p) => {
-        setPath(p);
+        if (p.length) {
+          setPath(p);
+        } else if (currentFolder) {
+          setPath([{ id: currentFolder.id, name: currentFolder.name }]);
+        } else {
+          setPath([]);
+        }
       })
       .catch((err) => {
         console.error('Failed to load folder path:', err);
@@ -34,15 +41,14 @@ export function FolderBreadcrumbs({ spaceId, folderId, spaceName }: FolderBreadc
       .finally(() => {
         setLoading(false);
       });
-  }, [spaceId, folderId, getFolderPath]);
+  }, [spaceId, folderId, getFolderPath, currentFolder?.id, currentFolder?.name]);
 
   if (loading) {
     return (
       <div className="text-sm text-muted-foreground">
         <Breadcrumbs
           items={[
-            { label: 'Spaces', href: '/spaces', icon: FolderKanban },
-            { label: spaceName || 'Space', href: `/spaces/${spaceId}`, icon: FolderKanban },
+            { label: spaceName || 'Space', href: `/spaces/${spaceId}`, icon: Lock },
             { label: '...', icon: FolderOpen },
           ]}
         />
@@ -51,8 +57,7 @@ export function FolderBreadcrumbs({ spaceId, folderId, spaceName }: FolderBreadc
   }
 
   const items: BreadcrumbItem[] = [
-    { label: 'Spaces', href: '/spaces', icon: FolderKanban },
-    { label: spaceName || 'Space', href: `/spaces/${spaceId}`, icon: FolderKanban },
+    { label: spaceName || 'Space', href: `/spaces/${spaceId}`, icon: Lock },
   ];
 
   // Add path items

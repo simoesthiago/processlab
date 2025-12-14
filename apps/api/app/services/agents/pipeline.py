@@ -5,7 +5,7 @@ Orchestrates the RAG -> Synthesis -> Lint -> Convert -> Layout flow.
 from typing import List, Dict, Any
 from app.services.agents import synthesis, linter, layout, supervisor
 from app.services.bpmn import json_to_xml
-# from app.services.rag import retriever # TODO: Import RAG service
+
 
 async def generate_process(artifact_ids: List[str], options: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -19,8 +19,7 @@ async def generate_process(artifact_ids: List[str], options: Dict[str, Any]) -> 
     
     try:
         # 1. Retrieve Context
-        # TODO: Call actual RAG service
-        # text = await retriever.get_consolidated_text(artifact_ids)
+
         
         # Allow overriding text via options (for testing/bypass)
         if options and options.get("context_text"):

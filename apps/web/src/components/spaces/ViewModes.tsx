@@ -78,17 +78,17 @@ export function ViewModes({
                     <div className="text-sm text-muted-foreground truncate">{folder.description}</div>
                   )}
                   <div className="text-xs text-muted-foreground mt-1">
-                    {folder.processes?.length || 0} processos · {folder.children?.length || 0} pastas
+                    {folder.processes?.length || 0} processes · {folder.children?.length || 0} folders
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <Button asChild size="sm">
-                  <Link href={`/spaces/${spaceId}/folders/${folder.id}`}>Abrir</Link>
+                  <Link href={`/spaces/${spaceId}/folders/${folder.id}`}>Open</Link>
                 </Button>
                 {onEditFolder && (
                   <Button size="sm" variant="outline" onClick={() => onEditFolder(folder)}>
-                    Editar
+                    Edit
                   </Button>
                 )}
                 {onDeleteFolder && (
@@ -98,7 +98,7 @@ export function ViewModes({
                     onClick={() => onDeleteFolder(folder.id)}
                     disabled={deletingFolderId === folder.id}
                   >
-                    {deletingFolderId === folder.id ? 'Apagando...' : 'Apagar'}
+                    {deletingFolderId === folder.id ? 'Deleting...' : 'Delete'}
                   </Button>
                 )}
               </div>
@@ -119,11 +119,11 @@ export function ViewModes({
               </div>
               <div className="flex items-center gap-2">
                 <Button asChild size="sm" variant="outline">
-                  <Link href={`/spaces/${spaceId}/processes/${proc.id}`}>Abrir</Link>
+                  <Link href={`/spaces/${spaceId}/processes/${proc.id}`}>Open</Link>
                 </Button>
                 {onEditProcess && (
                   <Button size="sm" variant="outline" onClick={() => onEditProcess(proc)}>
-                    Editar
+                    Edit
                   </Button>
                 )}
                 {onDeleteProcess && (
@@ -133,7 +133,7 @@ export function ViewModes({
                     onClick={() => onDeleteProcess(proc.id)}
                     disabled={deletingProcessId === proc.id}
                   >
-                    {deletingProcessId === proc.id ? 'Apagando...' : 'Apagar'}
+                    {deletingProcessId === proc.id ? 'Deleting...' : 'Delete'}
                   </Button>
                 )}
               </div>

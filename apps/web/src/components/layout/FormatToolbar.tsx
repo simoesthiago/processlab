@@ -47,11 +47,26 @@ interface FormatToolbarProps {
   editorRef?: React.RefObject<BpmnEditorRef | null>;
   selectedElements?: any[];
   onWizardClick?: () => void;
-  onHistoryClick?: () => void;
-  onSearchClick?: () => void;
+  isWizardOpen?: boolean;
 }
 
-export function FormatToolbar({ className, editorRef, selectedElements = [], onWizardClick, onHistoryClick, onSearchClick }: FormatToolbarProps) {
+export function FormatToolbar({ className, editorRef, selectedElements = [], onWizardClick, isWizardOpen = false }: FormatToolbarProps) {
+  // Local mirror of selection to avoid stale/empty props blocking buttons
+  const [liveSelection, setLiveSelection] = useState<any[]>(selectedElements);
+
+  // Sync when parent updates selection
+  useEffect(() => {
+    setLiveSelection(selectedElements);
+  }, [selectedElements]);
+
+  // Poll editorRef selection to keep toolbar enabled even if event misses
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const current = editorRef?.current?.getSelectedElements?.() || [];
+      setLiveSelection(current);
+    }, 200);
+    return () => clearInterval(interval);
+  }, [editorRef]);
   const [selectedFont, setSelectedFont] = useState('Arial');
   const [selectedFontSize, setSelectedFontSize] = useState('11');
   const [isBold, setIsBold] = useState(false);
@@ -67,12 +82,20 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
   const [isFontSizeMenuOpen, setIsFontSizeMenuOpen] = useState(false);
   const [isTextColorMenuOpen, setIsTextColorMenuOpen] = useState(false);
   const [isFillColorMenuOpen, setIsFillColorMenuOpen] = useState(false);
+  const textColorWrapperRef = useRef<HTMLDivElement>(null);
+  const fillColorWrapperRef = useRef<HTMLDivElement>(null);
   const [isHorizontalAlignMenuOpen, setIsHorizontalAlignMenuOpen] = useState(false);
   const [isVerticalAlignMenuOpen, setIsVerticalAlignMenuOpen] = useState(false);
   const [isArrangeMenuOpen, setIsArrangeMenuOpen] = useState(false);
   
-  // Allow toolbar interactions even quando não há seleção
+  // Use live selection (props or polled); allow actions even if we fail to read selection
+  const effectiveSelection = liveSelection.length > 0 
+    ? liveSelection 
+    : editorRef?.current?.getSelectedElements?.() || [];
   const hasSelection = true;
+  const applyToSelection = (fmt: Record<string, any>) => {
+    editorRef?.current?.applyFormatting?.({ ...fmt, targets: effectiveSelection });
+  };
 
   // Theme palette columns (5 tons verticais, como no exemplo)
   const themeColumns = [
@@ -94,11 +117,34 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const textColorInputRef = useRef<HTMLInputElement>(null);
   const fillColorInputRef = useRef<HTMLInputElement>(null);
+  const textColorCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fillColorCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const updateRecentColors = (color: string) => {
     setRecentColors((prev) => {
       const next = [color, ...prev.filter((c) => c !== color)];
       return next.slice(0, 10);
     });
+  };
+
+  const handleDropdownMouseEnter = (timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const handleDropdownMouseLeave = (
+    setter: React.Dispatch<React.SetStateAction<boolean>>,
+    timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
+    delay = 160
+  ) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => {
+      setter(false);
+      timerRef.current = null;
+    }, delay);
   };
 
   const fonts = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana'];
@@ -108,11 +154,14 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      
-      // Get the toolbar container
-      const toolbar = target.closest('[data-format-toolbar]');
-      if (!toolbar) {
-        // Clicked completely outside toolbar, close all dropdowns
+      const insideToolbar = target.closest('[data-format-toolbar]');
+      const insideDropdownMenu = target.closest('[data-dropdown-menu]');
+      const onDropdownButton = target.closest('.format-toolbar-dropdown button');
+      const insideTextColor = textColorWrapperRef.current?.contains(target);
+      const insideFillColor = fillColorWrapperRef.current?.contains(target);
+
+      // Close if clicked outside toolbar entirely
+      if (!insideToolbar) {
         setIsFontMenuOpen(false);
         setIsFontSizeMenuOpen(false);
         setIsTextColorMenuOpen(false);
@@ -122,22 +171,14 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
         setIsArrangeMenuOpen(false);
         return;
       }
-      
-      // Check if click is inside any dropdown menu (not the button)
-      const clickedInsideDropdownMenu = target.closest('[data-dropdown-menu]');
-      const clickedOnDropdownButton = target.closest('.format-toolbar-dropdown button');
-      
-      // If clicking on a dropdown button, don't close (let the button handler manage it)
-      if (clickedOnDropdownButton) {
-        return;
-      }
-      
-      // If clicking inside a dropdown menu, don't close
-      if (clickedInsideDropdownMenu) {
-        return;
-      }
-      
-      // Clicked in toolbar but outside dropdowns, close all dropdowns
+
+      // If clicked on dropdown buttons, let their handlers toggle
+      if (onDropdownButton) return;
+
+      // If clicked inside dropdown menus, keep open
+      if (insideDropdownMenu || insideTextColor || insideFillColor) return;
+
+      // Otherwise close all
       setIsFontMenuOpen(false);
       setIsFontSizeMenuOpen(false);
       setIsTextColorMenuOpen(false);
@@ -147,11 +188,10 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
       setIsArrangeMenuOpen(false);
     };
 
-    // Use a timeout to ensure button clicks happen first
     const timeoutId = setTimeout(() => {
       document.addEventListener('click', handleClickOutside, true);
     }, 0);
-    
+
     return () => {
       clearTimeout(timeoutId);
       document.removeEventListener('click', handleClickOutside, true);
@@ -160,46 +200,38 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
 
   // Sync toolbar state with selected elements
   useEffect(() => {
-    if (selectedElements.length === 0) {
+    if (effectiveSelection.length === 0) {
       // Reset to defaults when nothing is selected
       return;
     }
 
     // Get properties from first selected element
-    const firstElement = selectedElements[0];
-    if (!firstElement || !firstElement.businessObject) return;
+    const firstElement = effectiveSelection[0];
+    if (!firstElement) return;
 
-    const bo = firstElement.businessObject;
-    const di = bo.di;
+    // DI deve ser obtido do próprio element.di (não do businessObject)
+    const di = firstElement.di || firstElement.businessObject?.di;
+    const diAttrs = di?.$attrs || {};
 
-    // Read font properties
-    if (di?.FontName) {
-      setSelectedFont(di.FontName);
-    }
-    if (di?.FontSize) {
-      setSelectedFontSize(di.FontSize.toString());
-    }
-    if (di?.FontWeight) {
-      setIsBold(di.FontWeight === 'bold');
-    }
-    if (di?.FontStyle) {
-      setIsItalic(di.FontStyle === 'italic');
-    }
-    if (di?.TextDecoration) {
-      setIsUnderline(di.TextDecoration === 'underline');
-    }
-    if (di?.FontColor) {
-      setSelectedTextColor(di.FontColor);
-    }
+    // Read font properties (custom data attrs first, fallback to DI defaults)
+    const fontName = diAttrs['data-font-family'] || di?.FontName;
+    const fontSize = diAttrs['data-font-size'] || di?.FontSize;
+    const fontWeight = diAttrs['data-font-weight'] || di?.FontWeight;
+    const fontStyle = diAttrs['data-font-style'] || di?.FontStyle;
+    const textDecoration = diAttrs['data-text-decoration'] || di?.TextDecoration;
+    const fontColor = diAttrs['data-font-color'] || di?.FontColor;
 
-    // Read fill color from style
-    if (firstElement.type && editorRef?.current) {
-      // Try to get fill color from element style
-      // This might need to be accessed differently depending on bpmn-js version
-      const fill = firstElement.businessObject?.di?.fill;
-      if (fill) {
-        setSelectedFillColor(fill);
-      }
+    if (fontName) setSelectedFont(fontName);
+    if (fontSize) setSelectedFontSize(fontSize.toString());
+    if (fontWeight) setIsBold(fontWeight === 'bold');
+    if (fontStyle) setIsItalic(fontStyle === 'italic');
+    if (textDecoration) setIsUnderline(textDecoration === 'underline');
+    if (fontColor) setSelectedTextColor(fontColor);
+
+    // Read fill color only from element DI to avoid businessObject.di access
+    const fill = firstElement.di?.fill;
+    if (fill) {
+      setSelectedFillColor(fill);
     }
   }, [selectedElements, editorRef]);
 
@@ -223,7 +255,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
             }}
             disabled={!hasSelection}
             className={cn(
-              "flex items-center gap-1.5 px-2 h-8 rounded-md hover:bg-accent transition-colors border border-input",
+              "flex items-center gap-1.5 px-2 h-8 rounded-md hover:bg-accent transition-colors border border-input w-28",
               !hasSelection && "opacity-50 cursor-not-allowed"
             )}
             title="Font Family"
@@ -231,7 +263,15 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
             type="button"
           >
           <Type className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs text-foreground">{selectedFont}</span>
+          <span
+            className="text-xs text-foreground block overflow-hidden flex-1 min-w-0 text-left whitespace-nowrap"
+            style={{
+              maskImage: 'linear-gradient(90deg, #000 80%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(90deg, #000 80%, transparent 100%)',
+            }}
+          >
+            {selectedFont}
+          </span>
           <ChevronDown className="h-3 w-3 text-muted-foreground" />
         </button>
         {isFontMenuOpen && (
@@ -242,9 +282,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                 onClick={() => {
                   setSelectedFont(font);
                   setIsFontMenuOpen(false);
-                  if (editorRef?.current) {
-                    editorRef.current.applyFormatting({ font });
-                  }
+                  applyToSelection({ font });
                 }}
               className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent rounded transition-colors"
               style={{ fontFamily: font }}
@@ -265,14 +303,22 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
             }}
             disabled={!hasSelection}
             className={cn(
-              "flex items-center gap-1.5 px-2 h-8 rounded-md hover:bg-accent transition-colors border border-input",
+              "flex items-center gap-1.5 px-2 h-8 rounded-md hover:bg-accent transition-colors border border-input w-16 justify-between",
               !hasSelection && "opacity-50 cursor-not-allowed"
             )}
             title="Font Size"
             aria-label="Select font size"
             type="button"
           >
-          <span className="text-xs text-foreground">{selectedFontSize}</span>
+          <span
+            className="text-xs text-foreground block overflow-hidden"
+            style={{
+              maskImage: 'linear-gradient(90deg, #000 75%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(90deg, #000 75%, transparent 100%)',
+            }}
+          >
+            {selectedFontSize}
+          </span>
           <ChevronDown className="h-3 w-3 text-muted-foreground" />
         </button>
         {isFontSizeMenuOpen && (
@@ -283,9 +329,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                 onClick={() => {
                   setSelectedFontSize(size);
                   setIsFontSizeMenuOpen(false);
-                  if (editorRef?.current) {
-                    editorRef.current.applyFormatting({ fontSize: size });
-                  }
+                  applyToSelection({ fontSize: size });
                 }}
               className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent rounded transition-colors"
             >
@@ -296,9 +340,6 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
         )}
         </div>
       </div>
-
-      {/* Divider */}
-      <div className="h-6 w-px bg-border mx-1" />
 
       {/* Group 2: Text Formatting */}
       <div className="flex items-center gap-1">
@@ -312,9 +353,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               const newSize = Math.max(8, currentSize - 1);
               const newSizeStr = newSize.toString();
               setSelectedFontSize(newSizeStr);
-              if (editorRef?.current) {
-                editorRef.current.applyFormatting({ fontSize: newSizeStr });
-              }
+              applyToSelection({ fontSize: newSizeStr });
             }}
             disabled={!hasSelection}
             className={cn(
@@ -338,9 +377,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               const newSize = Math.min(24, currentSize + 1);
               const newSizeStr = newSize.toString();
               setSelectedFontSize(newSizeStr);
-              if (editorRef?.current) {
-                editorRef.current.applyFormatting({ fontSize: newSizeStr });
-              }
+              applyToSelection({ fontSize: newSizeStr });
             }}
             disabled={!hasSelection}
             className={cn(
@@ -364,9 +401,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
             if (!hasSelection) return;
             const newBold = !isBold;
             setIsBold(newBold);
-            if (editorRef?.current) {
-              editorRef.current.applyFormatting({ bold: newBold });
-            }
+            applyToSelection({ bold: newBold });
           }}
           disabled={!hasSelection}
           className={cn(
@@ -387,9 +422,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
             if (!hasSelection) return;
             const newItalic = !isItalic;
             setIsItalic(newItalic);
-            if (editorRef?.current) {
-              editorRef.current.applyFormatting({ italic: newItalic });
-            }
+            applyToSelection({ italic: newItalic });
           }}
           disabled={!hasSelection}
           className={cn(
@@ -410,9 +443,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
             if (!hasSelection) return;
             const newUnderline = !isUnderline;
             setIsUnderline(newUnderline);
-            if (editorRef?.current) {
-              editorRef.current.applyFormatting({ underline: newUnderline });
-            }
+            applyToSelection({ underline: newUnderline });
           }}
           disabled={!hasSelection}
           className={cn(
@@ -428,7 +459,12 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
         </button>
         
         {/* Text Color */}
-        <div className="relative format-toolbar-dropdown">
+        <div
+          className="relative format-toolbar-dropdown"
+          ref={textColorWrapperRef}
+          onMouseEnter={() => handleDropdownMouseEnter(textColorCloseTimerRef)}
+          onMouseLeave={() => handleDropdownMouseLeave(setIsTextColorMenuOpen, textColorCloseTimerRef)}
+        >
           <button 
             onClick={(e) => {
               e.stopPropagation();
@@ -443,15 +479,17 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
             aria-label="Select text color"
             type="button"
           >
-            <div className="flex flex-col items-center gap-[2px]">
-              <span 
-                className="text-base font-semibold leading-none"
-                style={{ color: '#333333' }}
-              >
-                A
-              </span>
+            <div className="flex flex-col items-center justify-center gap-1 leading-none h-8">
+              <div className="h-4 w-4 flex items-center justify-center">
+                <span 
+                  className="text-base font-semibold leading-none"
+                  style={{ color: '#333333' }}
+                >
+                  A
+                </span>
+              </div>
               <div 
-                className="w-3 h-1 rounded-sm"
+                className="w-[15px] h-[4px] rounded-sm"
                 style={{ backgroundColor: selectedTextColor }}
               />
             </div>
@@ -460,7 +498,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
           {isTextColorMenuOpen && (
             <div data-dropdown-menu className="absolute top-full left-0 mt-1 p-2 bg-card border border-border rounded-md shadow-lg z-50 w-[240px]">
               {/* Cores do Tema */}
-              <div className="text-xs text-muted-foreground mb-2">Cores do Tema</div>
+              <div className="text-xs text-muted-foreground mb-2">Theme Colors</div>
               <div className="grid grid-cols-8 gap-1 mb-3">
                 {themeColumns.map((col, colIdx) => (
                   <div key={colIdx} className="flex flex-col gap-1">
@@ -471,9 +509,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                           updateRecentColors(color);
                           setSelectedTextColor(color);
                           setIsTextColorMenuOpen(false);
-                          if (editorRef?.current) {
-                            editorRef.current.applyFormatting({ textColor: color });
-                          }
+                          applyToSelection({ textColor: color });
                         }}
                         className={cn(
                           "w-7 h-5 rounded-sm border hover:scale-105 transition-transform",
@@ -489,7 +525,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               </div>
 
               {/* Cores Padrão */}
-              <div className="text-xs text-muted-foreground mb-1">Cores Padrão</div>
+              <div className="text-xs text-muted-foreground mb-1">Standard Colors</div>
               <div className="flex flex-wrap gap-1 mb-3">
                 {standardColors.map((color) => (
                   <button
@@ -498,9 +534,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                       updateRecentColors(color);
                       setSelectedTextColor(color);
                       setIsTextColorMenuOpen(false);
-                      if (editorRef?.current) {
-                        editorRef.current.applyFormatting({ textColor: color });
-                      }
+                      applyToSelection({ textColor: color });
                     }}
                     className={cn(
                       "w-6 h-6 rounded border hover:scale-105 transition-transform",
@@ -514,7 +548,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               </div>
 
               {/* Cores Recentes */}
-              <div className="text-xs text-muted-foreground mb-1">Cores Recentes</div>
+              <div className="text-xs text-muted-foreground mb-1">Recent Colors</div>
               <div className="flex flex-wrap gap-1 mb-3">
                 {(recentColors.length ? recentColors : Array(10).fill('#e5e7eb')).map((color, idx) => (
                   <button
@@ -523,9 +557,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                       updateRecentColors(color);
                       setSelectedTextColor(color);
                       setIsTextColorMenuOpen(false);
-                      if (editorRef?.current) {
-                        editorRef.current.applyFormatting({ textColor: color });
-                      }
+                      applyToSelection({ textColor: color });
                     }}
                     className="w-6 h-6 rounded border border-border hover:scale-105 transition-transform"
                     style={{ backgroundColor: color }}
@@ -543,7 +575,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                   type="button"
                 >
                   <Palette className="h-3.5 w-3.5" />
-                  Mais cores...
+                  More colors...
                 </button>
                 <input
                   ref={textColorInputRef}
@@ -554,9 +586,8 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                     updateRecentColors(color);
                     setSelectedTextColor(color);
                     setIsTextColorMenuOpen(false);
-                    if (editorRef?.current) {
-                      editorRef.current.applyFormatting({ textColor: color });
-                    }
+                    applyToSelection({ textColor: color });
+                    applyToSelection({ textColor: color });
                   }}
                 />
               </div>
@@ -564,8 +595,13 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
           )}
         </div>
         
-        {/* Fill Color (Paint Bucket) */}
-        <div className="relative format-toolbar-dropdown">
+        {/* Fill Color */}
+        <div
+          className="relative format-toolbar-dropdown"
+          ref={fillColorWrapperRef}
+          onMouseEnter={() => handleDropdownMouseEnter(fillColorCloseTimerRef)}
+          onMouseLeave={() => handleDropdownMouseLeave(setIsFillColorMenuOpen, fillColorCloseTimerRef)}
+        >
           <button 
             onClick={(e) => {
               e.stopPropagation();
@@ -581,10 +617,10 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
             type="button"
           >
             {/* Custom Paint Bucket Icon with fill preview */}
-            <div className="flex flex-col items-center gap-[2px]">
-              <div className="relative">
+            <div className="flex flex-col items-center justify-center gap-1 leading-none h-8">
+              <div className="h-4 w-4 flex items-center justify-center">
                 <svg
-                  className="h-3.5 w-3.5"
+                  className="h-4 w-4"
                   viewBox="0 0 20 20"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
@@ -630,9 +666,8 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                   <ellipse cx="15.5" cy="15.5" rx="2" ry="1.2" fill="#3b82f6" />
                 </svg>
               </div>
-              {/* Fill preview bar (shows selected color) */}
               <div 
-                className="w-3 h-1 rounded-sm"
+                className="w-[15px] h-[4px] rounded-sm"
                 style={{ backgroundColor: selectedFillColor }}
               />
             </div>
@@ -641,7 +676,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
           {isFillColorMenuOpen && (
             <div data-dropdown-menu className="absolute top-full left-0 mt-1 p-2 bg-card border border-border rounded-md shadow-lg z-50 w-[240px]">
               {/* Cores do Tema */}
-              <div className="text-xs text-muted-foreground mb-2">Cores do Tema</div>
+              <div className="text-xs text-muted-foreground mb-2">Theme Colors</div>
               <div className="grid grid-cols-8 gap-1 mb-3">
                 {themeColumns.map((col, colIdx) => (
                   <div key={colIdx} className="flex flex-col gap-1">
@@ -652,9 +687,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                           updateRecentColors(color);
                           setSelectedFillColor(color);
                           setIsFillColorMenuOpen(false);
-                          if (editorRef?.current) {
-                            editorRef.current.applyFormatting({ fillColor: color });
-                          }
+                          applyToSelection({ fillColor: color });
                         }}
                         className={cn(
                           "w-7 h-5 rounded-sm border hover:scale-105 transition-transform",
@@ -670,7 +703,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               </div>
 
               {/* Cores Padrão */}
-              <div className="text-xs text-muted-foreground mb-1">Cores Padrão</div>
+              <div className="text-xs text-muted-foreground mb-1">Standard Colors</div>
               <div className="flex flex-wrap gap-1 mb-3">
                 {standardColors.map((color) => (
                   <button
@@ -695,7 +728,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               </div>
 
               {/* Cores Recentes */}
-              <div className="text-xs text-muted-foreground mb-1">Cores Recentes</div>
+              <div className="text-xs text-muted-foreground mb-1">Recent Colors</div>
               <div className="flex flex-wrap gap-1 mb-3">
                 {(recentColors.length ? recentColors : Array(10).fill('#e5e7eb')).map((color, idx) => (
                   <button
@@ -724,7 +757,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                   type="button"
                 >
                   <Palette className="h-3.5 w-3.5" />
-                  Mais cores...
+                  More colors...
                 </button>
                 <input
                   ref={fillColorInputRef}
@@ -735,9 +768,9 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                     updateRecentColors(color);
                     setSelectedFillColor(color);
                     setIsFillColorMenuOpen(false);
-                    if (editorRef?.current) {
-                      editorRef.current.applyFormatting({ fillColor: color });
-                    }
+                    applyToSelection({ fillColor: color });
+                    applyToSelection({ fillColor: color });
+                    applyToSelection({ fillColor: color });
                   }}
                 />
               </div>
@@ -774,7 +807,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                   onClick={() => {
                     setTextAlign('left');
                     setIsHorizontalAlignMenuOpen(false);
-                    editorRef?.current?.applyFormatting({ textAlign: 'left' });
+                    applyToSelection({ textAlign: 'left' });
                   }}
                   className={cn(
                     "flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors",
@@ -783,13 +816,13 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                   title="Align Left"
                 >
                   <AlignLeft className="h-4 w-4 text-blue-600" />
-                  <span>Alinhar à Esquerda</span>
+                  <span>Align Left</span>
                 </button>
                 <button 
                   onClick={() => {
                     setTextAlign('center');
                     setIsHorizontalAlignMenuOpen(false);
-                    editorRef?.current?.applyFormatting({ textAlign: 'center' });
+                    applyToSelection({ textAlign: 'center' });
                   }}
                   className={cn(
                     "flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors",
@@ -798,13 +831,13 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                   title="Align Center"
                 >
                   <AlignCenter className="h-4 w-4 text-blue-600" />
-                  <span>Alinhar Centralizado</span>
+                  <span>Align Center</span>
                 </button>
                 <button 
                   onClick={() => {
                     setTextAlign('right');
                     setIsHorizontalAlignMenuOpen(false);
-                    editorRef?.current?.applyFormatting({ textAlign: 'right' });
+                    applyToSelection({ textAlign: 'right' });
                   }}
                   className={cn(
                     "flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent transition-colors",
@@ -813,7 +846,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
                   title="Align Right"
                 >
                   <AlignRight className="h-4 w-4 text-blue-600" />
-                  <span>Alinhar à Direita</span>
+                  <span>Align Right</span>
                 </button>
               </div>
             </div>
@@ -943,37 +976,24 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
         )}
       </div>
 
-      {/* Divider */}
-      <div className="h-6 w-px bg-border mx-1" />
-
       {/* Group 3: Arrange (disabled) */}
       {false && (
         {/* Arrange removed */}
       )}
 
-      {/* Simulation (placed before action buttons) */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          // TODO: wire simulation action
-        }}
-        className="flex items-center gap-1.5 px-2 h-8 rounded-md hover:bg-accent transition-colors text-xs text-muted-foreground hover:text-foreground"
-        title="Run Simulation"
-        aria-label="Run process simulation"
-        type="button"
-      >
-        <Play className="h-3.5 w-3.5" />
-        <span>Simulation</span>
-      </button>
-
-      {/* Group 4: Action Buttons (Wizard, Search, History) */}
-      <div className="flex items-center gap-1">
+      {/* Group 4: Action Buttons (Wizard) */}
+      <div className="flex items-center gap-1 ml-auto">
         <button
           onClick={(e) => {
             e.stopPropagation();
             onWizardClick?.();
           }}
-          className="flex items-center gap-1.5 px-2 h-8 rounded-md hover:bg-accent transition-colors text-xs text-muted-foreground hover:text-foreground"
+          className={cn(
+            "flex items-center gap-1.5 px-2 h-8 rounded-md transition-colors text-xs",
+            isWizardOpen
+              ? "bg-accent text-foreground hover:bg-accent"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent"
+          )}
           title="Process Wizard"
           aria-label="Open process wizard"
           type="button"
@@ -982,33 +1002,6 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
           <span>Wizard</span>
         </button>
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onSearchClick?.();
-          }}
-          className="flex items-center gap-1.5 px-2 h-8 rounded-md hover:bg-accent transition-colors text-xs text-muted-foreground hover:text-foreground"
-          title="Search (Ctrl+F)"
-          aria-label="Search elements"
-          type="button"
-        >
-          <Search className="h-3.5 w-3.5" />
-          <span>Search</span>
-        </button>
-        
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onHistoryClick?.();
-          }}
-          className="flex items-center gap-1.5 px-2 h-8 rounded-md hover:bg-accent transition-colors text-xs text-muted-foreground hover:text-foreground"
-          title="Version History"
-          aria-label="View version history"
-          type="button"
-        >
-          <Clock className="h-3.5 w-3.5" />
-          <span>History</span>
-        </button>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -33,12 +33,9 @@ interface SharedProjectInfo {
   is_public_link: boolean;
 }
 
-interface PageProps {
-  params: { token: string };
-}
-
-export default function SharedProjectPage({ params }: PageProps) {
-  const shareToken = params.token;
+export default function SharedProjectPage() {
+  const params = useParams<{ token: string }>();
+  const shareToken = params?.token;
   const router = useRouter();
   const { isAuthenticated, token: authToken, loading: authLoading } = useAuth();
   

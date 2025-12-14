@@ -4,25 +4,26 @@ from typing import List
 from app.api import deps
 from app.db.models import Artifact, User
 from app.core.config import settings
-from app.workers.tasks import ingest_artifact_task
-from minio import Minio
+from app.services.storage.local import storage_service
+from app.services.ingestion.pipeline import IngestionPipeline
 import uuid
 
 router = APIRouter()
+pipeline = IngestionPipeline()
 
-minio_client = Minio(
-    endpoint=settings.MINIO_ENDPOINT,
-    access_key=settings.MINIO_ACCESS_KEY,
-    secret_key=settings.MINIO_SECRET_KEY,
-    secure=settings.MINIO_SECURE
-)
-
-# Ensure bucket exists
-if not minio_client.bucket_exists(bucket_name=settings.MINIO_BUCKET):
-    minio_client.make_bucket(bucket_name=settings.MINIO_BUCKET)
+def background_ingest(object_name: str):
+    # Create a new session for the background task
+    from app.db.session import SessionLocal
+    db = SessionLocal()
+    try:
+        import asyncio
+        asyncio.run(pipeline.process_document(object_name, db))
+    finally:
+        db.close()
 
 @router.post("/upload", status_code=202)
 async def upload_files(
+    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_active_user),
@@ -33,22 +34,16 @@ async def upload_files(
         file_ext = file.filename.split(".")[-1]
         object_name = f"{uuid.uuid4()}.{file_ext}"
         
-        # Upload to MinIO
-        minio_client.put_object(
-            bucket_name=settings.MINIO_BUCKET,
-            object_name=object_name,
-            data=file.file,
-            length=-1,
-            part_size=10*1024*1024
-        )
+        # Upload to Local Storage
+        storage_service.upload_file(file.file, object_name)
         
         # Create Artifact record
         artifact = Artifact(
             filename=file.filename,
             mime_type=file.content_type,
-            file_size=0, # TODO: Get size
+            file_size=0, 
             storage_path=object_name,
-            storage_bucket=settings.MINIO_BUCKET,
+            storage_bucket="artifacts",
             uploaded_by=current_user.id,
             status="uploaded"
         )
@@ -56,8 +51,9 @@ async def upload_files(
         db.commit()
         db.refresh(artifact)
         
-        # Trigger Async Task
-        ingest_artifact_task.delay(artifact.id)
+        # Trigger Background Task
+        # Note: In a real app we'd want robust queueing, but for local demo BackgroundTasks is fine
+        background_tasks.add_task(background_ingest, object_name)
         
         results.append({"id": artifact.id, "filename": artifact.filename, "status": "processing"})
     

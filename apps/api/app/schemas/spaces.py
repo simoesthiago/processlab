@@ -10,11 +10,11 @@ from app.schemas.hierarchy import FolderTree
 
 
 class SpaceTreeResponse(BaseModel):
-    """Tree response for either private or team space roots."""
+    """Tree response for private space root."""
 
-    space_type: Literal["private", "team"]
+    space_type: Literal["private"] = "private"
     space_id: Optional[str] = Field(
-        None, description="Organization ID for team or user ID for private"
+        None, description="User ID for private space"
     )
     root_folders: List[FolderTree] = Field(default_factory=list)
     root_processes: List[ProcessResponse] = Field(default_factory=list)
@@ -26,7 +26,7 @@ class RecentItem(BaseModel):
     id: str
     type: Literal["process", "folder"]
     name: str
-    space_type: Literal["private", "team"]
+    space_type: Literal["private"] = "private"
     space_id: Optional[str] = None
     parent_folder_id: Optional[str] = None
     updated_at: datetime
@@ -44,8 +44,8 @@ class SpaceSummary(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
-    type: Literal["private", "team"]
-    role: Literal["admin", "editor", "viewer", "owner"] = "viewer"
+    type: Literal["private"] = "private"
+    role: Literal["owner"] = "owner"
     is_protected: bool = False
 
 
@@ -54,12 +54,8 @@ class SpaceListResponse(BaseModel):
 
     spaces: List[SpaceSummary]
 
+# SpaceCreate removed as we don't create new spaces anymore (only default private)
 
-class SpaceCreate(BaseModel):
-    """Create a new team space (backed by organization)."""
-
-    name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
 
 
 class SpaceDetailResponse(SpaceSummary):

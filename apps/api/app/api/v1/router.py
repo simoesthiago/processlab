@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, ingestion, organizations, projects, processes, users, shares, folders, spaces
+from app.api.v1.endpoints import auth, ingestion, processes, users, folders, spaces
 from app.api.v1 import generate, edit, export, search
 
 api_router = APIRouter()
@@ -7,14 +7,12 @@ api_router = APIRouter()
 # Authentication
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 
-# Organization and Project Management
-api_router.include_router(organizations.router, prefix="/organizations", tags=["organizations"])
-api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
-api_router.include_router(processes.router, tags=["processes"])  # Has its own nested paths
+# Resource Management
+api_router.include_router(processes.router, tags=["processes"])
 api_router.include_router(folders.router, tags=["folders"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
-api_router.include_router(shares.router, prefix="/shares", tags=["shares"])
 api_router.include_router(spaces.router, tags=["spaces"])
+
 
 # BPMN Operations
 api_router.include_router(ingestion.router, prefix="/ingest", tags=["ingest"])

@@ -1,26 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useMemo, useEffect, useState } from 'react';
-import {
-  ChevronDown,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Folder,
-  Lock,
-  Workflow,
-  Home,
-  LogOut,
-  FolderKanban,
-  Search,
-} from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Plus, Folder, Lock, Workflow, Home, LogOut, FolderKanban, Search } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSpaces } from '@/contexts/SpacesContext';
-import { WorkspaceMenu } from './WorkspaceMenu';
+import { QuickSearch } from '@/components/spaces/QuickSearch';
 import {
   Dialog,
   DialogContent,
@@ -32,11 +20,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-
-const navLinks = [
-  { name: 'Search', href: '/search', icon: Search },
-  { name: 'Private Space', href: '/spaces/private', icon: Home },
-];
 
 interface NewItemState {
   open: boolean;
@@ -52,12 +35,13 @@ interface SpacesSidebarProps {
 
 export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSidebarProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const router = useRouter();
+  const { user } = useAuth();
   const { spaces, selectedSpaceId, selectSpace, trees, loadTree, createFolder, createProcess, loading } = useSpaces();
   const [newItem, setNewItem] = useState<NewItemState>({ open: false, spaceId: '', parentFolderId: null, type: 'folder' });
   const [itemName, setItemName] = useState('');
   const [itemDesc, setItemDesc] = useState('');
-  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
+  const [quickSearchOpen, setQuickSearchOpen] = useState(false);
 
   useEffect(() => {
     if (selectedSpaceId && !trees[selectedSpaceId]) {
@@ -104,71 +88,39 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
         )}
       >
         <div className="flex flex-col gap-2 py-3">
-      <div className="flex items-center">
+          <div className="flex items-center">
             <button
-          className={cn(
-            'flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted/60',
-            collapsed ? 'mx-auto' : 'pl-4'
-          )}
-          onClick={onToggleCollapsed}
+              className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted/60',
+                collapsed ? 'mx-auto' : 'pl-4'
+              )}
+              onClick={onToggleCollapsed}
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
             </button>
           </div>
-      <WorkspaceMenu
-        open={workspaceMenuOpen}
-        onOpenChange={setWorkspaceMenuOpen}
-        trigger={
-          <button
-            className={cn(
-              'rounded-md hover:bg-muted/60 transition-colors h-12',
-              collapsed ? 'mx-auto flex w-12 items-center justify-center' : 'flex w-full items-center justify-between px-4'
-            )}
-            onClick={() => setWorkspaceMenuOpen(true)}
-          >
-            {collapsed ? (
-              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
-                {initials?.[0] || 'W'}
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
-                    {initials?.[0] || 'W'}
-                  </div>
-                  <span className="truncate text-base font-semibold text-foreground">
-                    {user?.full_name || user?.email || 'Workspace'}
-                  </span>
-                </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              </>
-            )}
-          </button>
-        }
-      />
         </div>
 
         <nav className="space-y-0.5">
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive =
-              pathname === link.href || pathname?.startsWith(`${link.href}/`);
-            return (
-              <Link
-                key={link.name}
-                href={link.href}
-                className={cn(
-                'flex h-10 items-center rounded-md py-1.5 text-sm font-medium transition-colors',
-                collapsed ? 'justify-center px-0 mx-0' : 'gap-1.5 px-4 mx-1',
-                  isActive ? 'bg-neutral-200 text-foreground' : 'text-muted-foreground hover:bg-neutral-200'
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                {!collapsed && <span>{link.name}</span>}
-              </Link>
-            );
-          })}
+          <button
+            className={cn(
+              'flex h-10 items-center rounded-md py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-neutral-200',
+              collapsed ? 'justify-center px-0 mx-0 w-full' : 'gap-1.5 px-4 mx-1 w-full'
+            )}
+            onClick={async () => {
+              try {
+                await loadTree('private', true);
+              } catch (err) {
+                console.warn('Failed to pre-load private tree before search:', err);
+              }
+              selectSpace('private');
+              setQuickSearchOpen(true);
+            }}
+          >
+            <Search className="h-5 w-5" />
+            {!collapsed && <span>Search</span>}
+          </button>
         </nav>
 
         <div
@@ -181,28 +133,28 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
             const isSelected = space.id === selectedSpaceId;
             const tree = trees[space.id];
             return (
-                <div key={space.id} className="rounded-lg border border-gray-100 bg-white/60">
-                  <div
-                    className={cn(
-                      'relative flex h-12 items-center',
-                      collapsed ? 'justify-center px-2' : 'justify-between px-3'
-                    )}
-                  >
+              <div key={space.id} className="rounded-lg border border-gray-100 bg-white/60">
+                <div
+                  className={cn(
+                    'relative flex h-12 items-center',
+                    collapsed ? 'justify-center px-2' : 'justify-between px-3'
+                  )}
+                >
                   {/*
                     Show lock icon for Private Space for visual distinction.
                     This keeps icon spacing consistent with other spaces.
                   */}
                   {null}
                   <Link
-                      href={`/spaces/${space.id}`}
-                      className={cn(
-                        'flex items-center text-sm font-semibold text-gray-800 hover:text-orange-600 transition-colors',
-                        collapsed ? 'justify-center gap-0 h-10 w-10' : 'justify-start gap-2 h-10 w-full',
-                        isSelected && 'text-orange-600'
-                      )}
+                    href={`/spaces/${space.id}`}
+                    className={cn(
+                      'flex items-center text-sm font-semibold text-gray-800 hover:text-orange-600 transition-colors',
+                      collapsed ? 'justify-center gap-0 h-10 w-10' : 'justify-start gap-2 h-10 w-full',
+                      isSelected && 'text-orange-600'
+                    )}
                     onClick={() => selectSpace(space.id)}
                   >
-                  {space.name.toLowerCase().includes('private') ? (
+                    {space.name.toLowerCase().includes('private') ? (
                       <Lock className="h-4 w-4" />
                     ) : (
                       <Folder className="h-4 w-4" />
@@ -223,19 +175,19 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
                     </button>
                   )}
                 </div>
-                  {isSelected && !collapsed && tree && ((tree.root_folders?.length ?? 0) + (tree.root_processes?.length ?? 0) > 0) && (
-                    <SpaceTreeList
-                      spaceId={space.id}
-                      folders={tree?.root_folders || []}
-                      processes={tree?.root_processes || []}
-                      showLabels={!collapsed}
-                      onAdd={(parentId, type) => {
-                        setNewItem({ open: true, spaceId: space.id, parentFolderId: parentId, type });
-                        setItemName('');
-                        setItemDesc('');
-                      }}
-                    />
-                  )}
+                {isSelected && !collapsed && tree && ((tree.root_folders?.length ?? 0) + (tree.root_processes?.length ?? 0) > 0) && (
+                  <SpaceTreeList
+                    spaceId={space.id}
+                    folders={tree?.root_folders || []}
+                    processes={tree?.root_processes || []}
+                    showLabels={!collapsed}
+                    onAdd={(parentId, type) => {
+                      setNewItem({ open: true, spaceId: space.id, parentFolderId: parentId, type });
+                      setItemName('');
+                      setItemDesc('');
+                    }}
+                  />
+                )}
               </div>
             );
           })}
@@ -250,20 +202,12 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
           >
             <button
               className="rounded p-1 hover:text-foreground"
-              onClick={logout}
-              title="Logout"
-              aria-label="Logout"
+              onClick={() => router.push('/')}
+              title="Go to landing"
+              aria-label="Go to landing"
             >
               <LogOut className="h-5 w-5" />
             </button>
-            <Link
-              className="rounded p-1 hover:text-foreground"
-              href="/classification-framework"
-              title="Classification Framework"
-              aria-label="Classification Framework"
-            >
-              <FolderKanban className="h-5 w-5" />
-            </Link>
           </div>
         </div>
       </aside>
@@ -271,8 +215,8 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
       <Dialog open={newItem.open} onOpenChange={(open) => setNewItem((prev) => ({ ...prev, open }))}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Adicionar {newItem.type === 'folder' ? 'pasta' : 'processo'}</DialogTitle>
-            <DialogDescription>Crie dentro do espaço selecionado.</DialogDescription>
+            <DialogTitle>Add {newItem.type === 'folder' ? 'folder' : 'process'}</DialogTitle>
+            <DialogDescription>Create inside the selected space.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="flex gap-3">
@@ -282,7 +226,7 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
                 size="sm"
                 onClick={() => setNewItem((prev) => ({ ...prev, type: 'folder' }))}
               >
-                Pasta
+                Folder
               </Button>
               <Button
                 type="button"
@@ -290,28 +234,30 @@ export function SpacesSidebar({ collapsed = false, onToggleCollapsed }: SpacesSi
                 size="sm"
                 onClick={() => setNewItem((prev) => ({ ...prev, type: 'process' }))}
               >
-                Processo
+                Process
               </Button>
             </div>
             <div className="space-y-1">
-              <Label>Nome</Label>
-              <Input value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="Nome" />
+              <Label>Name</Label>
+              <Input value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="Name" />
             </div>
             <div className="space-y-1">
-              <Label>Descrição</Label>
-              <Input value={itemDesc} onChange={(e) => setItemDesc(e.target.value)} placeholder="Opcional" />
+              <Label>Description</Label>
+              <Input value={itemDesc} onChange={(e) => setItemDesc(e.target.value)} placeholder="Optional" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewItem({ open: false, spaceId: '', parentFolderId: null, type: 'folder' })}>
-              Cancelar
+              Cancel
             </Button>
             <Button onClick={handleCreate} disabled={!itemName.trim()}>
-              Criar
+              Create
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <QuickSearch open={quickSearchOpen} onOpenChange={setQuickSearchOpen} />
     </>
   );
 }
@@ -373,7 +319,7 @@ function SpaceTreeList({
                   style={{ paddingLeft: `${(depth + 2) * 12}px` }}
                 >
                   <Workflow className="h-4 w-4" />
-              {showLabels && <span className="truncate">{proc.name}</span>}
+                  {showLabels && <span className="truncate">{proc.name}</span>}
                 </Link>
               ))}
             </div>

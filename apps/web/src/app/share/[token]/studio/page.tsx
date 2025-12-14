@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import StudioContent from '@/features/bpmn/StudioContent';
 import { Loader2, AlertCircle } from 'lucide-react';
@@ -24,12 +24,9 @@ interface SharedProjectInfo {
   permission: 'viewer' | 'commenter' | 'editor';
 }
 
-interface PageProps {
-  params: { token: string };
-}
-
-export default function SharedStudioPage({ params }: PageProps) {
-  const shareToken = params.token;
+export default function SharedStudioPage() {
+  const params = useParams<{ token: string }>();
+  const shareToken = params?.token;
   const router = useRouter();
   const { token: authToken, loading: authLoading } = useAuth();
   

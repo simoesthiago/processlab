@@ -7,13 +7,13 @@
  * Updated to match ProcessLab design system.
  */
 
-import React, { useState } from 'react';
+
 import { cn } from '@/lib/utils';
-import { 
-  GitBranch, 
-  Clock, 
-  CheckCircle, 
-  RotateCcw, 
+import {
+  GitBranch,
+  Clock,
+  CheckCircle,
+  RotateCcw,
   User,
 } from 'lucide-react';
 
@@ -76,15 +76,15 @@ export default function VersionTimeline({
     <div className="flex flex-col h-full overflow-hidden bg-background">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border shrink-0">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <GitBranch className="h-4 w-4 text-muted-foreground" />
-              <h3 className="font-semibold text-sm text-foreground">Version History</h3>
-              <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                {versions.length}
-              </span>
-            </div>
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-muted-foreground" />
+            <h3 className="font-semibold text-sm text-foreground">Version History</h3>
+            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+              {versions.length}
+            </span>
           </div>
+        </div>
       </div>
 
       {/* Timeline */}
@@ -109,8 +109,8 @@ export default function VersionTimeline({
                   isActive
                     ? 'bg-success border-success'
                     : isSelected
-                    ? 'bg-primary border-primary'
-                    : 'bg-background border-border group-hover:border-primary/50'
+                      ? 'bg-primary border-primary'
+                      : 'bg-background border-border group-hover:border-primary/50'
                 )} />
 
                 {/* Version Card */}

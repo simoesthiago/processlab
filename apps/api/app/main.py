@@ -82,7 +82,7 @@ async def health():
         "checks": {}
     }
     
-    # Check Database
+    # Database health
     try:
         db = next(get_db())
         db.execute(text("SELECT 1"))
@@ -92,28 +92,18 @@ async def health():
         health_status["checks"]["database"] = {"status": "unhealthy", "message": str(e)}
         logger.error(f"Database health check failed: {e}")
     
-    # Check MinIO (optional, only if configured)
-    minio_endpoint = os.getenv("MINIO_ENDPOINT")
-    if minio_endpoint:
-        try:
-            # Our storage service singleton lives in app.services.storage.minio
-            from app.services.storage.minio import storage_service
-
-            # Touch the client and attempt a lightweight op
-            client = storage_service.client
-            list(client.list_buckets())
-            health_status["checks"]["minio"] = {"status": "healthy", "message": "Connected"}
-        except Exception as e:
-            health_status["ok"] = False
-            health_status["checks"]["minio"] = {"status": "unhealthy", "message": str(e)}
-            logger.error(f"MinIO health check failed: {e}")
+    # Storage health (Local)
+    from app.services.storage.local import storage_service
+    if storage_service.base_path.exists():
+        health_status["checks"]["storage"] = {"status": "healthy", "message": "Local storage ready"}
     else:
-        health_status["checks"]["minio"] = {"status": "not_configured", "message": "MinIO endpoint not set"}
-    
+         health_status["checks"]["storage"] = {"status": "unhealthy", "message": "Storage path missing"}
+
     return health_status
 
 
 # Convenience: health under API prefix for tooling that expects /api/v1/health
+
 @app.get("/api/v1/health")
 async def health_v1():
     return await health()
@@ -146,9 +136,9 @@ def root():
 @app.on_event("startup")
 async def startup_event():
     """Application startup tasks"""
-    logger.info("ProcessLab API starting up...")
+    logger.info("ProcessLab API starting up (Locally)...")
     # TODO: Initialize database connections
-    # TODO: Initialize object storage client
+    # Storage initialized on module load
     # TODO: Initialize RAG system
     # TODO: Load LLM configurations
 

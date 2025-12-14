@@ -168,6 +168,17 @@
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
+/* BPMN: keep palette/context pad away from top toolbars */
+.djs-palette {
+  top: 72px !important;
+  left: 12px !important;
+  z-index: 20;
+}
+
+.djs-context-pad {
+  z-index: 40; /* toolbar uses z-50 */
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #09090b;

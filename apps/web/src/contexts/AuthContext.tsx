@@ -47,18 +47,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize: Check for stored token on mount
+  // Initialize: Always auto-login as demo user for this local version
   useEffect(() => {
-    const storedToken = localStorage.getItem('auth_token');
-    if (storedToken) {
-      setToken(storedToken);
-      // Fetch user info with stored token
-      fetchUserInfo(storedToken);
-    } else {
-      setUser(LOCAL_USER);
-      setLoading(false);
-    }
+    // Force demo token
+    const demoToken = 'demo-token';
+    const demoUser = {
+      ...LOCAL_USER,
+      email: 'demo@processlab.io',
+      full_name: 'Demo User'
+    };
+
+    localStorage.setItem('auth_token', demoToken);
+    setToken(demoToken);
+    setUser(demoUser);
+    setLoading(false);
   }, []);
+
 
   const fetchUserInfo = async (authToken: string) => {
     try {
@@ -117,19 +121,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await response.json();
-      
+
       // Validate response structure
       if (!data.access_token || !data.user) {
         throw new Error('Invalid response from server');
       }
-      
+
       // Store token
       localStorage.setItem('auth_token', data.access_token);
       setToken(data.access_token);
       setUser(data.user);
     } catch (error: unknown) {
       clearTimeout(timeoutId);
-      
+
       // Handle different error types
       if (error instanceof Error) {
         // AbortError means the request was aborted (timeout)
@@ -149,8 +153,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (
-    email: string, 
-    password: string, 
+    email: string,
+    password: string,
     fullName: string,
     orgName?: string
   ) => {
@@ -188,19 +192,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await response.json();
-      
+
       // Validate response structure
       if (!data.access_token || !data.user) {
         throw new Error('Invalid response from server');
       }
-      
+
       // Store token
       localStorage.setItem('auth_token', data.access_token);
       setToken(data.access_token);
       setUser(data.user);
     } catch (error: unknown) {
       clearTimeout(timeoutId);
-      
+
       // Handle different error types
       if (error instanceof Error) {
         // AbortError means the request was aborted (timeout)

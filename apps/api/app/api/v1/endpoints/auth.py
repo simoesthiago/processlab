@@ -7,7 +7,7 @@ Handles user registration, login, and token management.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.db.models import User, Organization
+from app.db.models import User
 from app.core.auth import hash_password, verify_password, create_access_token
 from app.core.dependencies import get_current_user
 from app.schemas.auth import (
@@ -30,9 +30,6 @@ def register_user(
 ):
     """
     Register a new user.
-    
-    If organization_name is provided, creates a new organization and makes the user an admin.
-    Otherwise, user is created without an organization (can be assigned later by admin).
     """
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
@@ -42,35 +39,11 @@ def register_user(
             details={"email": user_data.email}
         )
     
-    # Create organization if provided
-    organization = None
-    if user_data.organization_name:
-        # Check if organization name is already taken
-        existing_org = db.query(Organization).filter(
-            Organization.name == user_data.organization_name
-        ).first()
-        if existing_org:
-            raise ValidationError(
-                "Organization with this name already exists",
-                details={"organization_name": user_data.organization_name}
-            )
-        
-        # Create new organization
-        organization = Organization(
-            name=user_data.organization_name,
-            description=f"Organization for {user_data.full_name}"
-        )
-        db.add(organization)
-        db.flush()  # Get organization ID
-        logger.info(f"Created organization: {organization.name} (id: {organization.id})")
-    
     # Create user
     user = User(
         email=user_data.email,
         hashed_password=hash_password(user_data.password),
         full_name=user_data.full_name,
-        organization_id=organization.id if organization else None,
-        role="admin" if organization else None,  # First user in org is admin
         is_active=True,
         is_superuser=False
     )
@@ -146,3 +119,4 @@ def logout_user():
     and can be extended with token blacklisting if needed.
     """
     return {"message": "Logged out successfully. Please discard your token."}
+

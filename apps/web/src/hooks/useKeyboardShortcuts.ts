@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 
 export interface KeyboardShortcut {
   key: string;
@@ -57,8 +57,8 @@ export function isMac(): boolean {
 
 // Common shortcuts
 export const COMMON_SHORTCUTS = {
-  NEW: { key: 'n', ctrl: true, description: 'Criar novo item' },
-  SEARCH: { key: 'k', ctrl: true, description: 'Buscar' },
-  ESCAPE: { key: 'Escape', description: 'Fechar modal/cancelar' },
+  NEW: { key: 'n', ctrl: true, description: 'Create new item' },
+  SEARCH: { key: 'k', ctrl: true, description: 'Search' },
+  ESCAPE: { key: 'Escape', description: 'Close modal/cancel' },
 };
 

@@ -40,91 +40,10 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
-class Organization(Base):
-    """
-    Organization (Multi-tenant)
-    
-    Represents a company or consultancy client.
-    All data is scoped by organization for multi-tenancy.
-    """
-    __tablename__ = "organizations"
-    
-    id = Column(String(36), primary_key=True, default=generate_uuid)
-    name = Column(String(255), nullable=False, unique=True)
-    slug = Column(String(255), nullable=False, unique=True, index=True)
-    description = Column(Text, nullable=True)
-    
-    # Settings
-    settings = Column(JSON, nullable=True)  # Organization-specific settings
-    
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
-    # Soft delete
-    deleted_at = Column(DateTime, nullable=True)
-    
-    # Relationships
-    projects = relationship("Project", back_populates="organization")
-    users = relationship("User", back_populates="organization")
-    memberships = relationship(
-        "OrganizationMember",
-        back_populates="organization",
-        cascade="all, delete-orphan",
-    )
-    
-    def __repr__(self):
-        return f"<Organization(id={self.id}, name={self.name}, slug={self.slug})>"
 
 
-class Project(Base):
-    """
-    Project
-    
-    Groups related processes together within an organization or as personal projects.
-    Hierarchy: Workspace (Org/Personal) → Project → Folders → Process → Version
-    
-    For personal projects: organization_id is NULL, owner_id is set
-    For org projects: organization_id is set, owner_id can be NULL
-    """
-    __tablename__ = "projects"
-    
-    id = Column(String(36), primary_key=True, default=generate_uuid)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True)  # NULL for personal projects
-    
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    
-    # Metadata
-    tags = Column(JSON, nullable=True)  # e.g., ["finance", "compliance"]
-    settings = Column(JSON, nullable=True)  # Project-specific settings
-    
-    # Visibility for personal projects
-    visibility = Column(String(20), nullable=True, default="organization")  # private, shared, public, organization
-    
-    # Default project flag - for Quick Start drafts
-    is_default = Column(Boolean, default=False)  # True for the auto-created "Drafts" project
-    
-    # Ownership
-    owner_id = Column(String(36), ForeignKey("users.id"), nullable=True)  # For personal projects
-    created_by = Column(String(255), nullable=True)  # User ID who created it
-    
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
-    # Soft delete
-    deleted_at = Column(DateTime, nullable=True)
-    
-    # Relationships
-    organization = relationship("Organization", back_populates="projects")
-    owner = relationship("User", back_populates="owned_projects", foreign_keys=[owner_id])
-    processes = relationship("ProcessModel", back_populates="project")
-    folders = relationship("Folder", back_populates="project")
-    shares = relationship("ProjectShare", back_populates="project")
-    
-    def __repr__(self):
-        return f"<Project(id={self.id}, name={self.name}, org_id={self.organization_id}, owner_id={self.owner_id})>"
+
+
 
 
 
@@ -132,15 +51,12 @@ class Folder(Base):
     """
     Folder
     
-    Organizes processes within a project in a hierarchical structure.
-    Similar to directories in a file system.
-    Hierarchy: Project → Folder → Subfolder → Process
+    Organizes processes in a hierarchical structure.
+    Hierarchy: Folder → Subfolder → Process
     """
     __tablename__ = "folders"
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     parent_folder_id = Column(String(36), ForeignKey("folders.id"), nullable=True, index=True)
     
@@ -165,15 +81,13 @@ class Folder(Base):
     deleted_at = Column(DateTime, nullable=True)
     
     # Relationships
-    project = relationship("Project", back_populates="folders")
-    organization = relationship("Organization")
     user = relationship("User", foreign_keys=[user_id])
     parent_folder = relationship("Folder", remote_side="Folder.id", backref="subfolders")
     processes = relationship("ProcessModel", back_populates="folder")
     creator = relationship("User", foreign_keys=[created_by])
     
     def __repr__(self):
-        return f"<Folder(id={self.id}, name={self.name}, project_id={self.project_id}, org_id={self.organization_id}, user_id={self.user_id})>"
+        return f"<Folder(id={self.id}, name={self.name}, user_id={self.user_id})>"
 
 
 class ProcessModel(Base):
@@ -182,13 +96,11 @@ class ProcessModel(Base):
     
     Stores process definitions and their current version.
     Each process can have multiple versions (tracked in ModelVersion).
-    Belongs to a Project within an Organization.
     Can optionally be organized in Folders.
     """
     __tablename__ = "processes"
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
     folder_id = Column(String(36), ForeignKey("folders.id"), nullable=True, index=True)  # Optional folder
     
     name = Column(String(255), nullable=False)
@@ -202,7 +114,6 @@ class ProcessModel(Base):
     
     # Ownership
     created_by = Column(String(255), nullable=True)  # User ID from auth system
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # Team space scope
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)  # Private space scope
     
     # Timestamps
@@ -213,14 +124,12 @@ class ProcessModel(Base):
     deleted_at = Column(DateTime, nullable=True)
     
     # Relationships
-    project = relationship("Project", back_populates="processes")
     folder = relationship("Folder", back_populates="processes")
-    organization = relationship("Organization")
     user = relationship("User", foreign_keys=[user_id])
     versions = relationship("ModelVersion", back_populates="process", foreign_keys="ModelVersion.process_id")
     
     def __repr__(self):
-        return f"<ProcessModel(id={self.id}, name={self.name}, project_id={self.project_id}, org_id={self.organization_id}, user_id={self.user_id})>"
+        return f"<ProcessModel(id={self.id}, name={self.name}, user_id={self.user_id})>"
 
 
 
@@ -328,7 +237,7 @@ class Artifact(Base):
     
     # Ownership
     uploaded_by = Column(String(255), nullable=True)
-    organization_id = Column(String(36), nullable=True)
+
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -416,8 +325,7 @@ class User(Base):
     """
     User
     
-    Application users who belong to an organization.
-    Can also have personal projects.
+    Application users.
     """
     __tablename__ = "users"
 
@@ -426,135 +334,19 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=True)
     
-    # Organization membership
-    # organization_id is the user's currently active organization (for switching)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True)
-    
     # Status and role
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
-    role = Column(String(50), nullable=True)  # "viewer", "editor", "admin"
+    role = Column(String(50), nullable=True, default="admin")
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    organization = relationship("Organization", back_populates="users")
-    memberships = relationship(
-        "OrganizationMember",
-        back_populates="user",
-        cascade="all, delete-orphan",
-        foreign_keys=lambda: [OrganizationMember.user_id],
-        primaryjoin="User.id==OrganizationMember.user_id",
-    )
-    organizations = relationship(
-        "Organization",
-        secondary="organization_members",
-        viewonly=True,
-        primaryjoin="User.id==OrganizationMember.user_id",
-        secondaryjoin="Organization.id==OrganizationMember.organization_id",
-        foreign_keys=lambda: [OrganizationMember.user_id, OrganizationMember.organization_id],
-        overlaps="memberships,organization",
-    )
-    owned_projects = relationship("Project", back_populates="owner", foreign_keys="Project.owner_id")
-    shared_projects = relationship("ProjectShare", back_populates="shared_with_user", foreign_keys="ProjectShare.shared_with_user_id")
 
     def __repr__(self):
-        return f"<User(id={self.id}, email={self.email}, org_id={self.organization_id})>"
+        return f"<User(id={self.id}, email={self.email})>"
 
 
-class OrganizationMember(Base):
-    """
-    Organization membership (many-to-many between users and organizations).
-    
-    Stores role per organization and supports soft deletion for revocation.
-    """
 
-    __tablename__ = "organization_members"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "user_id", name="uq_org_member"),
-    )
-
-    id = Column(String(36), primary_key=True, default=generate_uuid)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-
-    role = Column(String(50), nullable=False, default="viewer")  # viewer, editor, admin
-    status = Column(String(20), nullable=False, default="active")  # active, invited, suspended
-
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    deleted_at = Column(DateTime, nullable=True)
-    invited_by = Column(String(36), ForeignKey("users.id"), nullable=True)
-
-    organization = relationship(
-        "Organization",
-        back_populates="memberships",
-        foreign_keys=[organization_id],
-        primaryjoin="OrganizationMember.organization_id==Organization.id",
-    )
-    user = relationship(
-        "User",
-        back_populates="memberships",
-        foreign_keys=[user_id],
-        primaryjoin="OrganizationMember.user_id==User.id",
-    )
-    inviter = relationship("User", foreign_keys=[invited_by], viewonly=True)
-
-    def __repr__(self):
-        return f"<OrganizationMember(org_id={self.organization_id}, user_id={self.user_id}, role={self.role})>"
-
-
-class ProjectShare(Base):
-    """
-    Project Share
-    
-    Manages sharing of personal projects with other users.
-    Supports both direct user sharing and public link sharing.
-    """
-    __tablename__ = "project_shares"
-    
-    id = Column(String(36), primary_key=True, default=generate_uuid)
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
-    owner_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    
-    # Who it's shared with (mutually exclusive with public link)
-    shared_with_email = Column(String(255), nullable=True)  # Email for pending invites
-    shared_with_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    
-    # Public link sharing
-    share_token = Column(String(64), unique=True, nullable=True, index=True)
-    is_public_link = Column(Boolean, default=False)
-    
-    # Permission level
-    permission = Column(String(20), nullable=False)  # "viewer", "commenter", "editor"
-    
-    # Expiration
-    expires_at = Column(DateTime, nullable=True)
-    
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
-    # Soft delete / revocation
-    revoked_at = Column(DateTime, nullable=True)
-    
-    # Relationships
-    project = relationship("Project", back_populates="shares")
-    owner = relationship("User", foreign_keys=[owner_id])
-    shared_with_user = relationship("User", back_populates="shared_projects", foreign_keys=[shared_with_user_id])
-    
-    def __repr__(self):
-        return f"<ProjectShare(id={self.id}, project_id={self.project_id}, permission={self.permission})>"
-    
-    @property
-    def is_valid(self):
-        """Check if the share is still valid (not expired or revoked)"""
-        if self.revoked_at:
-            return False
-        if self.expires_at and self.expires_at < datetime.utcnow():
-            return False
-        return True
 
 
 
