@@ -1,37 +1,37 @@
 import os
 import tempfile
 from sqlalchemy.orm import Session
-from minio import Minio
 from app.core.config import settings
 from app.db.models import Artifact, EmbeddingChunk
 from app.services.ingestion.ocr import OCRService
 from app.services.ingestion.chunking import ChunkingService
 from app.services.vector.embeddings import get_embedding_service
+from app.services.storage.local import storage_service
+import logging
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
+
 class IngestionPipeline:
-    def __init__(self, db: Session):
-        self.db = db
-        self.minio_client = Minio(
-            endpoint=settings.MINIO_ENDPOINT,
-            access_key=settings.MINIO_ACCESS_KEY,
-            secret_key=settings.MINIO_SECRET_KEY,
-            secure=settings.MINIO_SECURE
-        )
+    def __init__(self):
+        self.storage = storage_service
         self.ocr_service = OCRService()
         self.chunking_service = ChunkingService()
         self.embedding_service = get_embedding_service()
 
-    def process_artifact(self, artifact_id: str):
-        artifact = self.db.query(Artifact).filter(Artifact.id == artifact_id).first()
+    async def process_document(self, object_name: str, db: Session):
+        """
+        Process a document from storage > extraction > embedding.
+        Async wrapper for local execution.
+        """
+        logger.info(f"Processing document: {object_name}")
+
+        artifact = db.query(Artifact).filter(Artifact.storage_path == object_name).first()
         if not artifact:
-            raise ValueError(f"Artifact {artifact_id} not found")
+            raise ValueError(f"Artifact with storage path {object_name} not found")
 
         try:
             artifact.status = "processing"
-            self.db.commit()
-
-            # 1. Download file
             _, ext = os.path.splitext(artifact.filename or "")
             if not ext:
                  _, ext = os.path.splitext(artifact.storage_path)

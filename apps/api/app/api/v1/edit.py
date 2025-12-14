@@ -17,9 +17,15 @@ import uuid
 import logging
 import re
 import json
+import hashlib
 
 router = APIRouter(tags=["edit"])
 logger = logging.getLogger(__name__)
+
+def compute_etag(payload: Dict[str, Any]) -> str:
+    """Generate deterministic etag for optimistic locking."""
+    serialized = json.dumps(payload or {}, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 patch_service = BpmnPatchService()
 linter = BpmnLinter()
@@ -273,6 +279,7 @@ async def edit_bpmn(
         bpmn_json=updated_bpmn.model_dump(),
         generation_method="edited",
         status="draft",
+        etag=compute_etag(updated_bpmn.model_dump()),
         generation_prompt=request.command
     )
     db.add(new_version)

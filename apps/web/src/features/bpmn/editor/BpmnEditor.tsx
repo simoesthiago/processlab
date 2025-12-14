@@ -11,12 +11,92 @@
 
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-
-// Import bpmn-js styles - REQUIRED for palette to appear
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
-import type { BPMN_JSON } from '@processlab/shared-schemas';
+
+import { BPMN_JSON } from '@processlab/shared-schemas';
+
+// Minimal BPMN XML to initialize an empty diagram
+const MINIMAL_BPMN_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn2:process id="Process_1" isExecutable="false">
+  </bpmn2:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>`;
+
+export interface BpmnEditorRef {
+    getXml: () => Promise<string>;
+    /** Get SVG representation of the diagram */
+    getSvg: () => Promise<string>;
+    /** Get selected elements */
+    getSelectedElements: () => any[];
+    /** Apply formatting to selected elements */
+    applyFormatting: (format: {
+        color?: string;
+        fillColor?: string;
+        font?: string;
+        fontSize?: string;
+        bold?: boolean;
+        italic?: boolean;
+        underline?: boolean;
+        textColor?: string;
+        textAlign?: 'left' | 'center' | 'right';
+        verticalAlign?: 'top' | 'middle' | 'bottom';
+        /** Optional explicit targets (e.g., from toolbar selection mirror) */
+        targets?: any[];
+    }) => void;
+    /** Undo last action */
+    undo: () => void;
+    /** Redo last action */
+    redo: () => void;
+    /** Check if undo is available */
+    canUndo: () => boolean;
+    /** Check if redo is available */
+    canRedo: () => boolean;
+    /** Delete selected elements */
+    deleteSelected: () => void;
+    /** Select all elements */
+    selectAll: () => void;
+    /** Copy selected elements */
+    copy: () => void;
+    /** Paste elements */
+    paste: () => void;
+    /** Duplicate selected elements */
+    duplicate: () => void;
+    /** Zoom in */
+    zoomIn: () => void;
+    /** Zoom out */
+    zoomOut: () => void;
+    /** Reset zoom */
+    zoomReset: () => void;
+    /** Get current zoom level */
+    getZoom: () => number;
+    /** Set zoom level */
+    setZoom: (zoom: number) => void;
+    /** Bring selected elements to front */
+    bringToFront: () => void;
+    /** Send selected elements to back */
+    sendToBack: () => void;
+    /** Group selected elements */
+    groupElements: () => void;
+    /** Ungroup selected elements */
+    ungroupElements: () => void;
+    /** Align selected elements */
+    alignElements: (direction: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => void;
+    /** Distribute selected elements evenly */
+    distributeElements: (direction: 'horizontal' | 'vertical') => void;
+    /** Apply editor settings */
+    applySettings: (settings: {
+        gridSnap?: boolean;
+        gridSize?: number;
+        zoomMin?: number;
+        zoomMax?: number;
+    }) => void;
+}
 
 interface BpmnEditorProps {
     /** Initial BPMN in JSON format */
@@ -25,299 +105,900 @@ interface BpmnEditorProps {
     initialXml?: string;
     /** Callback when BPMN is modified */
     onChange?: (bpmn: BPMN_JSON) => void;
+    /** Callback when selection changes */
+    onSelectionChange?: (elements: any[]) => void;
     /** Read-only mode */
     readOnly?: boolean;
 }
 
-export default function BpmnEditor({
+const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
     initialBpmn,
     initialXml,
     onChange,
+    onSelectionChange,
     readOnly = false,
-}: BpmnEditorProps) {
+}, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
+    const wrapperRef = useRef<HTMLDivElement>(null);
     const modelerRef = useRef<any>(null);
+    const lastSelectionRef = useRef<any[]>([]);
     const [isReady, setIsReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [BpmnModeler, setBpmnModeler] = useState<any>(null);
+    // Editor settings state
+    const [editorSettings, setEditorSettings] = useState({
+        gridSnap: true,
+        gridSize: 20,
+        zoomMin: 20,
+        zoomMax: 300,
+    });
 
-    // Load BpmnModeler module
+    useImperativeHandle(ref, () => ({
+        getXml: async () => {
+            if (!modelerRef.current) throw new Error("Editor not initialized");
+            const modeler = modelerRef.current;
+            const { xml } = await modeler.saveXML({ format: true });
+            console.log('[BpmnEditor] getXml called, returning XML length:', xml.length);
+            return xml;
+        },
+        getSvg: async () => {
+            if (!modelerRef.current) throw new Error("Editor not initialized");
+            const modeler = modelerRef.current;
+            const { svg } = await modeler.saveSVG({ format: true });
+            return svg;
+        },
+        getSelectedElements: () => {
+            if (!modelerRef.current) return [];
+            const selection = modelerRef.current.get('selection');
+            return selection.get() || [];
+        },
+        applyFormatting: (format) => {
+            if (!modelerRef.current) return;
+            const modeling = modelerRef.current.get('modeling');
+            const selection = modelerRef.current.get('selection');
+            const elementRegistry = modelerRef.current.get('elementRegistry');
+            const eventBus = modelerRef.current.get('eventBus');
+            const { targets, ...formatPayload } = format || {};
+            const selectionFromModeler = selection.get() || [];
+            const selectedElements =
+                (targets && targets.length ? targets : selectionFromModeler).length > 0
+                    ? targets && targets.length ? targets : selectionFromModeler
+                    : lastSelectionRef.current || [];
+
+            if (selectedElements.length === 0) return;
+
+            const alignToTextAnchor: Record<'left' | 'center' | 'right', string> = {
+                left: 'start',
+                center: 'middle',
+                right: 'end',
+            };
+
+            const mergeDefined = (base: Record<string, any>, override: Record<string, any>) => {
+                const result = { ...base };
+                Object.entries(override).forEach(([key, value]) => {
+                    if (value !== undefined) {
+                        (result as any)[key] = value;
+                    }
+                });
+                return result;
+            };
+
+            const getStoredFormatting = (element: any) => {
+                const di = element?.di;
+                const attrs = di?.$attrs || {};
+                return {
+                    font: attrs['data-font-family'] || di?.FontName,
+                    fontSize: attrs['data-font-size'] || di?.FontSize,
+                    bold: (attrs['data-font-weight'] || di?.FontWeight) === 'bold',
+                    italic: (attrs['data-font-style'] || di?.FontStyle) === 'italic',
+                    underline: (attrs['data-text-decoration'] || di?.TextDecoration) === 'underline',
+                    textColor: attrs['data-font-color'] || di?.FontColor,
+                    textAlign: (attrs['data-text-align'] || di?.TextAlign) as 'left' | 'center' | 'right' | undefined,
+                };
+            };
+
+            const persistFormatting = (element: any, fmt: typeof formatPayload) => {
+                if (!element?.di) return;
+                const attrs = element.di.$attrs || (element.di.$attrs = {});
+                const diUpdates: Record<string, any> = {};
+
+                if (fmt.font !== undefined) {
+                    attrs['data-font-family'] = fmt.font;
+                    diUpdates.FontName = fmt.font;
+                }
+                if (fmt.fontSize !== undefined) {
+                    attrs['data-font-size'] = fmt.fontSize;
+                    diUpdates.FontSize = fmt.fontSize;
+                }
+                if (fmt.bold !== undefined) {
+                    const val = fmt.bold ? 'bold' : 'normal';
+                    attrs['data-font-weight'] = val;
+                    diUpdates.FontWeight = val;
+                }
+                if (fmt.italic !== undefined) {
+                    const val = fmt.italic ? 'italic' : 'normal';
+                    attrs['data-font-style'] = val;
+                    diUpdates.FontStyle = val;
+                }
+                if (fmt.underline !== undefined) {
+                    const val = fmt.underline ? 'underline' : 'none';
+                    attrs['data-text-decoration'] = val;
+                    diUpdates.TextDecoration = val;
+                }
+                if (fmt.textColor !== undefined) {
+                    attrs['data-font-color'] = fmt.textColor;
+                    diUpdates.FontColor = fmt.textColor;
+                }
+                if (fmt.textAlign !== undefined) {
+                    attrs['data-text-align'] = fmt.textAlign;
+                    diUpdates.TextAlign = fmt.textAlign;
+                }
+
+                // Push DI changes through modeling so the command stack and renderer know about them
+                if (Object.keys(diUpdates).length > 0) {
+                    modeling.updateProperties(element, { di: diUpdates });
+                }
+            };
+
+            const applyTextFormatting = (element: any, gfx?: SVGElement, overrides?: typeof formatPayload) => {
+                if (!element) return;
+                const registry = elementRegistry;
+                const graphics = gfx || registry.getGraphics(element);
+                const stored = getStoredFormatting(element);
+                const merged = mergeDefined(stored, overrides || {});
+
+                const normalizeFontSize = (size: any) => {
+                    if (size === undefined) return undefined;
+                    const num = Number(size);
+                    return Number.isFinite(num) ? num : undefined;
+                };
+
+                const fontSizeValue = normalizeFontSize(merged.fontSize);
+
+                const findTextNodes = (el: any) => {
+                    const svgNodes: SVGTextElement[] = [];
+                    const htmlNodes: HTMLElement[] = [];
+                    const labelNodes: SVGTextElement[] = [];
+                    if (el) {
+                        const g = registry.getGraphics(el);
+                        if (g) {
+                            g.querySelectorAll('text, tspan').forEach((n: any) => svgNodes.push(n));
+                            g.querySelectorAll('.djs-label').forEach((n: any) => labelNodes.push(n));
+                        }
+                        const id = el.id || el.businessObject?.id;
+                        if (id) {
+                            // element itself
+                            document
+                                .querySelectorAll(`[data-element-id="${id}"] text, [data-element-id="${id}"] tspan`)
+                                .forEach((n) => svgNodes.push(n as SVGTextElement));
+                            document
+                                .querySelectorAll(`[data-element-id="${id}"] .djs-label`)
+                                .forEach((n) => labelNodes.push(n as SVGTextElement));
+                            // typical external label id pattern: <elementId>_label
+                            const labelId = `${id}_label`;
+                            document
+                                .querySelectorAll(`[data-element-id="${labelId}"] text, [data-element-id="${labelId}"] tspan`)
+                                .forEach((n) => svgNodes.push(n as SVGTextElement));
+                            document
+                                .querySelectorAll(`[data-element-id="${labelId}"] .djs-label`)
+                                .forEach((n) => labelNodes.push(n as SVGTextElement));
+                            // Direct editing overlays (contenteditable div)
+                            document
+                                .querySelectorAll(
+                                    `[data-element-id="${id}"] .djs-direct-editing-content, .djs-direct-editing-content`
+                                )
+                                .forEach((n) => htmlNodes.push(n as HTMLElement));
+                        }
+                    }
+                    return { svgNodes, htmlNodes, labelNodes };
+                };
+
+                const applyTo = (el: any) => {
+                    if (!el) return;
+                    const { svgNodes, htmlNodes, labelNodes } = findTextNodes(el);
+                    svgNodes.forEach((textNode) => {
+                        if (merged.font !== undefined) {
+                            textNode.setAttribute('font-family', merged.font);
+                            (textNode as any).style.fontFamily = merged.font;
+                        }
+                        if (merged.fontSize !== undefined) {
+                            const sizeToUse = fontSizeValue ?? merged.fontSize;
+                            textNode.setAttribute('font-size', `${sizeToUse}`);
+                            (textNode as any).style.fontSize = `${sizeToUse}px`;
+                        }
+                        if (merged.bold !== undefined) {
+                            const weight = merged.bold ? 'bold' : 'normal';
+                            textNode.setAttribute('font-weight', weight);
+                            (textNode as any).style.fontWeight = weight;
+                        }
+                        if (merged.italic !== undefined) {
+                            const style = merged.italic ? 'italic' : 'normal';
+                            textNode.setAttribute('font-style', style);
+                            (textNode as any).style.fontStyle = style;
+                        }
+                        if (merged.underline !== undefined) {
+                            (textNode as any).style.textDecoration = merged.underline ? 'underline' : 'none';
+                        }
+                        if (merged.textColor !== undefined) {
+                            textNode.setAttribute('fill', merged.textColor);
+                            (textNode as any).style.fill = merged.textColor;
+                            (textNode as any).style.color = merged.textColor;
+                        }
+                        if (merged.textAlign !== undefined) {
+                            const key = merged.textAlign as keyof typeof alignToTextAnchor;
+                            const textAnchor = alignToTextAnchor[key] || 'start';
+                            textNode.setAttribute('text-anchor', textAnchor);
+                            (textNode as any).style.textAnchor = textAnchor;
+                            (textNode as any).style.textAlign = merged.textAlign;
+                        }
+                    });
+                    htmlNodes.forEach((node) => {
+                        if (merged.font !== undefined) node.style.fontFamily = merged.font;
+                        if (merged.fontSize !== undefined) node.style.fontSize = `${fontSizeValue ?? merged.fontSize}px`;
+                        if (merged.bold !== undefined) node.style.fontWeight = merged.bold ? '700' : '400';
+                        if (merged.italic !== undefined) node.style.fontStyle = merged.italic ? 'italic' : 'normal';
+                        if (merged.underline !== undefined)
+                            node.style.textDecoration = merged.underline ? 'underline' : 'none';
+                        if (merged.textColor !== undefined) node.style.color = merged.textColor;
+                        if (merged.textAlign !== undefined) node.style.textAlign = merged.textAlign;
+                    });
+                    labelNodes.forEach((node) => {
+                        if (merged.font !== undefined) (node as any).style.fontFamily = merged.font;
+                        if (merged.fontSize !== undefined)
+                            (node as any).style.fontSize = `${fontSizeValue ?? merged.fontSize}px`;
+                        if (merged.bold !== undefined) (node as any).style.fontWeight = merged.bold ? 'bold' : 'normal';
+                        if (merged.italic !== undefined) (node as any).style.fontStyle = merged.italic ? 'italic' : 'normal';
+                        if (merged.underline !== undefined)
+                            (node as any).style.textDecoration = merged.underline ? 'underline' : 'none';
+                        if (merged.textColor !== undefined) (node as any).style.color = merged.textColor;
+                        if (merged.textAlign !== undefined) (node as any).style.textAlign = merged.textAlign;
+                    });
+                };
+
+                applyTo(element);
+                applyTo(element.label);
+                if (element.labels && Array.isArray(element.labels)) {
+                    element.labels.forEach(applyTo);
+                }
+                if (element.labelTarget) {
+                    applyTo(element.labelTarget);
+                }
+            };
+
+            const changedElements: any[] = [];
+
+            const uniqById = (elements: any[]) => {
+                const seen = new Set<string>();
+                return elements.filter((el) => {
+                    const id = el?.id || el?.businessObject?.id;
+                    if (!id) return true;
+                    if (seen.has(id)) return false;
+                    seen.add(id);
+                    return true;
+                });
+            };
+
+            selectedElements.forEach((element: any) => {
+                const labelById = element?.id ? elementRegistry.get?.(`${element.id}_label`) : null;
+                const labelsByRelation =
+                    elementRegistry?.getAll?.().filter((el: any) => el?.labelTarget === element) || [];
+                const labelCandidates = [
+                    element,
+                    element.label,
+                    labelById,
+                    ...(element.labels || []),
+                    element.labelTarget,
+                    ...labelsByRelation,
+                ].filter(Boolean);
+                const targets = uniqById(labelCandidates);
+                // Helper to update any text nodes found for element and its label
+                const applyToTextNodes = (el: any) => applyTextFormatting(el, undefined, formatPayload);
+
+                // Color (stroke)
+                if (format.color !== undefined) {
+                    modeling.setColor(element, { stroke: format.color });
+                }
+
+                // Fill Color
+                if (format.fillColor !== undefined) {
+                    modeling.setColor(element, { fill: format.fillColor });
+                }
+
+                changedElements.push(...targets);
+
+                // Apply to text nodes immediately
+                targets.forEach((t) => applyToTextNodes(t));
+
+                // Label color via modeling API (stroke + fill) so it persists
+                // Persist intended properties on DI via custom attrs + di:* for each target
+                targets.forEach((t: any) => persistFormatting(t, format));
+            });
+
+            // Notify renderer to refresh (including labels)
+            if (changedElements.length > 0) {
+                eventBus.fire('elements.changed', { elements: changedElements });
+            }
+        },
+        undo: () => {
+            if (!modelerRef.current) return;
+            const commandStack = modelerRef.current.get('commandStack');
+            if (commandStack.canUndo()) {
+                commandStack.undo();
+            }
+        },
+        redo: () => {
+            if (!modelerRef.current) return;
+            const commandStack = modelerRef.current.get('commandStack');
+            if (commandStack.canRedo()) {
+                commandStack.redo();
+            }
+        },
+        canUndo: () => {
+            if (!modelerRef.current) return false;
+            const commandStack = modelerRef.current.get('commandStack');
+            return commandStack.canUndo();
+        },
+        canRedo: () => {
+            if (!modelerRef.current) return false;
+            const commandStack = modelerRef.current.get('commandStack');
+            return commandStack.canRedo();
+        },
+        deleteSelected: () => {
+            if (!modelerRef.current) return;
+            const modeling = modelerRef.current.get('modeling');
+            const selection = modelerRef.current.get('selection');
+            const selectedElements = selection.get();
+            
+            if (selectedElements.length === 0) return;
+            
+            // Filter out root elements
+            const elementsToDelete = selectedElements.filter((element: any) => {
+                const bo = element.businessObject;
+                return bo && bo.$type !== 'bpmn:Process' && bo.$type !== 'bpmn:Collaboration';
+            });
+            
+            if (elementsToDelete.length > 0) {
+                modeling.removeElements(elementsToDelete);
+            }
+        },
+        selectAll: () => {
+            if (!modelerRef.current) return;
+            const elementRegistry = modelerRef.current.get('elementRegistry');
+            const selection = modelerRef.current.get('selection');
+            
+            const allElements = elementRegistry.getAll().filter((element: any) => {
+                // Filter out root elements and connections (we can include connections if needed)
+                return element.type !== 'bpmn:Process' && 
+                       element.type !== 'bpmn:Collaboration' &&
+                       element.type !== 'bpmndi:BPMNPlane' &&
+                       element.type !== 'bpmndi:BPMNDiagram';
+            });
+            
+            selection.select(allElements);
+        },
+        copy: () => {
+            if (!modelerRef.current) return;
+            const copyPaste = modelerRef.current.get('copyPaste', false);
+            if (copyPaste) {
+                copyPaste.copy();
+            } else {
+                // Fallback: store in clipboard manually
+                const selection = modelerRef.current.get('selection');
+                const selectedElements = selection.get();
+                if (selectedElements.length > 0) {
+                    // Store in sessionStorage as fallback
+                    const elementsData = selectedElements.map((el: any) => ({
+                        id: el.id,
+                        type: el.type,
+                        businessObject: el.businessObject
+                    }));
+                    sessionStorage.setItem('bpmn-copied-elements', JSON.stringify(elementsData));
+                }
+            }
+        },
+        paste: () => {
+            if (!modelerRef.current) return;
+            const copyPaste = modelerRef.current.get('copyPaste', false);
+            if (copyPaste) {
+                copyPaste.paste();
+            } else {
+                // Fallback: try to restore from sessionStorage
+                const copiedData = sessionStorage.getItem('bpmn-copied-elements');
+                if (copiedData) {
+                    console.warn('Copy/paste fallback: Full implementation requires copyPaste module');
+                }
+            }
+        },
+        duplicate: () => {
+            if (!modelerRef.current) return;
+            const modeling = modelerRef.current.get('modeling');
+            const selection = modelerRef.current.get('selection');
+            const elementFactory = modelerRef.current.get('elementFactory');
+            const create = modelerRef.current.get('create');
+            const canvas = modelerRef.current.get('canvas');
+            
+            const selectedElements = selection.get();
+            if (selectedElements.length === 0) return;
+            
+            // For now, duplicate the first selected element
+            const element = selectedElements[0];
+            const bo = element.businessObject;
+            
+            // Create new element with same type
+            const newElement = elementFactory.createShape({
+                type: bo.$type,
+                x: element.x + 50,
+                y: element.y + 50
+            });
+            
+            create.start(canvas.getRootElement(), newElement, {
+                x: element.x + 50,
+                y: element.y + 50
+            });
+        },
+        zoomIn: () => {
+            if (!modelerRef.current) return;
+            const canvas = modelerRef.current.get('canvas');
+            const currentZoom = canvas.zoom();
+            const maxZoom = editorSettings.zoomMax / 100;
+            canvas.zoom(Math.min(currentZoom * 1.2, maxZoom));
+        },
+        zoomOut: () => {
+            if (!modelerRef.current) return;
+            const canvas = modelerRef.current.get('canvas');
+            const currentZoom = canvas.zoom();
+            const minZoom = editorSettings.zoomMin / 100;
+            canvas.zoom(Math.max(currentZoom / 1.2, minZoom));
+        },
+        zoomReset: () => {
+            if (!modelerRef.current) return;
+            const canvas = modelerRef.current.get('canvas');
+            canvas.zoom('fit-viewport', 'auto');
+        },
+        getZoom: () => {
+            if (!modelerRef.current) return 1;
+            const canvas = modelerRef.current.get('canvas');
+            return Math.round(canvas.zoom() * 100);
+        },
+        setZoom: (zoom: number) => {
+            if (!modelerRef.current) return;
+            const canvas = modelerRef.current.get('canvas');
+            const minZoom = editorSettings.zoomMin / 100;
+            const maxZoom = editorSettings.zoomMax / 100;
+            const zoomValue = zoom / 100;
+            canvas.zoom(Math.max(minZoom, Math.min(zoomValue, maxZoom)));
+        },
+        applySettings: (settings: {
+            gridSnap?: boolean;
+            gridSize?: number;
+            zoomMin?: number;
+            zoomMax?: number;
+        }) => {
+            setEditorSettings((prev) => ({ ...prev, ...settings }));
+        },
+        bringToFront: () => {
+            if (!modelerRef.current) return;
+            const modeling = modelerRef.current.get('modeling');
+            const selection = modelerRef.current.get('selection');
+            const selectedElements = selection.get();
+            
+            if (selectedElements.length === 0) return;
+            
+            // Bring elements to front by moving them slightly and back
+            // This forces them to be rendered on top
+            selectedElements.forEach((element: any) => {
+                const currentPos = { x: element.x, y: element.y };
+                // Move slightly to trigger re-render
+                modeling.moveShape(element, { x: currentPos.x + 0.1, y: currentPos.y });
+                modeling.moveShape(element, currentPos);
+            });
+        },
+        sendToBack: () => {
+            if (!modelerRef.current) return;
+            const modeling = modelerRef.current.get('modeling');
+            const selection = modelerRef.current.get('selection');
+            const selectedElements = selection.get();
+            
+            if (selectedElements.length === 0) return;
+            
+            // Note: bpmn-js doesn't have a direct sendToBack API
+            // This is a simplified implementation
+            // For proper z-order management, we'd need to manipulate the DOM order
+            console.log('Send to back:', selectedElements);
+            // TODO: Implement proper sendToBack using DOM manipulation if needed
+        },
+        groupElements: () => {
+            if (!modelerRef.current) return;
+            const modeling = modelerRef.current.get('modeling');
+            const selection = modelerRef.current.get('selection');
+            const selectedElements = selection.get();
+            
+            if (selectedElements.length < 2) return;
+            
+            // Group elements (simplified - bpmn-js doesn't have native grouping, so we'll use a workaround)
+            // For BPMN, grouping is typically done via subprocesses or lanes
+            // This is a placeholder that could be enhanced later
+            console.log('Group elements:', selectedElements);
+            // TODO: Implement proper grouping logic
+        },
+        ungroupElements: () => {
+            if (!modelerRef.current) return;
+            const selection = modelerRef.current.get('selection');
+            const selectedElements = selection.get();
+            
+            if (selectedElements.length === 0) return;
+            
+            // Ungroup elements
+            console.log('Ungroup elements:', selectedElements);
+            // TODO: Implement proper ungrouping logic
+        },
+        alignElements: (direction: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
+            if (!modelerRef.current) return;
+            const modeling = modelerRef.current.get('modeling');
+            const selection = modelerRef.current.get('selection');
+            const selectedElements = selection.get();
+            
+            if (selectedElements.length < 2) return;
+            
+            const canvas = modelerRef.current.get('canvas');
+            
+            // Get bounding boxes for all selected elements
+            const bboxes: Array<{ x: number; y: number; width: number; height: number }> = selectedElements.map((element: any) => {
+                const bb = canvas.getAbsoluteBBox(element);
+                return { x: bb.x, y: bb.y, width: bb.width, height: bb.height };
+            });
+            
+            // Calculate alignment value based on direction
+            if (direction === 'left') {
+                const alignValue = Math.min(...bboxes.map((b) => b.x));
+                selectedElements.forEach((element: any, index: number) => {
+                    const bbox = bboxes[index];
+                    const deltaX = alignValue - bbox.x;
+                    modeling.moveShape(element, { x: element.x + deltaX, y: element.y });
+                });
+            } else if (direction === 'right') {
+                const alignValue = Math.max(...bboxes.map((b) => b.x + b.width));
+                selectedElements.forEach((element: any, index: number) => {
+                    const bbox = bboxes[index];
+                    const deltaX = alignValue - (bbox.x + bbox.width);
+                    modeling.moveShape(element, { x: element.x + deltaX, y: element.y });
+                });
+            } else if (direction === 'center') {
+                const alignValue = bboxes.reduce((sum: number, b: { x: number; width: number }) => sum + b.x + b.width / 2, 0) / bboxes.length;
+                selectedElements.forEach((element: any, index: number) => {
+                    const bbox = bboxes[index];
+                    const deltaX = alignValue - (bbox.x + bbox.width / 2);
+                    modeling.moveShape(element, { x: element.x + deltaX, y: element.y });
+                });
+            } else if (direction === 'top') {
+                const alignValue = Math.min(...bboxes.map((b) => b.y));
+                selectedElements.forEach((element: any, index: number) => {
+                    const bbox = bboxes[index];
+                    const deltaY = alignValue - bbox.y;
+                    modeling.moveShape(element, { x: element.x, y: element.y + deltaY });
+                });
+            } else if (direction === 'bottom') {
+                const alignValue = Math.max(...bboxes.map((b) => b.y + b.height));
+                selectedElements.forEach((element: any, index: number) => {
+                    const bbox = bboxes[index];
+                    const deltaY = alignValue - (bbox.y + bbox.height);
+                    modeling.moveShape(element, { x: element.x, y: element.y + deltaY });
+                });
+            } else if (direction === 'middle') {
+                const alignValue = bboxes.reduce((sum: number, b: { y: number; height: number }) => sum + b.y + b.height / 2, 0) / bboxes.length;
+                selectedElements.forEach((element: any, index: number) => {
+                    const bbox = bboxes[index];
+                    const deltaY = alignValue - (bbox.y + bbox.height / 2);
+                    modeling.moveShape(element, { x: element.x, y: element.y + deltaY });
+                });
+            }
+        },
+        distributeElements: (direction: 'horizontal' | 'vertical') => {
+            if (!modelerRef.current) return;
+            const modeling = modelerRef.current.get('modeling');
+            const selection = modelerRef.current.get('selection');
+            const selectedElements = selection.get();
+            
+            if (selectedElements.length < 3) return; // Need at least 3 elements to distribute
+            
+            const canvas = modelerRef.current.get('canvas');
+            
+            // Get bounding boxes for all selected elements
+            const bboxes: Array<{ x: number; y: number; width: number; height: number }> = selectedElements.map((element: any) => {
+                const bb = canvas.getAbsoluteBBox(element);
+                return { x: bb.x, y: bb.y, width: bb.width, height: bb.height };
+            });
+            
+            if (direction === 'horizontal') {
+                // Sort by x position
+                const sorted = selectedElements
+                    .map((element: any, index: number) => ({ element, bbox: bboxes[index] }))
+                    .sort((a: { bbox: { x: number } }, b: { bbox: { x: number } }) => a.bbox.x - b.bbox.x);
+                
+                // Calculate total width and spacing
+                const leftmost = sorted[0].bbox.x;
+                const rightmost = sorted[sorted.length - 1].bbox.x + sorted[sorted.length - 1].bbox.width;
+                const totalWidth = rightmost - leftmost;
+                const totalElementWidth = sorted.reduce((sum: number, item: { bbox: { width: number } }) => sum + item.bbox.width, 0);
+                const spacing = (totalWidth - totalElementWidth) / (sorted.length - 1);
+                
+                // Distribute elements evenly
+                let currentX = leftmost;
+                sorted.forEach((item: { element: any; bbox: { x: number; width: number } }, index: number) => {
+                    if (index > 0) {
+                        const deltaX = currentX - item.bbox.x;
+                        modeling.moveShape(item.element, { x: item.element.x + deltaX, y: item.element.y });
+                    }
+                    currentX += item.bbox.width + spacing;
+                });
+            } else if (direction === 'vertical') {
+                // Sort by y position
+                const sorted = selectedElements
+                    .map((element: any, index: number) => ({ element, bbox: bboxes[index] }))
+                    .sort((a: { bbox: { y: number } }, b: { bbox: { y: number } }) => a.bbox.y - b.bbox.y);
+                
+                // Calculate total height and spacing
+                const topmost = sorted[0].bbox.y;
+                const bottommost = sorted[sorted.length - 1].bbox.y + sorted[sorted.length - 1].bbox.height;
+                const totalHeight = bottommost - topmost;
+                const totalElementHeight = sorted.reduce((sum: number, item: { bbox: { height: number } }) => sum + item.bbox.height, 0);
+                const spacing = (totalHeight - totalElementHeight) / (sorted.length - 1);
+                
+                // Distribute elements evenly
+                let currentY = topmost;
+                sorted.forEach((item: { element: any; bbox: { y: number; height: number } }, index: number) => {
+                    if (index > 0) {
+                        const deltaY = currentY - item.bbox.y;
+                        modeling.moveShape(item.element, { x: item.element.x, y: item.element.y + deltaY });
+                    }
+                    currentY += item.bbox.height + spacing;
+                });
+            }
+        },
+        searchElements: (query: string) => {
+            if (!modelerRef.current) return [];
+            const elementRegistry = modelerRef.current.get('elementRegistry');
+            const allElements = elementRegistry.getAll();
+            
+            const lowerQuery = query.toLowerCase();
+            const results: Array<{ element: any; name: string; type: string; id: string }> = [];
+            
+            allElements.forEach((element: any) => {
+                const bo = element.businessObject;
+                if (!bo) return;
+                
+                // Filter out root elements
+                if (bo.$type === 'bpmn:Process' || bo.$type === 'bpmn:Collaboration' || 
+                    bo.$type === 'bpmndi:BPMNPlane' || bo.$type === 'bpmndi:BPMNDiagram') {
+                    return;
+                }
+                
+                const name = bo.name || bo.id || '';
+                const type = bo.$type || '';
+                const id = bo.id || '';
+                
+                // Search in name, id, or type
+                if (name.toLowerCase().includes(lowerQuery) ||
+                    id.toLowerCase().includes(lowerQuery) ||
+                    type.toLowerCase().includes(lowerQuery)) {
+                    results.push({ element, name, type, id });
+                }
+            });
+            
+            return results;
+        },
+        navigateToElement: (elementId: string) => {
+            if (!modelerRef.current) return;
+            const elementRegistry = modelerRef.current.get('elementRegistry');
+            const canvas = modelerRef.current.get('canvas');
+            const selection = modelerRef.current.get('selection');
+            
+            const element = elementRegistry.get(elementId);
+            if (!element) return;
+            
+            // Select element
+            selection.select(element);
+            
+            // Zoom and scroll to element
+            canvas.zoom('fit-viewport', 'auto');
+            canvas.scrollToElement(element, { top: 100, left: 100 });
+        },
+    }));
+
     useEffect(() => {
-        if (typeof window === 'undefined') return;
+        let modeler: any;
 
-        import('bpmn-js/lib/Modeler').then((mod) => {
-            setBpmnModeler(() => mod.default);
-        }).catch(err => {
-            console.error('Failed to load bpmn-js:', err);
-            setError('Failed to load BPMN editor module');
-        });
-    }, []);
-
-    // Initialize modeler when module is loaded
-    useEffect(() => {
-        if (!containerRef.current || !BpmnModeler) return;
-
-        // Wait for container to have dimensions before initializing
-        // This ensures the palette and canvas are properly sized
-        const initTimer = setTimeout(() => {
-            if (!containerRef.current || !BpmnModeler) return;
-
+        const initModeler = async () => {
             try {
-                const modeler = new BpmnModeler({
+                // Dynamic import to avoid SSR issues
+                const BpmnModeler = (await import('bpmn-js/lib/Modeler')).default;
+                const CustomElementFactory = (await import('./custom/CustomElementFactory')).default;
+
+                if (!containerRef.current) return;
+
+                modeler = new BpmnModeler({
                     container: containerRef.current,
                     keyboard: {
-                        bindTo: document,
+                        bindTo: document
                     },
+                    additionalModules: [
+                        {
+                            elementFactory: ['type', CustomElementFactory]
+                        }
+                    ]
                 });
 
                 modelerRef.current = modeler;
+
+                // Import minimal XML to ensure modeler is ready
+                const xmlToImport = initialXml || MINIMAL_BPMN_XML;
+                console.log('[BpmnEditor] Initializing with XML length:', xmlToImport.length);
+                await modeler.importXML(xmlToImport);
+
+                console.log('[BpmnEditor] Modeler initialized and XML imported');
                 setIsReady(true);
 
-                // Load initial XML if provided, otherwise start with truly empty diagram
-                if (initialXml) {
-                    modeler.importXML(initialXml).catch((err: any) => {
-                        console.error('Failed to load diagram:', err);
-                    });
-                } else {
-                    // Import empty BPMN XML to avoid automatic StartEvent
-                    const emptyXml = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" 
-                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" 
-                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" 
-                  id="Definitions_1" 
-                  targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="true" />
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1" />
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
-                    modeler.importXML(emptyXml).catch((err: any) => {
-                        console.error('Failed to create empty diagram:', err);
-                    });
-                }
-            } catch (err) {
-                console.error('Failed to initialize BPMN editor:', err);
-                setError('Failed to initialize BPMN editor');
-            }
-        }, 100); // Small delay to ensure container has rendered
-
-        // Cleanup
-        return () => {
-            clearTimeout(initTimer);
-            if (modelerRef.current) {
-                modelerRef.current.destroy();
+            } catch (err: unknown) {
+                console.error("Failed to initialize BPMN modeler:", err);
+                const errorMessage = err instanceof Error ? err.message : "Failed to initialize BPMN modeler";
+                setError(errorMessage);
             }
         };
-    }, [BpmnModeler, initialXml]);
 
-    const handleExport = async () => {
-        if (!modelerRef.current) return;
-
-        try {
-            // Get XML from modeler
-            const { xml } = await modelerRef.current.saveXML({ format: true });
-
-            // TODO: Convert XML back to BPMN_JSON
-            // TODO: Call onChange with updated BPMN_JSON
-
-            console.log('Exported XML:', xml);
-        } catch (err) {
-            console.error('Failed to export BPMN:', err);
+        if (!modelerRef.current) {
+            initModeler();
         }
-    };
+
+        return () => {
+            if (modeler) {
+                (modeler as { destroy: () => void }).destroy();
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        if (modelerRef.current && isReady && initialXml) {
+            // Only re-import if initialXml changes and is different from what's already loaded
+            const modeler = modelerRef.current as { importXML: (xml: string) => Promise<unknown> };
+            console.log('[BpmnEditor] Re-importing XML length:', initialXml.length);
+            modeler.importXML(initialXml).catch((err: unknown) => {
+                console.error("[BpmnEditor] Failed to import XML:", err);
+                setError("Failed to render BPMN diagram");
+            });
+        }
+    }, [initialXml, isReady]);
+
+    // Wire selection change events to propagate to parent
+    useEffect(() => {
+        if (!modelerRef.current || !isReady) return;
+        const modeler = modelerRef.current;
+        const eventBus = modeler.get('eventBus');
+        const selection = modeler.get('selection');
+        const elementRegistry = modeler.get('elementRegistry');
+        const alignToTextAnchor: Record<'left' | 'center' | 'right', string> = {
+            left: 'start',
+            center: 'middle',
+            right: 'end',
+        };
+
+        const getStoredFormatting = (element: any) => {
+            const di = element?.di;
+            const attrs = di?.$attrs || {};
+            return {
+                font: attrs['data-font-family'],
+                fontSize: attrs['data-font-size'],
+                bold: attrs['data-font-weight'] === 'bold',
+                italic: attrs['data-font-style'] === 'italic',
+                underline: attrs['data-text-decoration'] === 'underline',
+                textColor: attrs['data-font-color'],
+                textAlign: attrs['data-text-align'] as 'left' | 'center' | 'right' | undefined,
+            };
+        };
+
+        const applyTextFormatting = (element: any, gfx?: SVGElement) => {
+            if (!element) return;
+            const graphics = gfx || elementRegistry.getGraphics(element);
+            if (!graphics) return;
+            const stored = getStoredFormatting(element);
+            const applyTo = (el: any) => {
+                if (!el) return;
+                const g = elementRegistry.getGraphics(el);
+                if (!g) return;
+                const textNodes = g.querySelectorAll('text');
+                textNodes.forEach((textNode: SVGTextElement) => {
+                    if (stored.font !== undefined) {
+                        textNode.setAttribute('font-family', stored.font);
+                    }
+                    if (stored.fontSize !== undefined) {
+                        textNode.setAttribute('font-size', `${stored.fontSize}`);
+                    }
+                    if (stored.bold !== undefined) {
+                        textNode.setAttribute('font-weight', stored.bold ? 'bold' : 'normal');
+                    }
+                    if (stored.italic !== undefined) {
+                        textNode.setAttribute('font-style', stored.italic ? 'italic' : 'normal');
+                    }
+                    if (stored.underline !== undefined) {
+                        textNode.style.textDecoration = stored.underline ? 'underline' : 'none';
+                    }
+                    if (stored.textColor !== undefined) {
+                        textNode.setAttribute('fill', stored.textColor);
+                    }
+                    if (stored.textAlign !== undefined) {
+                        const textAnchor = alignToTextAnchor[stored.textAlign] || 'start';
+                        textNode.setAttribute('text-anchor', textAnchor);
+                    }
+                });
+            };
+
+            applyTo(element);
+            applyTo(element.label);
+        };
+
+        const handleSelectionChanged = (event: any) => {
+            const selectionService = modeler.get('selection');
+            const current = selectionService?.get?.() || event?.newSelection || [];
+            lastSelectionRef.current = current;
+            onSelectionChange?.(current);
+        };
+
+        const handleRender = (event: any) => {
+            const { element, gfx } = event || {};
+            applyTextFormatting(element, gfx);
+        };
+
+        eventBus.on('selection.changed', handleSelectionChanged);
+        eventBus.on('render.shape', handleRender);
+        eventBus.on('render.connection', handleRender);
+        eventBus.on('render.label', handleRender);
+
+        // Emit current selection once on mount
+        onSelectionChange?.(selection.get() || []);
+
+        return () => {
+            eventBus.off('selection.changed', handleSelectionChanged);
+            eventBus.off('render.shape', handleRender);
+            eventBus.off('render.connection', handleRender);
+            eventBus.off('render.label', handleRender);
+        };
+    }, [isReady, onSelectionChange]);
+
 
     if (error) {
         return (
-            <div className="flex items-center justify-center h-full bg-red-50 text-red-600 p-4">
-                <div className="text-center">
-                    <h3 className="font-semibold mb-2">Editor Error</h3>
-                    <p className="text-sm">{error}</p>
-                </div>
+            <div className="flex items-center justify-center h-full bg-destructive-50 text-destructive p-4">
+                <p>Error: {error}</p>
             </div>
         );
     }
 
-    const handleLayout = async () => {
-        if (!modelerRef.current) return;
-
-        try {
-            const ELK = (await import('elkjs/lib/elk.bundled')).default;
-            const elk = new ELK();
-
-            const elementRegistry = modelerRef.current.get('elementRegistry');
-            const modeling = modelerRef.current.get('modeling');
-            const canvas = modelerRef.current.get('canvas');
-            const rootElement = canvas.getRootElement();
-
-            // Get all flow elements (shapes and connections)
-            const elements = elementRegistry.filter((e: any) => e.parent === rootElement || e.parent?.type === 'bpmn:Lane' || e.parent?.type === 'bpmn:Participant');
-
-            const participants = elementRegistry.filter((e: any) => e.type === 'bpmn:Participant');
-            const lanes = elementRegistry.filter((e: any) => e.type === 'bpmn:Lane');
-
-            // Filter out containers from nodes list
-            const nodes = elements.filter((e: any) =>
-                e.type !== 'bpmn:SequenceFlow' &&
-                e.type !== 'label' &&
-                e.type !== 'bpmn:Participant' &&
-                e.type !== 'bpmn:Lane'
-            );
-            const edges = elements.filter((e: any) => e.type === 'bpmn:SequenceFlow');
-
-            // Build ELK graph
-            // Strategy: Build a map of all elements and restructure them into a tree based on parent-child relationships
-
-            const elkNodesMap = new Map<string, any>();
-            const elkGraphChildren: any[] = [];
-
-            // 1. Create ELK nodes for all shapes (Participants, Lanes, Tasks, Events, etc.)
-            // We exclude BoundaryEvents as they are attached to tasks and moving them independently can cause issues
-            const allShapes = [...participants, ...lanes, ...nodes].filter((e: any) => e.type !== 'bpmn:BoundaryEvent');
-
-            allShapes.forEach((element: any) => {
-                let width = element.width || 140;
-                let height = element.height || 90;
-
-                // Adjust dimensions for specific types if needed (though element.width/height from bpmn-js is usually correct)
-                const type = element.type.toLowerCase();
-                if (type.includes('event') && !type.includes('subprocess')) { width = 36; height = 36; }
-                else if (type.includes('gateway')) { width = 50; height = 50; }
-
-                // For containers, we let ELK decide dimensions based on children, but we need to set layout options
-                const isContainer = element.type === 'bpmn:Participant' || element.type === 'bpmn:Lane';
-
-                const elkNode: any = {
-                    id: element.id,
-                    width: isContainer ? undefined : width,
-                    height: isContainer ? undefined : height,
-                    children: [],
-                    layoutOptions: isContainer ? {
-                        'elk.direction': 'RIGHT',
-                        'elk.padding': '[top=30,left=30,bottom=30,right=30]',
-                        'elk.spacing.nodeNode': '30',
-                    } : undefined
-                };
-
-                elkNodesMap.set(element.id, elkNode);
-            });
-
-            // 2. Build Tree Structure
-            allShapes.forEach((element: any) => {
-                const elkNode = elkNodesMap.get(element.id);
-
-                // Find nearest container (Lane or Participant)
-                let currentParent = element.parent;
-                let containerId = null;
-
-                while (currentParent) {
-                    if (currentParent.type === 'bpmn:Participant' || currentParent.type === 'bpmn:Lane') {
-                        containerId = currentParent.id;
-                        break;
-                    }
-                    currentParent = currentParent.parent;
-                }
-
-                if (containerId && elkNodesMap.has(containerId)) {
-                    // Add as child to container ELK node
-                    const parentNode = elkNodesMap.get(containerId);
-                    parentNode.children.push(elkNode);
-                } else {
-                    // Top-level element (or parent is Root/Collaboration)
-                    elkGraphChildren.push(elkNode);
-                }
-            });
-
-            // Filter edges to only include those where both source and target are in the graph
-            const validEdges = edges.filter((e: any) => elkNodesMap.has(e.source.id) && elkNodesMap.has(e.target.id));
-
-            const elkGraph = {
-                id: 'root',
-                layoutOptions: {
-                    'elk.algorithm': 'layered',
-                    'elk.direction': 'RIGHT',
-                    'elk.spacing.nodeNode': '50',
-                    'elk.layered.spacing.nodeNodeBetweenLayers': '50',
-                    'elk.padding': '[top=50,left=50,bottom=50,right=50]',
-                },
-                children: elkGraphChildren,
-                edges: validEdges.map((e: any) => ({
-                    id: e.id,
-                    sources: [e.source.id],
-                    targets: [e.target.id],
-                })),
-            };
-
-            // Run Layout
-            const layoutedGraph = await elk.layout(elkGraph);
-
-            // Apply positions recursively
-            const applyPositions = (graphNode: any, parentX = 0, parentY = 0) => {
-                const element = elementRegistry.get(graphNode.id);
-                if (element && graphNode.id !== 'root') {
-                    // For containers (Pools/Lanes), we might need to resize them too
-                    if (element.type === 'bpmn:Participant' || element.type === 'bpmn:Lane') {
-                        modeling.resizeShape(element, {
-                            x: parentX + graphNode.x,
-                            y: parentY + graphNode.y,
-                            width: graphNode.width,
-                            height: graphNode.height
-                        });
-                    } else {
-                        modeling.moveElements([element], {
-                            x: (parentX + graphNode.x) - element.x,
-                            y: (parentY + graphNode.y) - element.y
-                        });
-                    }
-                }
-
-                if (graphNode.children) {
-                    const currentX = (graphNode.id === 'root') ? 0 : (parentX + graphNode.x);
-                    const currentY = (graphNode.id === 'root') ? 0 : (parentY + graphNode.y);
-
-                    graphNode.children.forEach((child: any) => {
-                        applyPositions(child, currentX, currentY);
-                    });
-                }
-            };
-
-            applyPositions(layoutedGraph);
-
-            // Fit viewport
-            canvas.zoom('fit-viewport');
-
-        } catch (err) {
-            console.error('Auto Layout failed:', err);
-        }
-    };
-
     return (
-        <div className="relative w-full h-full">
+        <div
+            ref={wrapperRef}
+            className="relative w-full h-full"
+        >
             {/* Editor Container */}
             <div
                 ref={containerRef}
-                className="w-full h-full"
+                className="w-full h-full bpmn-editor-container"
                 style={{ minHeight: '500px' }}
+                onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                }}
             />
-
-            {/* Toolbar Overlay */}
-            <div className="absolute top-4 right-4 flex gap-2">
-                <button
-                    onClick={handleLayout}
-                    className="px-3 py-1.5 bg-white text-zinc-700 text-sm font-medium rounded-md shadow-sm border border-zinc-200 hover:bg-zinc-50 transition-colors"
-                >
-                    Auto Layout
-                </button>
-            </div>
 
             {/* Loading State */}
             {!isReady && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                <div className="absolute inset-0 flex items-center justify-center bg-muted z-10">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-                        <p className="text-gray-600">Loading BPMN Editor...</p>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+                        <p className="text-muted-foreground">Loading BPMN Editor...</p>
                     </div>
                 </div>
             )}
         </div>
     );
-}
+});
+
+export default BpmnEditor;

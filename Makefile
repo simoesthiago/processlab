@@ -36,7 +36,7 @@ compose-up: ## 🚀 Sobe TUDO (web, api, worker, db, minio) em background
 	docker compose -f infra/compose/docker-compose.yml up -d
 	@echo "✅ Serviços iniciados!"
 	@echo "📍 API: http://localhost:8000/docs"
-	@echo "📍 Web: http://localhost:3000"
+	@echo "📍 Web: http://localhost:3004"
 	@echo "📍 MinIO Console: http://localhost:9001 (minio/minio123)"
 
 compose-up-build: ## 🔨 Sobe tudo reconstruindo as imagens

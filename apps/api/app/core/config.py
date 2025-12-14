@@ -7,7 +7,13 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # CORS
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    # Defaults cover local Next.js dev ports (3000/3004) and loopback.
+    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3004",
+        "http://127.0.0.1:3004",
+    ]
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
@@ -20,20 +26,15 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+psycopg2://postgres:postgres@db:5432/processlab"
     
-    # Redis (Celery & Cache)
-    REDIS_URL: str = "redis://redis:6379/0"
+    # Local Storage
+    STORAGE_PATH: str = "/srv/data_storage"
 
     # Security
     SECRET_KEY: str = "CHANGE_THIS_TO_A_SECURE_SECRET_KEY"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # MinIO
-    MINIO_ENDPOINT: str = "minio:9000"
-    MINIO_ACCESS_KEY: str = "minio"
-    MINIO_SECRET_KEY: str = "minio123"
-    MINIO_BUCKET: str = "processlab-artifacts"
-    MINIO_SECURE: bool = False
+
 
     # AI / Embeddings
     OPENAI_API_KEY: str = ""

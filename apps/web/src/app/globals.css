@@ -1,26 +1,622 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #09090b;
+  /* zinc-950 */
+
+  --card: #ffffff;
+  --card-foreground: #09090b;
+
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+
+  /* Primary - Clean Grey (Zinc/Slate) */
+  --primary: #18181b;
+  /* zinc-900 */
+  --primary-foreground: #ffffff;
+  --primary-50: #fafafa;
+  --primary-100: #f4f4f5;
+  --primary-200: #e4e4e7;
+  --primary-300: #d4d4d8;
+  --primary-400: #a1a1aa;
+  --primary-500: #71717a;
+  --primary-600: #52525b;
+  --primary-700: #3f3f46;
+  --primary-800: #27272a;
+  --primary-900: #18181b;
+  --primary-950: #09090b;
+
+  --secondary: #f4f4f5;
+  /* zinc-100 */
+  --secondary-foreground: #18181b;
+  /* zinc-900 */
+
+  --muted: #f4f4f5;
+  /* zinc-100 */
+  --muted-foreground: #71717a;
+  /* zinc-500 */
+
+  --accent: #f4f4f5;
+  /* zinc-100 */
+  --accent-foreground: #18181b;
+  /* zinc-900 */
+
+  /* Success - Muted Green */
+  --success: #10b981;
+  /* emerald-500 */
+  --success-foreground: #ffffff;
+  --success-50: #ecfdf5;
+  --success-100: #d1fae5;
+  --success-500: #10b981;
+  --success-600: #059669;
+  --success-700: #047857;
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+
+  /* Warning - Muted Amber */
+  --warning: #f59e0b;
+  /* amber-500 */
+  --warning-foreground: #ffffff;
+  --warning-50: #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --warning-700: #b45309;
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  /* Destructive - Muted Red */
+  --destructive: #ef4444;
+  /* red-500 */
+  --destructive-foreground: #ffffff;
+  --destructive-50: #fef2f2;
+  --destructive-100: #fee2e2;
+  --destructive-500: #ef4444;
+  --destructive-600: #dc2626;
+  --destructive-700: #b91c1c;
+
+  /* Info - Muted Cyan */
+  --info: #06b6d4;
+  /* cyan-500 */
+  --info-foreground: #ffffff;
+  --info-50: #ecfeff;
+  --info-100: #cffafe;
+  --info-500: #06b6d4;
+  --info-600: #0891b2;
+  --info-700: #0e7490;
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  --border: #e4e4e7;
+  /* zinc-200 */
+  --input: #e4e4e7;
+  --ring: #18181b;
+  /* zinc-900 - matching primary */
+
+  --radius: 0.5rem;
+
+  /* Typography Scale - Clean Technical SaaS */
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-mono: var(--font-mono), 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Spacing Scale */
+  --spacing-xs: 0.25rem;
+  /* 4px */
+  --spacing-sm: 0.5rem;
+  /* 8px */
+  --spacing-md: 1rem;
+  /* 16px */
+  --spacing-lg: 1.5rem;
+  /* 24px */
+  --spacing-xl: 2rem;
+  /* 32px */
+  --spacing-2xl: 3rem;
+  /* 48px */
+  --spacing-3xl: 4rem;
+  /* 64px */
+  --spacing-4xl: 6rem;
+  /* 96px */
+
+  /* Shadow Scale */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+/* BPMN: keep palette/context pad away from top toolbars */
+.djs-palette {
+  top: 72px !important;
+  left: 12px !important;
+  z-index: 20;
+}
+
+.djs-context-pad {
+  z-index: 40; /* toolbar uses z-50 */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #09090b;
+    /* zinc-950 */
+    --foreground: #fafafa;
+    /* zinc-50 */
+
+    --card: #09090b;
+    --card-foreground: #fafafa;
+
+    --popover: #09090b;
+    --popover-foreground: #fafafa;
+
+    --primary: #fafafa;
+    /* zinc-50 - inverted for dark mode */
+    --primary-foreground: #18181b;
+    /* zinc-900 */
+
+    --secondary: #27272a;
+    /* zinc-800 */
+    --secondary-foreground: #fafafa;
+
+    --muted: #27272a;
+    /* zinc-800 */
+    --muted-foreground: #a1a1aa;
+    /* zinc-400 */
+
+    --accent: #27272a;
+    /* zinc-800 */
+    --accent-foreground: #fafafa;
+
+    --destructive: #7f1d1d;
+    /* red-900 */
+    --destructive-foreground: #fef2f2;
+    /* red-50 */
+
+    --success: #059669;
+    /* emerald-600 */
+    --warning: #d97706;
+    /* amber-600 */
+    --info: #0891b2;
+    /* cyan-600 */
+
+    --border: #27272a;
+    /* zinc-800 */
+    --input: #27272a;
+    --ring: #fafafa;
+    /* zinc-50 */
+  }
+
+  body {
+    color: #a1a1aa;
+    /* zinc-400 - softer body text for dark mode */
   }
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  color: #475569;
+  /* slate-600 - suave para body text */
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 1.6;
+  /* Generoso para facilitar leitura técnica */
+  font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings - Clean Technical SaaS */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  /* Semi-Bold para destaque sem excesso */
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  letter-spacing: -0.02em;
+  /* Tracking tight para visual moderno e compacto */
+  line-height: 1.2;
+}
+
+h1 {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+h2 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 500;
+  /* Medium para sub-títulos */
+  letter-spacing: -0.01em;
+}
+
+/* Code, Snippets, Logs - Dados Técnicos */
+code,
+pre,
+kbd,
+samp,
+.font-mono {
+  font-family: var(--font-mono);
+  font-weight: 400;
+}
+
+pre {
+  line-height: 1.5;
+}
+
+code {
+  font-size: 0.9em;
+}
+
+/* Typography Scale */
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.text-base {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.text-lg {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+.text-xl {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+.text-2xl {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+.text-3xl {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+}
+
+.text-4xl {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+}
+
+.text-5xl {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.text-6xl {
+  font-size: 3.75rem;
+  line-height: 1;
+}
+
+/* Smooth transitions and animations */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Focus visible improvements for accessibility */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Animation utilities */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-from-top {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-from-bottom {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-in {
+  animation: fade-in 0.2s ease-in-out;
+}
+
+.slide-in-from-top {
+  animation: slide-in-from-top 0.3s ease-out;
+}
+
+.slide-in-from-bottom {
+  animation: slide-in-from-bottom 0.3s ease-out;
+}
+
+/* Force BPMN palette to single column layout */
+/* Force BPMN palette to single column layout */
+.djs-palette {
+  width: 56px !important;
+  /* Slightly wider for better touch target */
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  /* Center elements horizontally */
+  left: 0 !important;
+  top: 0 !important;
+  height: 100% !important;
+  /* Full height */
+  max-height: 100% !important;
+  overflow-y: auto !important;
+  background: var(--card) !important;
+  border: none !important;
+  border-right: 1px solid var(--border) !important;
+  /* Separator line */
+  border-radius: 0 !important;
+  /* Remove rounded corners */
+  padding-top: 12px !important;
+  box-shadow: none !important;
+  /* Remove shadow */
+}
+
+.djs-palette .djs-palette-entries {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+.djs-palette .group {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+.djs-palette .entry {
+  width: 40px !important;
+  /* Fixed square size */
+  height: 40px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  float: none !important;
+  margin: 2px 0 !important;
+  border-radius: var(--radius) !important;
+  cursor: grab !important;
+}
+
+.djs-palette .entry:hover {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+.djs-palette .separator {
+  width: 32px !important;
+  /* Shorter separator */
+  margin: 8px 0 !important;
+  border-top: 1px solid var(--border) !important;
+}
+
+/* Override two-column specific styles */
+/* Override two-column specific styles */
+.djs-palette.two-column {
+  width: 56px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+.djs-palette.two-column .djs-palette-entries,
+.djs-palette.two-column .entry,
+.djs-palette.two-column .group {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+  float: none !important;
+  clear: both !important;
+  max-width: 100% !important;
+}
+
+/* Hide default bpmn-js palette when using custom Elements Sidebar */
+.studio-custom-sidebar .djs-palette {
+  display: none !important;
+}
+
+/* Hide palette via data attribute */
+[data-hide-palette="true"] .djs-palette {
+  display: none !important;
+}
+
+/* Alternative: Hide palette globally and show only when needed */
+.bpmn-editor-hide-palette .djs-palette {
+  display: none !important;
+}
+
+/* Studio-specific canvas styling */
+.studio-canvas {
+  background:
+    linear-gradient(90deg, var(--border) 1px, transparent 1px),
+    linear-gradient(180deg, var(--border) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-color: var(--muted);
+}
+
+/* BPMN Editor improved styling */
+.bjs-powered-by {
+  display: none !important;
+}
+
+.djs-container {
+  background-color: transparent !important;
+}
+
+/* Grid pattern with dots for BPMN canvas */
+.djs-container .djs-canvas {
+  background-image: radial-gradient(circle, var(--muted-foreground) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-color: var(--background);
+}
+
+.djs-container .djs-canvas svg {
+  background-color: transparent;
+}
+
+/* Selection and highlight colors matching ProcessLab brand */
+.djs-element.selected .djs-outline {
+  stroke: var(--primary) !important;
+  stroke-width: 2px !important;
+}
+
+.djs-element.hover .djs-outline {
+  stroke: var(--primary) !important;
+  stroke-opacity: 0.5 !important;
+}
+
+/* Context pad styling */
+.djs-context-pad {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.djs-context-pad .entry {
+  background: transparent !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+}
+
+.djs-context-pad .entry:hover {
+  background: var(--accent) !important;
+}
+
+/* Popup menu styling */
+.djs-popup {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-xl) !important;
+}
+
+.djs-popup .entry {
+  color: var(--foreground) !important;
+}
+
+.djs-popup .entry:hover {
+  background: var(--accent) !important;
+}
+
+/* Enhanced drag & drop feedback */
+.bpmn-editor-container.dragging-element {
+  cursor: copy !important;
+}
+
+.bpmn-editor-container.dragging-element .djs-container {
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+
+/* Enhanced selection feedback */
+.djs-element.djs-shape.djs-element-selected {
+  box-shadow: 0 0 0 2px hsl(var(--primary)) !important;
+}
+
+.djs-element.djs-shape:hover {
+  cursor: move;
+}
+
+/* Properties panel integration */
+.bpp-properties-panel {
+  background: var(--card) !important;
+  border-left: 1px solid var(--border) !important;
 }

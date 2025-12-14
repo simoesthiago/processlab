@@ -3,23 +3,32 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3004",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3004",
     "lint": "eslint"
   },
   "dependencies": {
     "@processlab/shared-schemas": "workspace:*",
+    "@radix-ui/react-dialog": "^1.0.5",
+    "@radix-ui/react-slot": "^1.0.4",
+    "@radix-ui/react-tabs": "^1.0.4",
     "bpmn-js": "^17.11.1",
     "bpmn-js-bpmnlint": "^0.23.0",
+    "bpmn-js-differ": "^3.1.0",
     "bpmn-js-properties-panel": "^5.43.0",
+    "bpmn-moddle": "^9.0.4",
     "bpmnlint": "^11.7.1",
     "camunda-bpmn-moddle": "^7.0.1",
+    "clsx": "^2.1.1",
     "diagram-js-minimap": "^5.2.0",
     "elkjs": "^0.9.3",
+    "jspdf": "^3.0.4",
+    "lucide-react": "^0.555.0",
     "next": "16.0.3",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

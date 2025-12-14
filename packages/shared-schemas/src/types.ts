@@ -1,71 +1,59 @@
 /* Auto-generated from bpmn_json.schema.json - DO NOT EDIT MANUALLY */
 
 /**
- * BPMN JSON Format
- * 
- * Robust intermediate format for BPMN process synthesis and editing.
- * This is the internal representation used throughout ProcessLab.
- * XML conversion happens only at export/visualization time.
+ * Formato intermediário robusto para síntese e edição de processos BPMN
  */
 export interface BPMN_JSON {
-    process: ProcessInfo;
-    lanes?: Lane[];
-    elements: BPMNElement[];
-    flows: SequenceFlow[];
+  process: ProcessInfo;
+  /**
+   * Definição de raias e pools para layout hierárquico (ELK.js)
+   */
+  lanes?: Lane[];
+  elements: BPMNElement[];
+  flows: SequenceFlow[];
+  [k: string]: unknown;
 }
-
-/**
- * Process metadata
- */
 export interface ProcessInfo {
-    id: string;
-    name?: string;
-    documentation?: string;
+  id: string;
+  name?: string;
+  documentation?: string;
+  [k: string]: unknown;
 }
-
-/**
- * Lane or pool definition for hierarchical layout (ELK.js)
- */
 export interface Lane {
-    id: string;
-    name: string;
-    childElementIds?: string[];
+  id: string;
+  name: string;
+  childElementIds?: string[];
+  [k: string]: unknown;
 }
-
+export interface BPMNElement {
+  id: string;
+  type: "task" | "userTask" | "serviceTask" | "startEvent" | "endEvent" | "exclusiveGateway" | "parallelGateway";
+  name?: string;
+  /**
+   * Referência à raia onde o elemento reside
+   */
+  laneId?: string;
+  meta?: ElementMeta;
+  [k: string]: unknown;
+}
 /**
- * Metadata for RAG traceability
+ * Dados para rastreabilidade (citações do RAG)
  */
 export interface ElementMeta {
-    sourceArtifactId?: string;
-    pageNumber?: number;
+  sourceArtifactId?: string;
+  pageNumber?: number;
+  [k: string]: unknown;
 }
-
-/**
- * BPMN element (task, event, gateway)
- */
-export interface BPMNElement {
-    id: string;
-    type:
-    | "task"
-    | "userTask"
-    | "serviceTask"
-    | "startEvent"
-    | "endEvent"
-    | "exclusiveGateway"
-    | "parallelGateway";
-    name?: string;
-    /** Reference to the lane where the element resides */
-    laneId?: string;
-    meta?: ElementMeta;
-}
-
-/**
- * Sequence flow connecting elements
- */
 export interface SequenceFlow {
-    id?: string;
-    source: string;
-    target: string;
-    type?: string;
-    name?: string;
+  id?: string;
+  source: string;
+  target: string;
+  type: string;
+  name?: string;
+  waypoints?: {
+    x: number;
+    y: number;
+    [k: string]: unknown;
+  }[];
+  [k: string]: unknown;
 }

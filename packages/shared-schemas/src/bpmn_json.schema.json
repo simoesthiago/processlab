@@ -3,69 +3,162 @@
   "title": "BPMN_JSON",
   "description": "Formato intermediário robusto para síntese e edição de processos BPMN",
   "type": "object",
-  "required": ["process", "elements", "flows"],
+  "required": [
+    "process",
+    "elements",
+    "flows"
+  ],
+  "definitions": {
+    "ProcessInfo": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "documentation": {
+          "type": "string"
+        }
+      }
+    },
+    "Lane": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "childElementIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ElementMeta": {
+      "type": "object",
+      "description": "Dados para rastreabilidade (citações do RAG)",
+      "properties": {
+        "sourceArtifactId": {
+          "type": "string"
+        },
+        "pageNumber": {
+          "type": "integer"
+        }
+      }
+    },
+    "BPMNElement": {
+      "type": "object",
+      "required": [
+        "id",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "task",
+            "userTask",
+            "serviceTask",
+            "startEvent",
+            "endEvent",
+            "exclusiveGateway",
+            "parallelGateway"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "laneId": {
+          "type": "string",
+          "description": "Referência à raia onde o elemento reside"
+        },
+        "meta": {
+          "$ref": "#/definitions/ElementMeta"
+        }
+      }
+    },
+    "SequenceFlow": {
+      "type": "object",
+      "required": [
+        "source",
+        "target",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "default": "sequenceFlow"
+        },
+        "name": {
+          "type": "string"
+        },
+        "waypoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ]
+          }
+        }
+      }
+    }
+  },
   "properties": {
     "process": {
-      "type": "object",
-      "required": ["id"],
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "documentation": { "type": "string" }
-      }
+      "$ref": "#/definitions/ProcessInfo"
     },
     "lanes": {
       "type": "array",
       "description": "Definição de raias e pools para layout hierárquico (ELK.js)",
       "items": {
-        "type": "object",
-        "required": ["id", "name"],
-        "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string" },
-          "childElementIds": { 
-            "type": "array", 
-            "items": { "type": "string" } 
-          }
-        }
+        "$ref": "#/definitions/Lane"
       }
     },
     "elements": {
       "type": "array",
       "items": {
-        "type": "object",
-        "required": ["id", "type"],
-        "properties": {
-          "id": { "type": "string" },
-          "type": { 
-            "type": "string",
-            "enum": ["task", "userTask", "serviceTask", "startEvent", "endEvent", "exclusiveGateway", "parallelGateway"] 
-          },
-          "name": { "type": "string" },
-          "laneId": { "type": "string", "description": "Referência à raia onde o elemento reside" },
-          "meta": {
-             "type": "object",
-             "description": "Dados para rastreabilidade (citações do RAG)",
-             "properties": {
-               "sourceArtifactId": { "type": "string" },
-               "pageNumber": { "type": "integer" }
-             }
-          }
-        }
+        "$ref": "#/definitions/BPMNElement"
       }
     },
     "flows": {
       "type": "array",
       "items": {
-        "type": "object",
-        "required": ["source", "target", "type"],
-        "properties": {
-          "id": { "type": "string" },
-          "source": { "type": "string" },
-          "target": { "type": "string" },
-          "type": { "type": "string", "default": "sequenceFlow" },
-          "name": { "type": "string" }
-        }
+        "$ref": "#/definitions/SequenceFlow"
       }
     }
   }
