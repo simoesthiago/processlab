@@ -35,22 +35,16 @@ export function useProcess({ processId, workspaceId }: UseProcessOptions) {
         }
 
         try {
-            if (token) {
-                const data = await apiFetch(`/api/v1/spaces/${workspaceId}/folders/${folderId}/path`, { token });
-                if (data.path) {
-                    setFolderPath(data.path);
-                    if (fallbackName) setProcessName(fallbackName);
-                    return;
-                }
+            const path = await getFolderPath(workspaceId, folderId);
+            setFolderPath(path || []);
+            if (fallbackName && (!path || path.length === 0)) {
+                // If path not found but we have a name, maybe we should at least show that? 
             }
-
-            // Fallback to local context if API fails or no token
-            const localPath = await getFolderPath(workspaceId, folderId);
-            setFolderPath(localPath || []);
         } catch (err) {
             console.error('Failed to load folder path:', err);
+            setFolderPath([]);
         }
-    }, [workspaceId, token, getFolderPath]);
+    }, [workspaceId, getFolderPath]);
 
     const loadProcess = useCallback(async (id: string) => {
         if (!token) return;

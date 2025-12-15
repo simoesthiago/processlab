@@ -17,7 +17,7 @@ import { useSpaces } from '@/contexts/SpacesContext';
 import { WorkspaceType } from '@/contexts/WorkspaceContext';
 import { useProcess } from '@/hooks/useProcess';
 import { useVersions } from '@/hooks/useVersions';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, API_URL } from '@/lib/api';
 import { StudioNavbar } from '@/components/layout/StudioNavbar';
 import { FormatToolbar } from '@/components/layout/FormatToolbar';
 import { ResizablePanel } from '@/components/ui/resizable-panel';
@@ -68,7 +68,7 @@ interface StudioContentProps {
   basePath: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 
 interface ConflictDetail {
   message?: string;

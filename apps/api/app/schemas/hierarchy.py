@@ -78,3 +78,15 @@ class FolderTree(FolderResponse):
 # Resolve forward references for recursive models
 FolderTree.model_rebuild()
 
+
+class FolderItem(BaseModel):
+    """Minimal folder info for path."""
+    id: str
+    name: str
+
+
+class FolderPathResponse(BaseModel):
+    """Response for folder path."""
+    path: List[FolderItem]
+
+

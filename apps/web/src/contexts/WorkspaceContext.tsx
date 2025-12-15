@@ -9,6 +9,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import { API_URL } from '@/lib/api';
 
 export type WorkspaceType = 'organization' | 'personal';
 
@@ -32,17 +33,17 @@ export interface Workspace {
 interface WorkspaceContextType {
   // Current workspace
   currentWorkspace: Workspace | null;
-  
+
   // Available workspaces
   organizations: Organization[];
-  
+
   // Loading state
   loading: boolean;
-  
+
   // Actions
   setCurrentWorkspace: (workspace: Workspace) => void;
   refreshOrganizations: () => Promise<void>;
-  
+
   // Helpers
   getWorkspaceBasePath: () => string;
   canEdit: () => boolean;
@@ -52,7 +53,7 @@ interface WorkspaceContextType {
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 
 // Storage key for persisting selected workspace
 const WORKSPACE_STORAGE_KEY = 'processlab_current_workspace';
@@ -63,80 +64,28 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch organizations the user belongs to
+  // Fetch organizations - DEPRECATED/SIMPLIFIED: Always empty for Private Space only
   const fetchOrganizations = useCallback(async () => {
-    if (!token) {
-      setOrganizations([]);
-      return;
-    }
+    // No-op
+  }, []);
 
-    try {
-      const response = await fetch(`${API_URL}/api/v1/organizations/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setOrganizations(data.organizations || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch organizations:', error);
-    }
-  }, [token]);
-
-  // Initialize workspace from storage or default
+  // Initialize workspace - always personal/private
   const initializeWorkspace = useCallback(() => {
     if (!user) {
       setCurrentWorkspaceState(null);
       return;
     }
 
-    // Try to restore from localStorage
-    const stored = localStorage.getItem(WORKSPACE_STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        // Validate the stored workspace is still accessible
-        if (parsed.type === 'personal' || 
-            organizations.some(org => org.id === parsed.id)) {
-          setCurrentWorkspaceState(parsed);
-          return;
-        }
-      } catch (e) {
-        localStorage.removeItem(WORKSPACE_STORAGE_KEY);
-      }
-    }
-
-    // Default to user's primary organization or personal workspace
-    if (user.organization_id && organizations.length > 0) {
-      const primaryOrg = organizations.find(org => org.id === user.organization_id);
-      if (primaryOrg) {
-        const workspace: Workspace = {
-          type: 'organization',
-          id: primaryOrg.id,
-          name: primaryOrg.name,
-          slug: primaryOrg.slug,
-          role: primaryOrg.role,
-        };
-        setCurrentWorkspaceState(workspace);
-        localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(workspace));
-        return;
-      }
-    }
-
-    // Fallback to personal workspace
     const personalWorkspace: Workspace = {
       type: 'personal',
       id: user.id,
-      name: 'Personal',
+      name: 'Private Space',
       slug: 'personal',
       role: 'owner',
     };
     setCurrentWorkspaceState(personalWorkspace);
     localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(personalWorkspace));
-  }, [user, organizations]);
+  }, [user]);
 
   // Load organizations when authenticated
   useEffect(() => {

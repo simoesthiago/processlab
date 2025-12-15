@@ -23,57 +23,91 @@ export function FolderBreadcrumbs({ spaceId, folderId, spaceName }: FolderBreadc
       return;
     }
 
+    let isMounted = true;
     setLoading(true);
+
     getFolderPath(spaceId, folderId)
       .then((p) => {
-        if (p.length) {
-          setPath(p);
-        } else if (currentFolder) {
-          setPath([{ id: currentFolder.id, name: currentFolder.name }]);
-        } else {
-          setPath([]);
-        }
+        if (isMounted) setPath(p || []);
       })
       .catch((err) => {
         console.error('Failed to load folder path:', err);
-        setPath([]);
+        if (isMounted) setPath([]);
       })
       .finally(() => {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       });
-  }, [spaceId, folderId, getFolderPath, currentFolder?.id, currentFolder?.name]);
 
-  if (loading) {
+    return () => { isMounted = false; };
+  }, [spaceId, folderId, getFolderPath]);
+
+  // Construct full breadcrumb list
+  // 1. Root Space
+  const fullItems: BreadcrumbItem[] = [
+    {
+      label: spaceName === 'Private Space' || !spaceName ? 'Private Space' : spaceName,
+      href: `/spaces/${spaceId}`,
+      icon: (spaceName === 'Private Space' || !spaceName) ? Lock : FolderOpen
+    }
+  ];
+
+  // 2. Folder Path (API returns path including the current folder)
+  // We want to link all except the last one (current page) usually, but Breadcrumbs component handles last item distinctness.
+  // Actually standard breadcrumbs usually have link for everything except current page.
+
+  if (path.length > 0) {
+    path.forEach((item) => {
+      fullItems.push({
+        label: item.name,
+        href: `/spaces/${spaceId}/folders/${item.id}`,
+        icon: FolderOpen,
+      });
+    });
+  } else if (currentFolder) {
+    // If path not loaded yet but we have the current folder, show it directly
+    // This avoids the skeleton state and gives immediate feedback
+    fullItems.push({
+      label: currentFolder.name,
+      href: `/spaces/${spaceId}/folders/${currentFolder.id}`,
+      icon: FolderOpen,
+    });
+  } else if (loading) {
+    // Skeleton ONLY if we don't even have the current folder name
     return (
-      <div className="text-sm text-muted-foreground">
-        <Breadcrumbs
-          items={[
-            { label: spaceName || 'Space', href: `/spaces/${spaceId}`, icon: Lock },
-            { label: '...', icon: FolderOpen },
-          ]}
-        />
+      <div className="text-sm text-muted-foreground animate-pulse flex items-center gap-2">
+        <Lock className="h-4 w-4" /> <span>Private Space</span> <span>/</span> <span className="h-4 w-20 bg-muted rounded"></span>
       </div>
     );
   }
 
-  const items: BreadcrumbItem[] = [
-    { label: spaceName || 'Space', href: `/spaces/${spaceId}`, icon: Lock },
-  ];
+  // 3. Truncation Logic
+  // User wants: if > 5 elements, show "Private Space > (...) > Last Folder"
+  // Interpret "elements" as the total breadcrumb items.
 
-  // Add path items
-  path.forEach((item, idx) => {
-    const isLast = idx === path.length - 1;
-    items.push({
-      label: item.name,
-      href: isLast ? undefined : `/spaces/${spaceId}/folders/${item.id}`,
-      icon: FolderOpen,
-    });
-  });
+  let displayedItems = fullItems;
+  const MAX_ITEMS = 5;
+
+  if (fullItems.length > MAX_ITEMS) {
+    // Keep first (Space)
+    // Keep last (Current Folder)
+    // Collapse everything in between
+    const first = fullItems[0];
+    const last = fullItems[fullItems.length - 1];
+
+    displayedItems = [
+      first,
+      { label: '...', icon: FolderOpen }, // Collapsed indicator
+      last
+    ];
+
+    // Alternative interpretation: Provide access to immediate parent? 
+    // User example: "Private Space > iconepasta (...) > Folder 5"
+    // This strictly matches my implementation above.
+  }
 
   return (
     <div className="text-sm text-muted-foreground">
-      <Breadcrumbs items={items} />
+      <Breadcrumbs items={displayedItems} />
     </div>
   );
 }
-

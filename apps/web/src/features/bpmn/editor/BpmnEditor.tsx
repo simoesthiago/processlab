@@ -447,15 +447,15 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             const modeling = modelerRef.current.get('modeling');
             const selection = modelerRef.current.get('selection');
             const selectedElements = selection.get();
-            
+
             if (selectedElements.length === 0) return;
-            
+
             // Filter out root elements
             const elementsToDelete = selectedElements.filter((element: any) => {
                 const bo = element.businessObject;
                 return bo && bo.$type !== 'bpmn:Process' && bo.$type !== 'bpmn:Collaboration';
             });
-            
+
             if (elementsToDelete.length > 0) {
                 modeling.removeElements(elementsToDelete);
             }
@@ -464,15 +464,15 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             if (!modelerRef.current) return;
             const elementRegistry = modelerRef.current.get('elementRegistry');
             const selection = modelerRef.current.get('selection');
-            
+
             const allElements = elementRegistry.getAll().filter((element: any) => {
                 // Filter out root elements and connections (we can include connections if needed)
-                return element.type !== 'bpmn:Process' && 
-                       element.type !== 'bpmn:Collaboration' &&
-                       element.type !== 'bpmndi:BPMNPlane' &&
-                       element.type !== 'bpmndi:BPMNDiagram';
+                return element.type !== 'bpmn:Process' &&
+                    element.type !== 'bpmn:Collaboration' &&
+                    element.type !== 'bpmndi:BPMNPlane' &&
+                    element.type !== 'bpmndi:BPMNDiagram';
             });
-            
+
             selection.select(allElements);
         },
         copy: () => {
@@ -515,21 +515,21 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             const elementFactory = modelerRef.current.get('elementFactory');
             const create = modelerRef.current.get('create');
             const canvas = modelerRef.current.get('canvas');
-            
+
             const selectedElements = selection.get();
             if (selectedElements.length === 0) return;
-            
+
             // For now, duplicate the first selected element
             const element = selectedElements[0];
             const bo = element.businessObject;
-            
+
             // Create new element with same type
             const newElement = elementFactory.createShape({
                 type: bo.$type,
                 x: element.x + 50,
                 y: element.y + 50
             });
-            
+
             create.start(canvas.getRootElement(), newElement, {
                 x: element.x + 50,
                 y: element.y + 50
@@ -580,9 +580,9 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             const modeling = modelerRef.current.get('modeling');
             const selection = modelerRef.current.get('selection');
             const selectedElements = selection.get();
-            
+
             if (selectedElements.length === 0) return;
-            
+
             // Bring elements to front by moving them slightly and back
             // This forces them to be rendered on top
             selectedElements.forEach((element: any) => {
@@ -597,9 +597,9 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             const modeling = modelerRef.current.get('modeling');
             const selection = modelerRef.current.get('selection');
             const selectedElements = selection.get();
-            
+
             if (selectedElements.length === 0) return;
-            
+
             // Note: bpmn-js doesn't have a direct sendToBack API
             // This is a simplified implementation
             // For proper z-order management, we'd need to manipulate the DOM order
@@ -611,9 +611,9 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             const modeling = modelerRef.current.get('modeling');
             const selection = modelerRef.current.get('selection');
             const selectedElements = selection.get();
-            
+
             if (selectedElements.length < 2) return;
-            
+
             // Group elements (simplified - bpmn-js doesn't have native grouping, so we'll use a workaround)
             // For BPMN, grouping is typically done via subprocesses or lanes
             // This is a placeholder that could be enhanced later
@@ -624,9 +624,9 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             if (!modelerRef.current) return;
             const selection = modelerRef.current.get('selection');
             const selectedElements = selection.get();
-            
+
             if (selectedElements.length === 0) return;
-            
+
             // Ungroup elements
             console.log('Ungroup elements:', selectedElements);
             // TODO: Implement proper ungrouping logic
@@ -636,17 +636,17 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             const modeling = modelerRef.current.get('modeling');
             const selection = modelerRef.current.get('selection');
             const selectedElements = selection.get();
-            
+
             if (selectedElements.length < 2) return;
-            
+
             const canvas = modelerRef.current.get('canvas');
-            
+
             // Get bounding boxes for all selected elements
             const bboxes: Array<{ x: number; y: number; width: number; height: number }> = selectedElements.map((element: any) => {
                 const bb = canvas.getAbsoluteBBox(element);
                 return { x: bb.x, y: bb.y, width: bb.width, height: bb.height };
             });
-            
+
             // Calculate alignment value based on direction
             if (direction === 'left') {
                 const alignValue = Math.min(...bboxes.map((b) => b.x));
@@ -697,30 +697,30 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             const modeling = modelerRef.current.get('modeling');
             const selection = modelerRef.current.get('selection');
             const selectedElements = selection.get();
-            
+
             if (selectedElements.length < 3) return; // Need at least 3 elements to distribute
-            
+
             const canvas = modelerRef.current.get('canvas');
-            
+
             // Get bounding boxes for all selected elements
             const bboxes: Array<{ x: number; y: number; width: number; height: number }> = selectedElements.map((element: any) => {
                 const bb = canvas.getAbsoluteBBox(element);
                 return { x: bb.x, y: bb.y, width: bb.width, height: bb.height };
             });
-            
+
             if (direction === 'horizontal') {
                 // Sort by x position
                 const sorted = selectedElements
                     .map((element: any, index: number) => ({ element, bbox: bboxes[index] }))
                     .sort((a: { bbox: { x: number } }, b: { bbox: { x: number } }) => a.bbox.x - b.bbox.x);
-                
+
                 // Calculate total width and spacing
                 const leftmost = sorted[0].bbox.x;
                 const rightmost = sorted[sorted.length - 1].bbox.x + sorted[sorted.length - 1].bbox.width;
                 const totalWidth = rightmost - leftmost;
                 const totalElementWidth = sorted.reduce((sum: number, item: { bbox: { width: number } }) => sum + item.bbox.width, 0);
                 const spacing = (totalWidth - totalElementWidth) / (sorted.length - 1);
-                
+
                 // Distribute elements evenly
                 let currentX = leftmost;
                 sorted.forEach((item: { element: any; bbox: { x: number; width: number } }, index: number) => {
@@ -735,14 +735,14 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                 const sorted = selectedElements
                     .map((element: any, index: number) => ({ element, bbox: bboxes[index] }))
                     .sort((a: { bbox: { y: number } }, b: { bbox: { y: number } }) => a.bbox.y - b.bbox.y);
-                
+
                 // Calculate total height and spacing
                 const topmost = sorted[0].bbox.y;
                 const bottommost = sorted[sorted.length - 1].bbox.y + sorted[sorted.length - 1].bbox.height;
                 const totalHeight = bottommost - topmost;
                 const totalElementHeight = sorted.reduce((sum: number, item: { bbox: { height: number } }) => sum + item.bbox.height, 0);
                 const spacing = (totalHeight - totalElementHeight) / (sorted.length - 1);
-                
+
                 // Distribute elements evenly
                 let currentY = topmost;
                 sorted.forEach((item: { element: any; bbox: { y: number; height: number } }, index: number) => {
@@ -758,24 +758,24 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             if (!modelerRef.current) return [];
             const elementRegistry = modelerRef.current.get('elementRegistry');
             const allElements = elementRegistry.getAll();
-            
+
             const lowerQuery = query.toLowerCase();
             const results: Array<{ element: any; name: string; type: string; id: string }> = [];
-            
+
             allElements.forEach((element: any) => {
                 const bo = element.businessObject;
                 if (!bo) return;
-                
+
                 // Filter out root elements
-                if (bo.$type === 'bpmn:Process' || bo.$type === 'bpmn:Collaboration' || 
+                if (bo.$type === 'bpmn:Process' || bo.$type === 'bpmn:Collaboration' ||
                     bo.$type === 'bpmndi:BPMNPlane' || bo.$type === 'bpmndi:BPMNDiagram') {
                     return;
                 }
-                
+
                 const name = bo.name || bo.id || '';
                 const type = bo.$type || '';
                 const id = bo.id || '';
-                
+
                 // Search in name, id, or type
                 if (name.toLowerCase().includes(lowerQuery) ||
                     id.toLowerCase().includes(lowerQuery) ||
@@ -783,7 +783,7 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                     results.push({ element, name, type, id });
                 }
             });
-            
+
             return results;
         },
         navigateToElement: (elementId: string) => {
@@ -791,13 +791,13 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             const elementRegistry = modelerRef.current.get('elementRegistry');
             const canvas = modelerRef.current.get('canvas');
             const selection = modelerRef.current.get('selection');
-            
+
             const element = elementRegistry.get(elementId);
             if (!element) return;
-            
+
             // Select element
             selection.select(element);
-            
+
             // Zoom and scroll to element
             canvas.zoom('fit-viewport', 'auto');
             canvas.scrollToElement(element, { top: 100, left: 100 });
@@ -812,6 +812,7 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                 // Dynamic import to avoid SSR issues
                 const BpmnModeler = (await import('bpmn-js/lib/Modeler')).default;
                 const CustomElementFactory = (await import('./custom/CustomElementFactory')).default;
+                const CustomRenderer = (await import('./custom/CustomRenderer')).default;
 
                 if (!containerRef.current) return;
 
@@ -822,7 +823,9 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                     },
                     additionalModules: [
                         {
-                            elementFactory: ['type', CustomElementFactory]
+                            elementFactory: ['type', CustomElementFactory],
+                            __init__: ['customRenderer'],
+                            customRenderer: ['type', CustomRenderer]
                         }
                     ]
                 });

@@ -154,9 +154,9 @@ export function StudioNavbar({
   const breadcrumbItems = useMemo<BreadcrumbItem[]>(() => {
     const items: BreadcrumbItem[] = [
       {
-        label: spaceName || displayWorkspaceName,
+        label: spaceName === 'Private Space' || displayWorkspaceName === 'Private Space' ? 'Private Space' : (spaceName || displayWorkspaceName),
         href: basePath,
-        icon: FolderOpen,
+        icon: (spaceName === 'Private Space' || displayWorkspaceName === 'Private Space') ? Lock : FolderOpen,
       },
     ];
 
@@ -176,6 +176,19 @@ export function StudioNavbar({
         label: process.name,
         icon: Workflow,
       });
+    }
+
+    // Truncation Logic
+    const MAX_ITEMS = 5;
+    if (items.length > MAX_ITEMS) {
+      const first = items[0];
+      const last = items[items.length - 1];
+
+      return [
+        first,
+        { label: '...', icon: FolderOpen },
+        last
+      ];
     }
 
     return items;

@@ -11,7 +11,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_organization_access
 from app.core.exceptions import ResourceNotFoundError, ValidationError, AuthorizationError
 from app.db.models import Folder, ProcessModel, User
 from app.db.session import get_db
@@ -25,6 +25,11 @@ from app.schemas.spaces import (
     SpaceProcessCreate,
     SpaceSummary,
     SpaceTreeResponse,
+    FolderMoveRequest,
+    SpaceProcessUpdate,
+    ProcessMoveRequest,
+    FolderPathResponse,
+    FolderPathItem,
 )
 
 router = APIRouter()
@@ -863,58 +868,55 @@ def get_folder_path(
     if not is_private:
         require_organization_access(current_user, space_id, db=db)
 
-    folder = (
-        db.query(Folder)
-        .filter(
-            Folder.id == folder_id,
-            Folder.deleted_at == None,  # noqa: E711
-        )
-        .first()
-    )
-    if not folder:
-        raise ResourceNotFoundError("Folder", folder_id)
-
-    # Ensure folder belongs to the target space
+    # Solution: Load ALL folders in the space to guarantee consistency with the Sidebar tree.
+    # This avoids issues with partial queries or inconsistent parent_folder_id pointers in legacy data.
+    
     if is_private:
-        if folder.user_id != user_id or folder.organization_id is not None:
-            raise ValidationError("Folder must belong to the private space")
-    else:
-        if folder.organization_id != organization_id:
-            raise ValidationError("Folder must belong to the target space")
-
-    # Build path by traversing up the parent chain
-    path_items: List[FolderPathItem] = []
-    current = folder
-    visited = set()  # Prevent infinite loops
-
-    while current and current.id not in visited:
-        visited.add(current.id)
-        path_items.insert(0, FolderPathItem(id=current.id, name=current.name))
-        if current.parent_folder_id:
-            current = (
-                db.query(Folder)
-                .filter(
-                    Folder.id == current.parent_folder_id,
-                    Folder.deleted_at == None,  # noqa: E711
-                )
-                .first()
+        all_folders = (
+            db.query(Folder)
+            .filter(
+                Folder.user_id == user_id,
+                Folder.organization_id.is_(None),
+                Folder.deleted_at == None,
             )
-            if not current:
-                break
-            # Validate parent belongs to same space
-            if is_private:
-                if current.user_id != user_id or current.organization_id is not None:
-                    break
-            else:
-                if current.organization_id != organization_id:
-                    break
-        else:
-            break
+            .all()
+        )
+    else:
+        all_folders = (
+            db.query(Folder)
+            .filter(
+                Folder.organization_id == organization_id,
+                Folder.deleted_at == None,
+            )
+            .all()
+        )
+        
+    # Build map for O(1) traversal
+    folder_map = {f.id: f for f in all_folders}
+    
+    # Verify target folder exists in this space
+    if folder_id not in folder_map:
+         # It might exist but be deleted or in wrong space, check DB to be sure about 404 vs 403?
+         # For simplicity, if it's not in the allowed list, it's not found/accessible.
+         raise ResourceNotFoundError("Folder", folder_id)
 
+    path_items: List[FolderPathItem] = []
+    current_id = folder_id
+    visited = set()
+
+    while current_id and current_id not in visited:
+        visited.add(current_id)
+        folder = folder_map.get(current_id)
+        if not folder:
+            break
+            
+        path_items.insert(0, FolderPathItem(id=folder.id, name=folder.name))
+        current_id = folder.parent_folder_id
+        
     return FolderPathResponse(
-        folder_id=folder.id,
-        folder_name=folder.name,
-        path=path_items,
+        folder_id=folder_id,
+        folder_name=folder_map[folder_id].name,
+        path=path_items
     )
 
 
@@ -1103,4 +1105,8 @@ def get_my_recents(
     # Sort combined list and enforce limit
     items.sort(key=lambda i: i.updated_at, reverse=True)
     return RecentsResponse(items=items[:limit])
+
+
+
+
 
