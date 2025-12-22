@@ -308,27 +308,8 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
     async (spaceId: string, payload: { name: string; description?: string; parent_folder_id?: string | null }) => {
       const parentId = payload.parent_folder_id ?? null;
 
-      if (spaceId === 'private') {
-        const newFolder: SpaceFolder = {
-          id: generateLocalId(),
-          name: payload.name,
-          description: payload.description ?? null,
-          parent_folder_id: parentId,
-          children: [],
-          processes: [],
-          process_count: 0,
-        };
-        addFolderToState(spaceId, newFolder, parentId);
-        const nextTree = loadPrivateTreeFromStorage() ?? trees[spaceId] ?? { ...DEFAULT_TREE, space_id: spaceId };
-        const next = {
-          ...nextTree,
-          root_folders: (parentId ? nextTree.root_folders : [...(nextTree.root_folders || []), newFolder]) ?? [],
-          root_processes: nextTree.root_processes ?? [],
-        };
-        persistPrivateTree(next);
-        return newFolder;
-      }
-
+      // Always call API to create folder - even for private space
+      // This ensures the folder is persisted in the database
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/folders`, {
         method: 'POST',
         headers: {
@@ -346,10 +327,37 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
         throw new Error(`Failed to create folder: ${errorText || resp.statusText}`);
       }
       const data: SpaceFolder = await resp.json();
+      
+      // Update local state after successful API creation
+      if (spaceId === 'private') {
+        addFolderToState(spaceId, data, parentId);
+        // Also persist to localStorage for private space
+        const nextTree = trees[spaceId] ?? { ...DEFAULT_TREE, space_id: spaceId };
+        if (parentId) {
+          // Add to parent folder's children
+          const updateFolderChildren = (folders: SpaceFolder[]): SpaceFolder[] => {
+            return folders.map(folder => {
+              if (folder.id === parentId) {
+                return { ...folder, children: [...(folder.children || []), data] };
+              }
+              if (folder.children?.length) {
+                return { ...folder, children: updateFolderChildren(folder.children) };
+              }
+              return folder;
+            });
+          };
+          nextTree.root_folders = updateFolderChildren(nextTree.root_folders || []);
+        } else {
+          // Add to root folders
+          nextTree.root_folders = [...(nextTree.root_folders || []), data];
+        }
+        persistPrivateTree(nextTree);
+      }
+      
       await loadTree(spaceId);
       return data;
     },
-    [addFolderToState, authHeaders, generateLocalId, loadTree]
+    [addFolderToState, authHeaders, loadTree, trees, persistPrivateTree]
   );
 
   const createProcess = useCallback(

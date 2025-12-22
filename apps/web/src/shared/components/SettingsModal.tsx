@@ -139,9 +139,13 @@ export function SettingsModal({
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-      onSettingsChange?.(settings);
     }
-  }, [settings, onSettingsChange]);
+    // Call onSettingsChange only when settings actually change, not when callback changes
+    if (onSettingsChange) {
+      onSettingsChange(settings);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings]);
 
   const updateSetting = <K extends keyof EditorSettings>(
     key: K,

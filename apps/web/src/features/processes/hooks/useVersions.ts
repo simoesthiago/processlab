@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { apiFetch, API_URL } from '@/shared/services/api/client';
+import { apiFetch } from '@/shared/services/api/client';
 
 export interface Version {
   id: string;
@@ -39,7 +39,7 @@ export function useVersions(processId?: string) {
     setLoading(true);
     try {
       const response = await apiFetch<{ versions: Version[] }>(
-        `${API_URL}/api/v1/processes/${id}/versions`
+        `/api/v1/processes/${id}/versions`
       );
       setVersions(response.versions || []);
       
@@ -61,7 +61,7 @@ export function useVersions(processId?: string) {
 
     try {
       const version = await apiFetch<Version>(
-        `${API_URL}/api/v1/processes/${processId}/versions/${versionId}`
+        `/api/v1/processes/${processId}/versions/${versionId}`
       );
       
       if (version.xml) {
@@ -90,7 +90,7 @@ export function useVersions(processId?: string) {
     setIsSaving(true);
     try {
       const response = await apiFetch<Version>(
-        `${API_URL}/api/v1/processes/${processId}/versions`,
+        `/api/v1/processes/${processId}/versions`,
         {
           method: 'POST',
           body: JSON.stringify({

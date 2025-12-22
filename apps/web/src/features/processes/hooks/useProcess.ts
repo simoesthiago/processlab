@@ -24,6 +24,12 @@ export function useProcess({ processId }: UseProcessOptions) {
             return;
         }
 
+        // Prevent loading the same process if already loaded
+        if (process?.id === id && !error) {
+            console.log('[useProcess] Process já carregado, pulando:', id);
+            return;
+        }
+
         console.log('[useProcess] loadProcess iniciado para id:', id);
         setLoading(true);
         setError(null);
@@ -58,18 +64,21 @@ export function useProcess({ processId }: UseProcessOptions) {
             console.log('[useProcess] loadProcess finalizado para id:', id);
             setLoading(false);
         }
-    }, []);
+    }, [process, error]);
 
     useEffect(() => {
         console.log('[useProcess] useEffect chamado com processId:', processId);
         if (processId) {
-            console.log('[useProcess] Chamando loadProcess para processId:', processId);
-            loadProcess(processId);
+            // Only load if we don't already have this process loaded
+            if (!process || process.id !== processId) {
+                console.log('[useProcess] Chamando loadProcess para processId:', processId);
+                loadProcess(processId);
+            }
         } else {
             console.log('[useProcess] processId não fornecido, limpando processo');
             setProcess(null);
         }
-    }, [processId, loadProcess]);
+    }, [processId, loadProcess, process]);
 
     const createProcess = useCallback(async (name: string, description: string = '') => {
         const created = await processService.create({ name, description, folder_id: null });

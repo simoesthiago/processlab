@@ -84,11 +84,6 @@ export function StudioNavbar({
 }: StudioNavbarProps) {
   const { getFolderPath, getFolder, trees } = useSpaces();
   const [folderPath, setFolderPath] = useState<Array<{ id: string; name: string }>>([]);
-  
-  // Debug: Log quando props mudarem
-  useEffect(() => {
-    console.log('[StudioNavbar] Props recebidas - folderId:', folderId, 'process?.folder_id:', process?.folder_id, 'process?.name:', process?.name, 'process completo:', process);
-  }, [folderId, process?.folder_id, process?.name, process]);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(1);
@@ -101,19 +96,8 @@ export function StudioNavbar({
     const processFolderId = folderId || process?.folder_id || null;
     const effectiveWorkspaceId = workspaceId || 'private';
     
-    console.log('[StudioNavbar] Breadcrumb useEffect:', {
-      propFolderId: folderId,
-      processFolderId: process?.folder_id,
-      effectiveFolderId: processFolderId,
-      workspaceId: effectiveWorkspaceId,
-      processName: process?.name,
-      processExists: !!process,
-      processId: process?.id,
-      processObject: process
-    });
-    
+    // Se não há folderId, limpar path e retornar (breadcrumb mostrará apenas "Private Space")
     if (!processFolderId) {
-      console.log('[StudioNavbar] Nenhum folderId encontrado, path vazio');
       setFolderPath([]);
       return;
     }
@@ -142,7 +126,6 @@ export function StudioNavbar({
     if (tree) {
       const localPath = findLocalPath(tree.root_folders || [], processFolderId);
       if (localPath && localPath.length > 0) {
-        console.log('[StudioNavbar] Path local encontrado:', localPath);
         setFolderPath(localPath);
         hasLocalPath = true;
       }
@@ -152,19 +135,15 @@ export function StudioNavbar({
     if (!hasLocalPath) {
       const currentFolder = getFolder(effectiveWorkspaceId, processFolderId);
       if (currentFolder && currentFolder.name && currentFolder.id) {
-        console.log('[StudioNavbar] Usando folder atual como fallback temporário:', currentFolder.name);
         setFolderPath([{ id: currentFolder.id, name: currentFolder.name }]);
       }
     }
-
-    console.log('[StudioNavbar] Buscando path da API para:', processFolderId);
 
     // Buscar path completo da API em background (igual FolderBreadcrumbs)
     getFolderPath(effectiveWorkspaceId, processFolderId)
       .then((p) => {
         if (isMounted && p && Array.isArray(p)) {
           const validPath = p.filter(item => item && item.id);
-          console.log('[StudioNavbar] Path recebido da API:', validPath);
           if (validPath.length > 0) {
             setFolderPath(validPath);
           }
@@ -172,20 +151,15 @@ export function StudioNavbar({
           // Fallback: se API não retornar path, usar folder atual se disponível
           const currentFolder = getFolder(effectiveWorkspaceId, processFolderId);
           if (currentFolder && currentFolder.name && currentFolder.id) {
-            // Usando console.log ao invés de warn, pois é um comportamento esperado de fallback
-            console.log('[StudioNavbar] Usando folder atual como fallback (path completo não disponível):', currentFolder.name);
             setFolderPath([{ id: currentFolder.id, name: currentFolder.name }]);
           }
         }
       })
       .catch((err) => {
-        console.error('[StudioNavbar] Failed to load folder path:', err);
         // Fallback: se API falhar, usar folder atual se disponível
         if (isMounted) {
           const currentFolder = getFolder(effectiveWorkspaceId, processFolderId);
           if (currentFolder && currentFolder.name && currentFolder.id) {
-            // Usando console.log ao invés de warn, pois é um comportamento esperado de fallback
-            console.log('[StudioNavbar] Usando folder atual como fallback (erro ao carregar path):', currentFolder.name);
             setFolderPath([{ id: currentFolder.id, name: currentFolder.name }]);
           }
         }

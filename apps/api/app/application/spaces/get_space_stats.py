@@ -23,16 +23,36 @@ class GetSpaceStatsUseCase:
         if space_id != "private":
             raise ValidationError("Only private space is supported")
         
-        # Count folders and processes
-        folders = self.folder_repo.find_all()
-        processes = self.process_repo.find_all()
+        # Get all folders recursively (find_all() only returns root folders)
+        # So we need to collect all folders manually
+        all_folders = []
+        root_folders = self.folder_repo.find_all()  # This returns root folders only
         
-        folder_count = len([f for f in folders if not f.is_deleted])
-        process_count = len([p for p in processes if not p.is_deleted])
+        def collect_all_folders(folder_list):
+            """Recursively collect all folders"""
+            for folder in folder_list:
+                if not folder.is_deleted():
+                    all_folders.append(folder)
+                    # Get children of this folder
+                    children = self.folder_repo.find_all(parent_folder_id=folder.id)
+                    if children:
+                        collect_all_folders(children)
+        
+        collect_all_folders(root_folders)
+        
+        # Get all processes (find_all() without folder_id returns all processes)
+        all_processes = self.process_repo.find_all()
+        processes = [p for p in all_processes if not p.is_deleted()]
+        
+        # Count root folders and processes
+        root_folders_count = len(root_folders)
+        root_processes = [p for p in processes if p.folder_id is None]
         
         return {
-            "folder_count": folder_count,
-            "process_count": process_count,
-            "total_versions": 0,  # TODO: Add version count if needed
+            "space_id": space_id,
+            "total_folders": len(all_folders),
+            "total_processes": len(processes),
+            "root_folders": root_folders_count,
+            "root_processes": len(root_processes),
         }
 

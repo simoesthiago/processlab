@@ -30,3 +30,14 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 coverage/
+
+# Banco de dados SQLite
+*.db
+*.sqlite
+*.sqlite3
+processlab.db
+
+# Storage de dados
+data_storage/
+storage/
+*.storage

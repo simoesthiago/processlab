@@ -586,7 +586,7 @@ def get_folder_path(
 
     return FolderPathResponse(
         folder_id=folder_id,
-        space_id=space_id,
+        folder_name=folder.name,
         path=path_items
     )
 

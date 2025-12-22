@@ -114,6 +114,26 @@ export default function StudioContent({
   const [rightPanelMode, setRightPanelMode] = useState<'wizard' | 'search'>('wizard');
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [selectedElements, setSelectedElements] = useState<any[]>([]);
+
+  // Memoize selection change handler to prevent infinite loops
+  const handleSelectionChange = useCallback((elements: any[]) => {
+    setSelectedElements(elements);
+  }, []);
+
+  // Memoize settings change handler to prevent infinite loops
+  const handleSettingsChange = useCallback((settings: EditorSettings) => {
+    setEditorSettings(settings);
+    // Apply settings to editor
+    if (editorRef?.current) {
+      editorRef.current.applySettings({
+        gridSnap: settings.gridSnap,
+        gridSize: settings.gridSize,
+        zoomMin: settings.zoomMin,
+        zoomMax: settings.zoomMax,
+      });
+    }
+  }, []);
+
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -132,17 +152,21 @@ export default function StudioContent({
   // Adicionar delay para processos recém-criados (pode ser race condition)
   useEffect(() => {
     if (initialProcessId && token && !authLoading) {
-      // Se não temos processo carregado, pode ser um processo recém-criado
-      // Adicionar delay para evitar race condition
-      if (!currentProcess) {
-        setTimeout(() => {
+      // Se não temos processo carregado OU o processo atual tem ID diferente, carregar
+      if (!currentProcess || currentProcess.id !== initialProcessId) {
+        // Se não temos processo carregado, pode ser um processo recém-criado
+        // Adicionar delay para evitar race condition
+        if (!currentProcess) {
+          setTimeout(() => {
+            loadProcess(initialProcessId);
+          }, 400);
+        } else {
           loadProcess(initialProcessId);
-        }, 400);
-      } else {
-        loadProcess(initialProcessId);
+        }
       }
     }
-  }, [initialProcessId, token, authLoading, loadProcess, currentProcess]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialProcessId, token, authLoading, loadProcess]); // Removido currentProcess das dependências para evitar loop
 
   // Load versions if process loaded
   useEffect(() => {
@@ -714,9 +738,7 @@ export default function StudioContent({
               <BpmnEditor
                 ref={editorRef}
                 initialXml={bpmnXml}
-                onSelectionChange={(elements: any[]) => {
-                  setSelectedElements(elements);
-                }}
+                onSelectionChange={handleSelectionChange}
               />
             )}
           </div>
@@ -781,18 +803,7 @@ export default function StudioContent({
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
-        onSettingsChange={(settings) => {
-          setEditorSettings(settings);
-          // Apply settings to editor
-          if (editorRef?.current) {
-            editorRef.current.applySettings({
-              gridSnap: settings.gridSnap,
-              gridSize: settings.gridSize,
-              zoomMin: settings.zoomMin,
-              zoomMax: settings.zoomMax,
-            });
-          }
-        }}
+        onSettingsChange={handleSettingsChange}
       />
 
       {/* Toast Notification */}
