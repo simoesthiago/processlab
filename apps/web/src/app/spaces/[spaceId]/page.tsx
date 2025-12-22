@@ -1,14 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { AppLayout } from '@/shared/components/layout/AppLayout';
+import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { FolderKanban, Edit, Trash2, Lock } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/shared/components/ui/card';
+import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -16,22 +16,22 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '@/shared/components/ui/dialog';
 import Link from 'next/link';
-import { useSpaces } from '@/contexts/SpacesContext';
-import { FolderEditModal } from '@/components/spaces/FolderEditModal';
-import { ProcessEditModal } from '@/components/spaces/ProcessEditModal';
-import { useSearchFilter } from '@/components/spaces/SearchBar';
-import { SpaceStats } from '@/components/spaces/SpaceStats';
-import { ViewMode } from '@/components/spaces/ViewToggle';
-import { ViewModes } from '@/components/spaces/ViewModes';
-import { SpaceToolbar, SortOption } from '@/components/spaces/SpaceToolbar';
-import { QuickSearch } from '@/components/spaces/QuickSearch';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useSpaces, SpaceFolder, SpaceProcess } from '@/contexts/SpacesContext';
+import { FolderEditModal } from '@/features/spaces/components/FolderEditModal';
+import { ProcessEditModal } from '@/features/spaces/components/ProcessEditModal';
+import { useSearchFilter } from '@/features/spaces/components/SearchBar';
+import { SpaceStats } from '@/features/spaces/components/SpaceStats';
+import { ViewMode } from '@/features/spaces/components/ViewToggle';
+import { ViewModes } from '@/features/spaces/components/ViewModes';
+import { SpaceToolbar, SortOption } from '@/features/spaces/components/SpaceToolbar';
+import { QuickSearch } from '@/features/spaces/components/QuickSearch';
+import { useKeyboardShortcuts } from '@/shared/hooks/useKeyboardShortcuts';
 
 export default function SpacePage() {
   const params = useParams<{ spaceId: string }>();
-  const spaceId = params.spaceId;
+  const spaceId = params.spaceId || '';
   const router = useRouter();
   const { spaces, selectSpace, loadTree, trees, deleteFolder, deleteProcess, createFolder, createProcess } = useSpaces();
   const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
@@ -58,12 +58,12 @@ export default function SpacePage() {
     }
   }, [spaceId, selectSpace, loadTree]);
 
-  const space = useMemo(() => spaces.find((s) => s.id === spaceId), [spaces, spaceId]);
+  const space = useMemo(() => spaces.find((s: { id: string }) => s.id === spaceId), [spaces, spaceId]);
   const tree = trees[spaceId];
 
   // Filter folders and processes based on search
-  const filteredFolders = useSearchFilter(tree?.root_folders || [], searchQuery);
-  const filteredProcesses = useSearchFilter(tree?.root_processes || [], searchQuery);
+  const filteredFolders = useSearchFilter<SpaceFolder>(tree?.root_folders || [], searchQuery);
+  const filteredProcesses = useSearchFilter<SpaceProcess>(tree?.root_processes || [], searchQuery);
 
   // Sort items
   const sortItems = <T extends { name: string }>(items: T[], sort: SortOption): T[] => {
@@ -102,7 +102,7 @@ export default function SpacePage() {
   ]);
 
   const handleDeleteFolder = async (folderId: string) => {
-    if (!spaceId) return;
+    if (!spaceId || !spaceId.trim()) return;
     const confirmDelete = window.confirm('Delete this folder? Items inside will be removed.');
     if (!confirmDelete) return;
     setError(null);
@@ -117,7 +117,7 @@ export default function SpacePage() {
   };
 
   const handleDeleteProcess = async (processId: string) => {
-    if (!spaceId) return;
+    if (!spaceId || !spaceId.trim()) return;
     const confirmDelete = window.confirm('Delete this process?');
     if (!confirmDelete) return;
     setError(null);
@@ -132,7 +132,7 @@ export default function SpacePage() {
   };
 
   const handleCreateFolder = async () => {
-    if (!spaceId || !newFolderName.trim()) return;
+    if (!spaceId || !spaceId.trim() || !newFolderName.trim()) return;
     setCreating(true);
     setError(null);
     try {
@@ -153,7 +153,7 @@ export default function SpacePage() {
   };
 
   const handleCreateProcess = async () => {
-    if (!spaceId || !newProcessName.trim()) return;
+    if (!spaceId || !spaceId.trim() || !newProcessName.trim()) return;
     setCreating(true);
     setError(null);
     try {
@@ -166,7 +166,13 @@ export default function SpacePage() {
       setNewProcessDesc('');
       setNewProcessOpen(false);
       // Redirect to studio for the newly created process
+      // Use the created process data directly - no need to reload immediately
+      // The process was just created and returned by the API
       if (created?.id) {
+        // Small delay to ensure navigation is smooth
+        await new Promise(resolve => setTimeout(resolve, 100));
+        // Navigate with the process ID - useProcess will handle loading
+        // But we pass the created process data via URL state if possible, or just rely on retries
         router.push(`/spaces/${spaceId}/processes/${created.id}`);
       }
     } catch (e: any) {
@@ -175,6 +181,21 @@ export default function SpacePage() {
       setCreating(false);
     }
   };
+
+  if (!spaceId) {
+    return (
+      <AppLayout>
+        <div className="mx-auto max-w-7xl px-8 py-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Invalid Space</CardTitle>
+              <CardDescription>Space ID is required.</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -215,9 +236,9 @@ export default function SpacePage() {
           processes={sortedProcesses}
           spaceId={spaceId}
           spaceName={space?.name}
-          onEditFolder={(folder) => setEditingFolder({ id: folder.id, open: true })}
+          onEditFolder={(folder: SpaceFolder) => setEditingFolder({ id: folder.id, open: true })}
           onDeleteFolder={handleDeleteFolder}
-          onEditProcess={(proc) => setEditingProcess({ id: proc.id, open: true })}
+          onEditProcess={(proc: SpaceProcess) => setEditingProcess({ id: proc.id, open: true })}
           onDeleteProcess={handleDeleteProcess}
           deletingFolderId={deletingFolderId}
           deletingProcessId={deletingProcessId}
@@ -250,11 +271,11 @@ export default function SpacePage() {
 
       {tree && (
         <>
-          {tree.root_folders?.map((folder) => (
+          {tree.root_folders?.map((folder: SpaceFolder) => (
             <FolderEditModal
               key={folder.id}
               open={editingFolder.open && editingFolder.id === folder.id}
-              onOpenChange={(open) => setEditingFolder({ id: folder.id, open })}
+              onOpenChange={(open: boolean) => setEditingFolder({ id: folder.id, open })}
               spaceId={spaceId}
               folder={folder}
               onSuccess={() => {
@@ -262,11 +283,11 @@ export default function SpacePage() {
               }}
             />
           ))}
-          {tree.root_processes?.map((proc) => (
+          {tree.root_processes?.map((proc: SpaceProcess) => (
             <ProcessEditModal
               key={proc.id}
               open={editingProcess.open && editingProcess.id === proc.id}
-              onOpenChange={(open) => setEditingProcess({ id: proc.id, open })}
+              onOpenChange={(open: boolean) => setEditingProcess({ id: proc.id, open })}
               spaceId={spaceId}
               process={proc}
               onSuccess={() => {
@@ -279,7 +300,7 @@ export default function SpacePage() {
 
       <QuickSearch open={quickSearchOpen} onOpenChange={setQuickSearchOpen} />
 
-      <Dialog open={newFolderOpen} onOpenChange={(open) => {
+      <Dialog open={newFolderOpen} onOpenChange={(open: boolean) => {
         setNewFolderOpen(open);
         if (!open) {
           setNewFolderName('');
@@ -296,7 +317,7 @@ export default function SpacePage() {
               <Label>Name</Label>
               <Input
                 value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewFolderName(e.target.value)}
                 placeholder="Ex: Finance"
               />
             </div>
@@ -304,7 +325,7 @@ export default function SpacePage() {
               <Label>Description</Label>
               <Input
                 value={newFolderDesc}
-                onChange={(e) => setNewFolderDesc(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewFolderDesc(e.target.value)}
                 placeholder="Optional"
               />
             </div>
@@ -327,7 +348,7 @@ export default function SpacePage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={newProcessOpen} onOpenChange={(open) => {
+      <Dialog open={newProcessOpen} onOpenChange={(open: boolean) => {
         setNewProcessOpen(open);
         if (!open) {
           setNewProcessName('');
@@ -344,7 +365,7 @@ export default function SpacePage() {
               <Label>Name</Label>
               <Input
                 value={newProcessName}
-                onChange={(e) => setNewProcessName(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewProcessName(e.target.value)}
                 placeholder="e.g., Sales Process"
               />
             </div>
@@ -352,7 +373,7 @@ export default function SpacePage() {
               <Label>Description</Label>
               <Input
                 value={newProcessDesc}
-                onChange={(e) => setNewProcessDesc(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewProcessDesc(e.target.value)}
                 placeholder="Optional"
               />
             </div>

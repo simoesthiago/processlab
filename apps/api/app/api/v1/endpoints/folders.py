@@ -1,146 +1,76 @@
 """
 Folder endpoints.
 
-Provides Update/Delete for folders. 
-Creation is handled via Spaces API to ensure correct context.
+Thin HTTP layer that delegates to use cases.
 """
 
-from datetime import datetime
-from typing import Dict, List
-
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-
-from app.core.dependencies import get_current_user
-from app.core.exceptions import AuthorizationError, ResourceNotFoundError, ValidationError
-from app.db.models import Folder, ProcessModel, User
-from app.db.session import get_db
-from app.schemas.hierarchy import FolderResponse, FolderUpdate
+from fastapi import APIRouter, Depends, status
+from app.core.dependencies import (
+    get_update_folder_use_case,
+    get_delete_folder_use_case,
+    get_get_folder_use_case,
+    get_process_repository,
+    get_folder_repository
+)
+from app.application.folders.update_folder import UpdateFolderUseCase, UpdateFolderCommand
+from app.application.folders.delete_folder import DeleteFolderUseCase
+from app.api.hierarchy import FolderResponse, FolderUpdate
 
 router = APIRouter()
 
 
-def _get_folder_or_404(db: Session, folder_id: str) -> Folder:
-    folder = (
-        db.query(Folder)
-        .filter(Folder.id == folder_id, Folder.deleted_at == None)
-        .first()
+def _entity_to_response(folder, process_count: int = 0, child_count: int = 0) -> FolderResponse:
+    """Convert domain entity to response model"""
+    response = FolderResponse(
+        id=folder.id,
+        user_id="local-user",
+        parent_folder_id=folder.parent_folder_id,
+        name=folder.name,
+        description=folder.description,
+        color=folder.color,
+        icon=folder.icon,
+        position=folder.position,
+        created_at=folder.created_at,
+        updated_at=folder.updated_at,
+        process_count=process_count,
+        child_count=child_count
     )
-    if not folder:
-        raise ResourceNotFoundError("Folder", folder_id)
-    return folder
-
-
-def _validate_no_cycle(db: Session, folder: Folder, new_parent_id: str | None):
-    """Ensure we never create circular references when moving folders."""
-    if new_parent_id is None:
-        return
-
-    if new_parent_id == folder.id:
-        raise ValidationError("Folder cannot be its own parent")
-
-    current = _get_folder_or_404(db, new_parent_id)
-    while current.parent_folder_id:
-        if current.parent_folder_id == folder.id:
-            raise ValidationError("Cannot move folder inside its own subtree")
-        current = _get_folder_or_404(db, current.parent_folder_id)
+    return response
 
 
 @router.patch("/folders/{folder_id}", response_model=FolderResponse)
 def update_folder(
     folder_id: str,
     folder_data: FolderUpdate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    use_case: UpdateFolderUseCase = Depends(get_update_folder_use_case),
+    process_repo = Depends(get_process_repository),
+    folder_repo = Depends(get_folder_repository)
 ):
     """Rename, recolor, or move a folder."""
-    folder = _get_folder_or_404(db, folder_id)
+    command = UpdateFolderCommand(
+        folder_id=folder_id,
+        name=folder_data.name,
+        description=folder_data.description,
+        parent_folder_id=folder_data.parent_folder_id,
+        position=folder_data.position,
+        color=folder_data.color,
+        icon=folder_data.icon
+    )
     
-    # Access Control: Folder must belong to current user (Private Space)
-    if folder.user_id != current_user.id:
-        raise AuthorizationError("Access denied to this folder")
-
-    # Handle move/parent change
-    if folder_data.parent_folder_id is not None:
-        if folder_data.parent_folder_id:
-            new_parent = _get_folder_or_404(db, folder_data.parent_folder_id)
-            if new_parent.user_id != current_user.id:
-                 raise ValidationError("Parent folder must belong to you")
-        
-        _validate_no_cycle(db, folder, folder_data.parent_folder_id)
-        folder.parent_folder_id = folder_data.parent_folder_id
-
-    if folder_data.name is not None:
-        folder.name = folder_data.name
-    if folder_data.description is not None:
-        folder.description = folder_data.description
-    if folder_data.color is not None:
-        folder.color = folder_data.color
-    if folder_data.icon is not None:
-        folder.icon = folder_data.icon
-    if folder_data.position is not None:
-        folder.position = folder_data.position
-
-    db.commit()
-    db.refresh(folder)
-
-    # Add counts for convenience
-    process_count = (
-        db.query(ProcessModel)
-        .filter(
-            ProcessModel.folder_id == folder.id,
-            ProcessModel.deleted_at == None,
-        )
-        .count()
-    )
-    child_count = (
-        db.query(Folder)
-        .filter(
-            Folder.parent_folder_id == folder.id,
-            Folder.deleted_at == None,
-        )
-        .count()
-    )
-
-    response = FolderResponse.from_orm(folder)
-    response.process_count = process_count
-    response.child_count = child_count
-    return response
+    folder = use_case.execute(command)
+    
+    # Get counts
+    processes = process_repo.find_all(folder_id=folder.id)
+    children = folder_repo.find_all(parent_folder_id=folder.id)
+    
+    return _entity_to_response(folder, len(processes), len(children))
 
 
 @router.delete("/folders/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_folder(
     folder_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    use_case: DeleteFolderUseCase = Depends(get_delete_folder_use_case)
 ):
     """Soft-delete a folder and everything inside it."""
-    folder = _get_folder_or_404(db, folder_id)
-
-    if folder.user_id != current_user.id:
-        raise AuthorizationError("Access denied to this folder")
-
-    now = datetime.utcnow()
-
-    def cascade_delete(target: Folder):
-        # Mark folder
-        target.deleted_at = now
-        # Delete contained processes
-        db.query(ProcessModel).filter(
-            ProcessModel.folder_id == target.id,
-            ProcessModel.deleted_at == None,
-        ).update({"deleted_at": now})
-        # Recurse into children
-        children = db.query(Folder).filter(
-            Folder.parent_folder_id == target.id,
-            Folder.deleted_at == None,
-        )
-        for child in children:
-            cascade_delete(child)
-
-    cascade_delete(folder)
-    db.commit()
+    use_case.execute(folder_id)
     return None
-
-
-

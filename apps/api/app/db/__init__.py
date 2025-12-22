@@ -9,8 +9,8 @@ from app.db.models import (
     ProcessModel,
     ModelVersion,
     Artifact,
-    EmbeddingChunk,
     AuditEntry,
+    Folder,
 )
 from app.db.session import get_db, init_db, engine, SessionLocal
 
@@ -19,8 +19,8 @@ __all__ = [
     "ProcessModel",
     "ModelVersion",
     "Artifact",
-    "EmbeddingChunk",
     "AuditEntry",
+    "Folder",
     "get_db",
     "init_db",
     "engine",

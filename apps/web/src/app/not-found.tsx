@@ -7,19 +7,13 @@
  */
 
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Logo } from '@/components/branding/Logo';
+import { Button } from '@/shared/components/ui/button';
 import { Home, ArrowLeft, Search, FileQuestion } from 'lucide-react';
 
 export default function NotFound() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 px-4">
       <div className="w-full max-w-md space-y-8 text-center">
-        {/* Logo */}
-        <div className="flex items-center justify-center">
-          <Logo variant="icon" width={60} height={60} />
-        </div>
-
         {/* Illustration */}
         <div className="relative">
           <div className="text-[120px] font-bold text-muted/20 leading-none select-none">

@@ -163,11 +163,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 async def database_exception_handler(request: Request, exc: DatabaseError) -> JSONResponse:
-    """Handler for database errors"""
+    """Handler for database errors (but not IntegrityError, which has its own handler)"""
     request_id = getattr(request.state, "request_id", "unknown")
     
-    # Log the database error
-    logger.error(f"Database error: {str(exc)} (request_id: {request_id})")
+    # Log the database error with full details
+    error_details = str(exc)
+    if hasattr(exc, 'orig'):
+        error_details = f"{error_details} (Original: {exc.orig})"
+    logger.error(f"Database error: {error_details} (request_id: {request_id})", exc_info=True)
     
     # Don't expose internal database errors to client
     return JSONResponse(
@@ -186,14 +189,30 @@ async def integrity_exception_handler(request: Request, exc: IntegrityError) -> 
     """Handler for database integrity errors (unique violations, etc.)"""
     request_id = getattr(request.state, "request_id", "unknown")
     
-    logger.warning(f"Database integrity error: {str(exc)} (request_id: {request_id})")
+    # Log detailed error information
+    error_details = str(exc)
+    orig_error = str(exc.orig) if hasattr(exc, 'orig') else None
+    statement = str(exc.statement) if hasattr(exc, 'statement') else None
+    
+    logger.error(f"Database integrity error: {error_details} (request_id: {request_id})")
+    if orig_error:
+        logger.error(f"Original error: {orig_error}")
+    if statement:
+        logger.error(f"SQL statement: {statement}")
     
     # Try to provide helpful message
     message = "A database constraint was violated."
-    if "unique" in str(exc).lower():
+    if "unique" in str(exc).lower() or (orig_error and "unique" in orig_error.lower()):
         message = "A record with this value already exists."
-    elif "foreign key" in str(exc).lower():
-        message = "Referenced resource does not exist."
+    elif "foreign key" in str(exc).lower() or (orig_error and "foreign key" in orig_error.lower()):
+        if orig_error and "users.id" in orig_error:
+            message = "Referenced user does not exist."
+        elif orig_error and "folders.id" in orig_error:
+            message = "Referenced folder does not exist."
+        else:
+            message = "Referenced resource does not exist."
+    elif "not null" in str(exc).lower() or (orig_error and "not null" in orig_error.lower()):
+        message = "A required field is missing."
     
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
@@ -237,9 +256,11 @@ def setup_exception_handlers(app) -> None:
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     
-    # Database exceptions
-    app.add_exception_handler(DatabaseError, database_exception_handler)
+    # Database exceptions - register IntegrityError BEFORE DatabaseError
+    # because IntegrityError is a subclass of DatabaseError, so we want
+    # the more specific handler to be checked first
     app.add_exception_handler(IntegrityError, integrity_exception_handler)
+    app.add_exception_handler(DatabaseError, database_exception_handler)
     
     # Catch-all
     app.add_exception_handler(Exception, generic_exception_handler)

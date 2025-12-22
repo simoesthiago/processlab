@@ -1,13 +1,19 @@
+"""
+ProcessLab Configuration
+
+Simplified settings for local-first usage with SQLite.
+"""
+
 from typing import List, Union
-from pydantic import AnyHttpUrl, validator
+from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "ProcessLab API"
     API_V1_STR: str = "/api/v1"
     
-    # CORS
-    # Defaults cover local Next.js dev ports (3000/3004) and loopback.
+    # CORS - Local development origins
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -15,7 +21,8 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3004",
     ]
 
-    @validator("BACKEND_CORS_ORIGINS", pre=True)
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
@@ -23,23 +30,24 @@ class Settings(BaseSettings):
             return v
         raise ValueError(v)
 
-    # Database
-    DATABASE_URL: str = "postgresql+psycopg2://postgres:postgres@db:5432/processlab"
+    # Database (SQLite for local-first)
+    SQLITE_PATH: str = "./processlab.db"
     
-    # Local Storage
-    STORAGE_PATH: str = "/srv/data_storage"
+    # Local Storage (for uploaded files)
+    STORAGE_PATH: str = "./data_storage"
 
-    # Security
-    SECRET_KEY: str = "CHANGE_THIS_TO_A_SECURE_SECRET_KEY"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-
-
-
-    # AI / Embeddings
+    # OpenAI (for ProcessWizard)
     OPENAI_API_KEY: str = ""
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
+
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    JSON_LOGS: bool = False
     
-    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
+    model_config = SettingsConfigDict(
+        case_sensitive=True, 
+        env_file=".env", 
+        extra='ignore'
+    )
+
 
 settings = Settings()

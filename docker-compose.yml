@@ -1,18 +1,27 @@
+# ProcessLab - Docker Compose (Simplified for Local Use)
+# Uses SQLite instead of PostgreSQL, no external services needed
+
 services:
   api:
     image: python:3.11-slim
     working_dir: /srv
     volumes:
       - ".:/srv"
-    command: sh -lc "python -m pip install -r apps/api/requirements.txt || true; uvicorn apps.api.app.main:app --host 0.0.0.0 --port 8000 --reload"
-    ports: [ "8000:8000" ]
+      - "./data_storage:/srv/data_storage"
+    command: >
+      sh -lc "
+        apt-get update && apt-get install -y tesseract-ocr poppler-utils &&
+        python -m pip install -r apps/api/requirements.txt &&
+        uvicorn apps.api.app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+    ports: ["8000:8000"]
     environment:
       - PYTHONPATH=/srv/apps/api
-      - DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/processlab
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - STORAGE_TYPE=local
+      - SQLITE_PATH=/srv/processlab.db
       - STORAGE_PATH=/srv/data_storage
-    depends_on: [ db ]
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LOG_LEVEL=INFO
+      - JSON_LOGS=false
 
   web:
     image: node:20
@@ -21,19 +30,9 @@ services:
       - ".:/srv"
       - "/srv/node_modules"
       - "/srv/apps/web/node_modules"
-    command: sh -lc "npm install -g pnpm && pnpm install --force && pnpm dev --port 3004 --hostname 0.0.0.0"
-    ports: [ "3004:3004" ]
-    depends_on: [ api ]
-
-  db:
-    image: pgvector/pgvector:pg16
+    command: sh -lc "npm install -g pnpm && pnpm install --force && NEXT_PRIVATE_SKIP_TURBO=1 pnpm dev"
+    ports: ["3004:3004"]
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: processlab
-    ports: [ "5433:5432" ]
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PRIVATE_SKIP_TURBO=1
+    depends_on: [api]

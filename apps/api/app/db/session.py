@@ -1,29 +1,41 @@
 """
 Database Session and Engine Configuration
 
-Provides database session management and engine initialization.
-Supports connection pooling and proper session lifecycle.
+SQLite-based session management for local-first usage.
 """
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
-import os
+from pathlib import Path
 
-# Get database URL from environment
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg2://postgres:postgres@db:5432/processlab"
-)
+from app.core.config import settings
 
-# Create engine with connection pooling
+
+def get_database_url() -> str:
+    """Build SQLite connection URL from settings."""
+    sqlite_path = Path(settings.SQLITE_PATH).resolve()
+    # Ensure parent directory exists
+    sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+    return f"sqlite:///{sqlite_path}"
+
+
+# Create SQLite engine
+# Note: check_same_thread=False is needed for FastAPI async usage
 engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,  # Verify connections before using
-    pool_size=10,  # Connection pool size
-    max_overflow=20,  # Max overflow connections
+    get_database_url(),
+    connect_args={"check_same_thread": False},
     echo=False,  # Set to True for SQL query logging in development
 )
+
+
+# Enable foreign keys for SQLite (disabled by default)
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
 
 # Session factory
 SessionLocal = sessionmaker(
@@ -53,14 +65,8 @@ def init_db():
     """
     Initialize database tables.
     
-    This should only be used in development.
-    In production, use Alembic migrations.
+    Creates all tables from the models.
+    In production, you can also use Alembic migrations.
     """
     from app.db.models import Base
     Base.metadata.create_all(bind=engine)
-
-
-# TODO (Sprint 2+):
-# - Add async database support (asyncpg + SQLAlchemy 2.0)
-# - Implement read replicas for scaling
-# - Add database health check function

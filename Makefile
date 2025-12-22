@@ -33,35 +33,34 @@ install-node: ## Instala dependências Node.js
 
 compose-up: ## 🚀 Sobe TUDO (web, api, worker, db, minio) em background
 	@echo "🚀 Iniciando todos os serviços..."
-	docker compose -f infra/compose/docker-compose.yml up -d
+	docker compose -f docker-compose.yml up -d
 	@echo "✅ Serviços iniciados!"
 	@echo "📍 API: http://localhost:8000/docs"
 	@echo "📍 Web: http://localhost:3004"
-	@echo "📍 MinIO Console: http://localhost:9001 (minio/minio123)"
 
 compose-up-build: ## 🔨 Sobe tudo reconstruindo as imagens
-	docker compose -f infra/compose/docker-compose.yml up -d --build
+	docker compose -f docker-compose.yml up -d --build
 
 compose-down: ## 🛑 Para e limpa todos os containers
-	docker compose -f infra/compose/docker-compose.yml down
+	docker compose -f docker-compose.yml down
 
 compose-down-v: ## 🗑️  Para e REMOVE volumes (limpa banco)
-	docker compose -f infra/compose/docker-compose.yml down -v
+	docker compose -f docker-compose.yml down -v
 
 compose-logs: ## 📋 Mostra logs de todos os serviços
-	docker compose -f infra/compose/docker-compose.yml logs -f
+	docker compose -f docker-compose.yml logs -f
 
 compose-logs-api: ## 📋 Mostra logs apenas da API
-	docker compose -f infra/compose/docker-compose.yml logs -f api
+	docker compose -f docker-compose.yml logs -f api
 
 compose-restart: ## 🔄 Reinicia todos os serviços
-	docker compose -f infra/compose/docker-compose.yml restart
+	docker compose -f docker-compose.yml restart
 
 compose-restart-api: ## 🔄 Reinicia apenas a API
-	docker compose -f infra/compose/docker-compose.yml restart api
+	docker compose -f docker-compose.yml restart api
 
 compose-ps: ## 📊 Status dos containers
-	docker compose -f infra/compose/docker-compose.yml ps
+	docker compose -f docker-compose.yml ps
 
 # ========================================
 # Development Local (sem Docker)

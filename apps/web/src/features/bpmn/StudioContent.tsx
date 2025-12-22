@@ -6,7 +6,7 @@
  * Redesigned BPMN Editor workspace with:
  * - Professional navbar integrated with app design
  * - Separate elements sidebar (not overlapping canvas)
- * - Collapsible and resizable Copilot panel (like Cursor)
+ * - Collapsible and resizable Process Wizard panel
  * - Consistent color palette with ProcessLab design system
  */
 
@@ -14,24 +14,19 @@ import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSpaces } from '@/contexts/SpacesContext';
-import { WorkspaceType } from '@/contexts/WorkspaceContext';
-import { useProcess } from '@/hooks/useProcess';
-import { useVersions } from '@/hooks/useVersions';
-import { apiFetch, API_URL } from '@/lib/api';
-import { StudioNavbar } from '@/components/layout/StudioNavbar';
-import { FormatToolbar } from '@/components/layout/FormatToolbar';
-import { ResizablePanel } from '@/components/ui/resizable-panel';
-import VersionTimeline from '@/features/versioning/VersionTimeline';
+import { useProcess } from '@/features/processes/hooks/useProcess';
+import { useVersions } from '@/features/processes/hooks/useVersions';
+import { apiFetch, API_URL } from '@/shared/services/api/client';
+import { StudioNavbar } from '@/shared/components/layout/StudioNavbar';
+import { FormatToolbar } from '@/shared/components/layout/FormatToolbar';
+import { ResizablePanel } from '@/shared/components/ui/resizable-panel';
 import SaveVersionModal from '@/features/versioning/SaveVersionModal';
-import RestoreVersionModal from '@/features/versioning/RestoreVersionModal';
-import ConflictModal from '@/features/versioning/ConflictModal';
 import BpmnEditor, { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
-import Copilot from '@/features/copiloto/Copilot';
-import ProcessWizard from '@/features/copiloto/ProcessWizard';
-import SearchPanel from '@/components/panels/SearchPanel';
-import { Toast, ToastType } from '@/components/ui/toast';
-import { ExportModal, ExportFormat, ExportOptions } from '@/components/modals/ExportModal';
-import { SettingsModal, EditorSettings } from '@/components/modals/SettingsModal';
+import ProcessWizard from '@/features/processwizard/ProcessWizard';
+import SearchPanel from '@/shared/components/SearchPanel';
+import { Toast, ToastType } from '@/shared/components/ui/toast';
+import { ExportModal, ExportFormat, ExportOptions } from '@/shared/components/ExportModal';
+import { SettingsModal, EditorSettings } from '@/shared/components/SettingsModal';
 import { cn } from '@/lib/utils';
 import {
   Sparkles,
@@ -70,21 +65,13 @@ interface StudioContentProps {
 
 
 
-interface ConflictDetail {
-  message?: string;
-  yourEtag?: string;
-  currentEtag?: string;
-  lastModifiedBy?: string;
-  lastModifiedAt?: string;
-}
-
 export default function StudioContent({
   processId: initialProcessId,
   workspaceId,
   basePath,
 }: StudioContentProps) {
 
-  const { token } = useAuth();
+  const { token, loading: authLoading } = useAuth();
   const { spaces, deleteProcess } = useSpaces();
 
   const editorRef = useRef<BpmnEditorRef | null>(null);
@@ -94,10 +81,10 @@ export default function StudioContent({
   const {
     process: currentProcess,
     processName,
-    folderPath,
     loadProcess,
     createProcess,
-    setProcessName
+    setProcessName,
+    error: processError,
   } = useProcess({ processId: initialProcessId, workspaceId });
 
   const {
@@ -105,19 +92,17 @@ export default function StudioContent({
     selectedVersionId,
     selectedVersionEtag,
     bpmnXml,
-    conflictInfo,
     isSaving,
     loadVersions,
     loadVersionXml,
     saveVersion,
     setSelectedVersionId,
-    setBpmnXml,
-    setConflictInfo
+    setBpmnXml
   } = useVersions(currentProcess?.id);
 
   // Derivations
   const localSpaceName = useMemo(() => {
-    const match = spaces.find((s) => s.id === workspaceId);
+    const match = spaces.find((s: { id: string }) => s.id === workspaceId);
     if (match) return match.name;
     if (workspaceId === 'private') return 'Private Space';
     return undefined;
@@ -125,15 +110,8 @@ export default function StudioContent({
 
   const [spaceName, setSpaceName] = useState<string>('');
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  const [pendingSave, setPendingSave] = useState<{ message: string; changeType: 'major' | 'minor' | 'patch' } | null>(null);
 
-  // Restore modal state
-  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
-  const [versionToRestore, setVersionToRestore] = useState<any | null>(null); // Type 'Version' from hook
-  const [isRestoring, setIsRestoring] = useState(false);
-  const [isLoadingVersion, setIsLoadingVersion] = useState(false);
-
-  const [rightPanelMode, setRightPanelMode] = useState<'wizard' | 'search' | 'history'>('wizard');
+  const [rightPanelMode, setRightPanelMode] = useState<'wizard' | 'search'>('wizard');
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [selectedElements, setSelectedElements] = useState<any[]>([]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -141,7 +119,7 @@ export default function StudioContent({
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [editorSettings, setEditorSettings] = useState<EditorSettings | null>(null);
 
-  const openRightPanel = (mode: 'wizard' | 'search' | 'history') => {
+  const openRightPanel = (mode: 'wizard' | 'search') => {
     setRightPanelMode(mode);
     setRightPanelCollapsed(false);
   };
@@ -149,12 +127,22 @@ export default function StudioContent({
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
-  // Load process initial
+  // Load process initial - apenas se token estiver disponível
+  // O useProcess já tem lógica para recarregar quando o token ficar disponível
+  // Adicionar delay para processos recém-criados (pode ser race condition)
   useEffect(() => {
-    if (initialProcessId) {
-      loadProcess(initialProcessId);
+    if (initialProcessId && token && !authLoading) {
+      // Se não temos processo carregado, pode ser um processo recém-criado
+      // Adicionar delay para evitar race condition
+      if (!currentProcess) {
+        setTimeout(() => {
+          loadProcess(initialProcessId);
+        }, 400);
+      } else {
+        loadProcess(initialProcessId);
+      }
     }
-  }, [initialProcessId, loadProcess]);
+  }, [initialProcessId, token, authLoading, loadProcess, currentProcess]);
 
   // Load versions if process loaded
   useEffect(() => {
@@ -355,6 +343,8 @@ export default function StudioContent({
           parentVersionId: null
         });
 
+        // Small delay to ensure process is fully committed before navigation
+        await new Promise(resolve => setTimeout(resolve, 200));
         router.replace(`/spaces/${workspaceId || 'private'}/processes/${newProcess.id}`);
         setToast({ message: 'Process created and saved successfully!', type: 'success' });
         return true;
@@ -379,16 +369,11 @@ export default function StudioContent({
 
       setToast({ message: 'Version saved successfully!', type: 'success' });
       setIsSaveModalOpen(false);
-      setConflictInfo(null);
       return true;
 
     } catch (error: any) {
       console.error("Save failed:", error);
-      if (error.message !== 'Conflict detected') {
-        setToast({ message: `Save failed: ${error.message || 'Unknown error'}`, type: 'error' });
-      } else {
-        setPendingSave(params);
-      }
+      setToast({ message: `Save failed: ${error.message || 'Unknown error'}`, type: 'error' });
       return false;
     }
   };
@@ -397,24 +382,7 @@ export default function StudioContent({
     // If no process and no workspace context, return
     if (!currentProcess && !workspaceId) return false;
 
-    setPendingSave({ message, changeType });
     return await performSave({ message, changeType });
-  };
-
-  const handleOverwriteAfterConflict = async () => {
-    if (!pendingSave) {
-      setConflictInfo(null);
-      return;
-    }
-
-    try {
-      await performSave({ ...pendingSave, force: true });
-    } catch (error: any) {
-      console.error("Overwrite failed:", error);
-      setToast({ message: `Overwrite failed: ${error.message || 'Unknown error'}`, type: 'error' });
-    } finally {
-      setConflictInfo(null);
-    }
   };
 
 
@@ -643,91 +611,16 @@ export default function StudioContent({
 
 
 
-  const handleActivateVersion = async (versionId: string) => {
-    if (!currentProcess) return;
-
-    try {
-      await apiFetch(`/api/v1/processes/${currentProcess.id}/versions/${versionId}/activate`, {
-        method: 'PUT',
-        token
-      });
-
-      await loadVersions(currentProcess.id);
-      setToast({ message: 'Version activated successfully!', type: 'success' });
-
-    } catch (error: any) {
-      console.error("Failed to activate version:", error);
-      setToast({ message: `Failed to activate version: ${error.message || 'Unknown error'}`, type: 'error' });
-    }
-  };
-
-
-
   const handleSelectVersion = async (versionId: string) => {
     setSelectedVersionId(versionId);
 
-    // hook doesn't expose setter, relying on selectedVersionId update
-
-
     if (currentProcess?.id) {
-      // setIsLoadingVersion(true); // Hook doesn't expose this yet but we can add or ignore for now
       try {
         await loadVersionXml(currentProcess.id, versionId);
       } catch (err) {
         setToast({ message: 'Failed to load version', type: 'error' });
-      } finally {
-        // setIsLoadingVersion(false);
       }
     }
-  };
-
-
-
-  // Removed duplicate loadVersionXml - usage replaced by hook's loadVersionXml
-
-
-
-
-  const handleRestoreVersion = async (commitMessage?: string) => {
-    if (!currentProcess || !versionToRestore) return;
-
-    setIsRestoring(true);
-    try {
-      const restoredVersion = await apiFetch(`/api/v1/processes/${currentProcess.id}/versions/${versionToRestore.id}/restore`, {
-        method: 'POST',
-        token,
-        body: JSON.stringify({ commit_message: commitMessage })
-      });
-
-      await loadVersions(currentProcess.id);
-      setSelectedVersionId(restoredVersion.id);
-
-      // Reload xml for restored
-      const versionData = await loadVersionXml(currentProcess.id, restoredVersion.id);
-      if (versionData) {
-        setBpmnXml(versionData);
-      }
-
-      setToast({ message: 'Version restored successfully!', type: 'success' });
-      setIsRestoreModalOpen(false);
-      setVersionToRestore(null);
-    } catch (error: any) {
-      console.error('Restore failed:', error);
-      setToast({ message: `Restore failed: ${error.message || 'Unknown error'}`, type: 'error' });
-    } finally {
-      setIsRestoring(false);
-    }
-  };
-
-
-
-
-
-
-  const handleOpenHistoryFromSettings = () => {
-    setRightPanelMode('history');
-    setRightPanelCollapsed(false);
-    setIsSettingsModalOpen(false);
   };
 
   const handleDeleteProcess = useCallback(async () => {
@@ -765,12 +658,12 @@ export default function StudioContent({
         versions={versions}
         selectedVersionId={selectedVersionId}
         basePath={basePath}
+        workspaceId={workspaceId}
+        folderId={currentProcess?.folder_id ?? null}
         isSaving={isSaving}
         onSave={handleSave}
         onExport={handleExport}
-        onActivateVersion={handleActivateVersion}
         spaceName={spaceName}
-        folderPath={folderPath}
         editorRef={editorRef}
         onSearchClick={() => openRightPanel('search')}
         onDeleteProcess={currentProcess?.id ? () => handleDeleteProcess() : undefined}
@@ -791,28 +684,47 @@ export default function StudioContent({
 
           {/* BPMN Editor Canvas */}
           <div className="flex-1 bg-muted/30 overflow-hidden relative">
-            {isLoadingVersion && (
-              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center pointer-events-auto">
-                <div className="text-center pointer-events-none">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">Loading version...</p>
+            {processError ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50">
+                <div className="max-w-md p-8 bg-card rounded-xl border border-border shadow-2xl text-center">
+                  <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-destructive/10 text-destructive">
+                    <Search className="h-8 w-8" />
+                  </div>
+                  <h2 className="text-xl font-bold mb-2">Process Not Found</h2>
+                  <p className="text-muted-foreground mb-6">
+                    {processError || "We couldn't find the process you're looking for. It might have been moved or deleted."}
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => router.push(basePath)}
+                      className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+                    >
+                      Back to Space
+                    </button>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="w-full py-2.5 px-4 bg-secondary text-secondary-foreground rounded-lg font-medium hover:bg-secondary/80 transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  </div>
                 </div>
               </div>
+            ) : (
+              <BpmnEditor
+                ref={editorRef}
+                initialXml={bpmnXml}
+                onSelectionChange={(elements: any[]) => {
+                  setSelectedElements(elements);
+                }}
+              />
             )}
-            <BpmnEditor
-              ref={editorRef}
-              initialXml={bpmnXml}
-              onSelectionChange={(elements) => {
-                setSelectedElements(elements);
-              }}
-            />
           </div>
         </div>
 
 
         {/* Right Panel (Wizard / Search / History) */}
         <ResizablePanel
-          key={`${rightPanelMode}-${rightPanelCollapsed ? 'c' : 'o'}`}
           defaultWidth={380}
           minWidth={320}
           maxWidth={560}
@@ -837,25 +749,9 @@ export default function StudioContent({
               }}
             />
           )}
-          {rightPanelMode === 'history' && versions.length > 0 && (
-            <VersionTimeline
-              versions={versions}
-              selectedVersionId={selectedVersionId}
-              onSelectVersion={(versionId) => {
-                handleSelectVersion(versionId);
-              }}
-              onRestoreVersion={(versionId) => {
-                const version = versions.find(v => v.id === versionId);
-                if (version) {
-                  setVersionToRestore(version);
-                  setIsRestoreModalOpen(true);
-                }
-              }}
-            />
-          )}
           {rightPanelMode === 'search' && (
             <SearchPanel
-              editorRef={editorRef as React.RefObject<BpmnEditorRef>}
+              editorRef={editorRef}
               onClose={() => {
                 setRightPanelCollapsed(true);
               }}
@@ -872,25 +768,6 @@ export default function StudioContent({
         isSaving={isSaving}
       />
 
-      <ConflictModal
-        isOpen={!!conflictInfo}
-        onClose={() => setConflictInfo(null)}
-        onOverwrite={handleOverwriteAfterConflict}
-        isSaving={isSaving}
-        conflict={conflictInfo || undefined}
-      />
-
-      <RestoreVersionModal
-        isOpen={isRestoreModalOpen}
-        onClose={() => {
-          setIsRestoreModalOpen(false);
-          setVersionToRestore(null);
-        }}
-        onRestore={handleRestoreVersion}
-        isRestoring={isRestoring}
-        version={versionToRestore}
-      />
-
       {/* Export Modal */}
       <ExportModal
         isOpen={isExportModalOpen}
@@ -904,7 +781,6 @@ export default function StudioContent({
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
-        onOpenHistory={handleOpenHistoryFromSettings}
         onSettingsChange={(settings) => {
           setEditorSettings(settings);
           // Apply settings to editor

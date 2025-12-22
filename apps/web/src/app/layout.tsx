@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SpacesProvider } from "@/contexts/SpacesContext";
 
 const inter = Inter({
@@ -59,11 +58,9 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          <WorkspaceProvider>
-            <SpacesProvider>
-              {children}
-            </SpacesProvider>
-          </WorkspaceProvider>
+          <SpacesProvider>
+            {children}
+          </SpacesProvider>
         </AuthProvider>
       </body>
     </html>

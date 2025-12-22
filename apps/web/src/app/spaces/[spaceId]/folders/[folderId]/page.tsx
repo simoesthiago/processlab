@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { AppLayout } from '@/shared/components/layout/AppLayout';
+import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { FolderKanban, FolderOpen, Trash2, Edit, MoreVertical } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/shared/components/ui/card';
+import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -16,16 +16,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '@/shared/components/ui/dialog';
 import Link from 'next/link';
 import { useSpaces } from '@/contexts/SpacesContext';
-import { FolderEditModal } from '@/components/spaces/FolderEditModal';
-import { ProcessEditModal } from '@/components/spaces/ProcessEditModal';
-import { FolderBreadcrumbs } from '@/components/spaces/FolderBreadcrumbs';
-import { useSearchFilter } from '@/components/spaces/SearchBar';
-import { ViewMode } from '@/components/spaces/ViewToggle';
-import { ViewModes } from '@/components/spaces/ViewModes';
-import { SpaceToolbar, SortOption } from '@/components/spaces/SpaceToolbar';
+import { FolderEditModal } from '@/features/spaces/components/FolderEditModal';
+import { ProcessEditModal } from '@/features/spaces/components/ProcessEditModal';
+import { FolderBreadcrumbs } from '@/features/spaces/components/FolderBreadcrumbs';
+import { useSearchFilter } from '@/features/spaces/components/SearchBar';
+import { ViewMode } from '@/features/spaces/components/ViewToggle';
+import { ViewModes } from '@/features/spaces/components/ViewModes';
+import { SpaceToolbar, SortOption } from '@/features/spaces/components/SpaceToolbar';
 
 export default function FolderPage() {
   const params = useParams<{ spaceId: string; folderId: string }>();
@@ -164,7 +164,10 @@ export default function FolderPage() {
       setNewProcessDesc('');
       setNewProcessOpen(false);
       // Redirect to studio for the newly created process
+      // Use the created process data directly - no need to reload immediately
       if (created?.id) {
+        // Small delay to ensure navigation is smooth
+        await new Promise(resolve => setTimeout(resolve, 100));
         router.push(`/spaces/${spaceId}/processes/${created.id}`);
       }
     } catch (e: any) {

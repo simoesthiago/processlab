@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
-import { API_URL } from '@/lib/api';
+import { API_URL } from '@/shared/services/api/client';
 
 
 const DEFAULT_SPACE: Space = {
@@ -127,7 +127,7 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
 
   const addFolderToState = useCallback(
     (spaceId: string, folder: SpaceFolder, parentFolderId: string | null) => {
-      setTrees((prev) => {
+      setTrees((prev: Record<string, SpaceTree>) => {
         const tree = prev[spaceId] ?? { ...DEFAULT_TREE, space_id: spaceId };
         let added = false;
 
@@ -172,7 +172,7 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
 
   const addProcessToState = useCallback(
     (spaceId: string, process: SpaceProcess, folderId: string | null) => {
-      setTrees((prev) => {
+      setTrees((prev: Record<string, SpaceTree>) => {
         const tree = prev[spaceId] ?? { ...DEFAULT_TREE, space_id: spaceId };
         if (!folderId) {
           return {
@@ -228,7 +228,7 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
   const ensureDefaultSpace = useCallback(() => {
     setSpaces([DEFAULT_SPACE]);
     setSelectedSpaceId('private');
-    setTrees((prev) => {
+    setTrees((prev: Record<string, SpaceTree>) => {
       const storedTree = loadPrivateTreeFromStorage();
       if (prev['private']) return prev;
       return { ...prev, ['private']: storedTree ?? DEFAULT_TREE };
@@ -260,7 +260,7 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
           throw new Error('Failed to load space tree');
         }
         const data = await resp.json();
-        setTrees((prev) => {
+        setTrees((prev: Record<string, SpaceTree>) => {
           // Only update if not already cached or forcing refresh
           if (!prev[spaceId] || forceRefresh) {
             loadedTreesRef.current.add(spaceId);
@@ -274,7 +274,7 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         console.warn('Failed to load space tree, falling back to default if private:', err);
         if (spaceId === 'private') {
-          setTrees((prev) => {
+          setTrees((prev: Record<string, SpaceTree>) => {
             loadedTreesRef.current.add(spaceId);
             const storedTree = loadPrivateTreeFromStorage();
             const nextTree = storedTree ?? prev[spaceId] ?? DEFAULT_TREE;
@@ -293,7 +293,7 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
     (spaceId: string) => {
       setSelectedSpaceId(spaceId);
       // Check if tree needs to be loaded using functional update
-      setTrees((prev) => {
+      setTrees((prev: Record<string, SpaceTree>) => {
         if (!prev[spaceId]) {
           // Load tree asynchronously
           loadTree(spaceId).catch(console.error);
@@ -356,17 +356,8 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
     async (spaceId: string, payload: { name: string; description?: string; folder_id?: string | null }) => {
       const folderId = payload.folder_id ?? null;
 
-      if (spaceId === 'private') {
-        const newProcess: SpaceProcess = {
-          id: generateLocalId(),
-          name: payload.name,
-          description: payload.description ?? null,
-          folder_id: folderId ?? undefined,
-        };
-        addProcessToState(spaceId, newProcess, folderId);
-        return newProcess;
-      }
-
+      // Always call API to create process - even for private space
+      // This ensures the process is persisted in the database
       const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/processes`, {
         method: 'POST',
         headers: {
@@ -384,16 +375,43 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
         throw new Error(`Failed to create process: ${errorText || resp.statusText}`);
       }
       const data: SpaceProcess = await resp.json();
+      
+      // Update local state after successful API creation
+      if (spaceId === 'private') {
+        addProcessToState(spaceId, data, folderId);
+        // Also persist to localStorage for private space
+        const nextTree = trees[spaceId] ?? { ...DEFAULT_TREE, space_id: spaceId };
+        if (folderId) {
+          // Add to folder's processes
+          const updateFolderProcesses = (folders: SpaceFolder[]): SpaceFolder[] => {
+            return folders.map(folder => {
+              if (folder.id === folderId) {
+                return { ...folder, processes: [...(folder.processes || []), data] };
+              }
+              if (folder.children?.length) {
+                return { ...folder, children: updateFolderProcesses(folder.children) };
+              }
+              return folder;
+            });
+          };
+          nextTree.root_folders = updateFolderProcesses(nextTree.root_folders || []);
+        } else {
+          // Add to root processes
+          nextTree.root_processes = [...(nextTree.root_processes || []), data];
+        }
+        persistPrivateTree(nextTree);
+      }
+      
       await loadTree(spaceId);
       return data;
     },
-    [addProcessToState, authHeaders, generateLocalId, loadTree]
+    [addProcessToState, authHeaders, loadTree, trees, persistPrivateTree]
   );
 
   const deleteFolder = useCallback(
     async (spaceId: string, folderId: string) => {
       if (spaceId === 'private') {
-        setTrees((prev) => {
+        setTrees((prev: Record<string, SpaceTree>) => {
           const tree = prev[spaceId] ?? { ...DEFAULT_TREE, space_id: spaceId };
 
           const prune = (folders: SpaceFolder[]): { changed: boolean; next: SpaceFolder[] } => {
@@ -475,7 +493,7 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
     ) => {
       if (spaceId === 'private') {
         let updatedFolder: SpaceFolder | null = null;
-        setTrees((prev) => {
+        setTrees((prev: Record<string, SpaceTree>) => {
           const tree = prev[spaceId] ?? { ...DEFAULT_TREE, space_id: spaceId };
 
           const applyUpdate = (folders: SpaceFolder[]): SpaceFolder[] => {
@@ -650,11 +668,15 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
         const findPath = (folders: SpaceFolder[]): Array<{ id: string; name: string }> | null => {
           for (const folder of folders) {
             if (folder.id === folderId) {
-              return [{ id: folder.id, name: folder.name }];
+              // Garantir que sempre temos um name válido
+              const folderName = folder.name || `Folder ${folder.id.slice(0, 8)}`;
+              return [{ id: folder.id, name: folderName }];
             }
             const childPath = findPath(folder.children || []);
             if (childPath) {
-              return [{ id: folder.id, name: folder.name }, ...childPath];
+              // Garantir que sempre temos um name válido
+              const folderName = folder.name || `Folder ${folder.id.slice(0, 8)}`;
+              return [{ id: folder.id, name: folderName }, ...childPath];
             }
           }
           return null;
@@ -664,36 +686,106 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
       };
 
       const localPath = computeLocalPath();
+      console.log('[getFolderPath] Local path computed:', localPath, 'para folderId:', folderId, 'spaceId:', spaceId);
+      // Expandir localPath para ver o conteúdo
+      if (localPath && localPath.length > 0) {
+        localPath.forEach((item, idx) => {
+          console.log(`[getFolderPath] LocalPath item ${idx}:`, JSON.stringify(item, null, 2));
+        });
+        // Se temos path local, retornar imediatamente e fazer API em background
+        console.log('[getFolderPath] Retornando path local imediatamente:', localPath);
+        // Fazer chamada da API em background (não esperar) - usar void para evitar unhandled promise
+        void (async () => {
+          try {
+            await fetch(`${API_URL}/api/v1/spaces/${spaceId}/folders/${folderId}/path`, {
+              headers: {
+                'Content-Type': 'application/json',
+                ...authHeaders,
+              },
+            });
+          } catch {
+            // Ignorar erros da API em background
+          }
+        })();
+        return localPath;
+      }
 
+      // Se não temos path local, tentar API
       try {
-        const resp = await fetch(`${API_URL}/api/v1/spaces/${spaceId}/folders/${folderId}/path`, {
+        const url = `${API_URL}/api/v1/spaces/${spaceId}/folders/${folderId}/path`;
+        const hasAuth = authHeaders && typeof authHeaders === 'object' && !Array.isArray(authHeaders) && 'Authorization' in authHeaders;
+        console.log('[getFolderPath] Chamando API:', url, 'authHeaders keys:', Object.keys(authHeaders || {}), 'token presente:', hasAuth);
+        
+        // Adicionar timeout de 10 segundos
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const resp = await fetch(url, {
           headers: {
             'Content-Type': 'application/json',
             ...authHeaders,
           },
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
+        console.log('[getFolderPath] Resposta recebida, status:', resp.status, 'ok:', resp.ok);
         if (!resp.ok) {
-          console.warn('Failed to load folder path from API, using local tree');
+          const errorText = await resp.text();
+          console.warn('[getFolderPath] Failed to load folder path from API, using local tree. Status:', resp.status, 'Error:', errorText);
           return localPath;
         }
         const data = await resp.json();
+        console.log('[getFolderPath] Resposta da API (JSON):', JSON.stringify(data, null, 2));
 
-        if (Array.isArray(data.path) && data.path.length) {
-          return data.path;
+        // A API sempre deve retornar pelo menos o folder atual no path
+        // Se retornou um array vazio, há um problema na API
+        if (Array.isArray(data.path)) {
+          if (data.path.length > 0) {
+            console.log('[getFolderPath] Retornando path da API (completo):', data.path);
+            return data.path;
+          } else {
+            // API retornou path vazio - isso não deveria acontecer
+            // Mas se temos folder_name, criar path mínimo
+            console.warn('[getFolderPath] API retornou path vazio! Isso não deveria acontecer. Data:', data);
+            if (data.folder_name) {
+              console.log('[getFolderPath] Usando folder_name da API como fallback:', data.folder_name);
+              return [{ id: data.folder_id ?? folderId, name: data.folder_name }];
+            }
+          }
         }
 
-        if (localPath.length) {
+        // Se chegou aqui, a API não retornou path válido
+        // Tentar usar localPath apenas se tiver dados
+        if (localPath.length > 0) {
+          console.warn('[getFolderPath] API não retornou path válido, usando localPath (pode estar incompleto):', localPath);
           return localPath;
         }
 
+        // Último recurso: usar folder_name se disponível
         if (data.folder_name) {
+          console.log('[getFolderPath] Usando folder_name como último recurso:', data.folder_name);
           return [{ id: data.folder_id ?? folderId, name: data.folder_name }];
         }
 
-        return localPath;
-      } catch (err) {
-        console.warn('Failed to load folder path, using local tree:', err);
-        return localPath;
+        console.error('[getFolderPath] Nenhum path disponível! Retornando array vazio. Data:', data, 'localPath:', localPath);
+        return [];
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.warn('[getFolderPath] Timeout ao carregar folder path da API (10s) - usando localPath');
+        } else {
+          console.error('[getFolderPath] Erro ao carregar folder path da API:', err, 'message:', err?.message);
+        }
+        
+        // Se temos localPath, usar ele (mesmo que possa estar incompleto)
+        if (localPath.length > 0) {
+          console.log('[getFolderPath] Usando localPath devido ao erro/timeout:', localPath);
+          return localPath;
+        }
+        
+        // Se não temos localPath, retornar array vazio
+        console.warn('[getFolderPath] Nenhum path disponível (localPath vazio)');
+        return [];
       }
     },
     [authHeaders, trees]
@@ -752,7 +844,7 @@ export function SpacesProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isAuthenticated) {
-      refreshSpaces().catch((err) => console.error(err));
+      refreshSpaces().catch((err: unknown) => console.error(err));
     } else {
       ensureDefaultSpace();
     }

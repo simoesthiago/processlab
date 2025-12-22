@@ -9,7 +9,12 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import type { DraggedElement } from './editor/BpmnEditor';
+export interface DraggedElement {
+  id: string;
+  name: string;
+  type: string;
+  description?: string;
+}
 import { 
   Circle, 
   Square, 

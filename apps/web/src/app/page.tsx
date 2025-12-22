@@ -1,10 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/components/ui/button';
 import { Github } from 'lucide-react';
-
-import { HeroVisualization } from '@/components/illustrations/HeroVisualization';
+import { HeroVisualization } from '@/shared/components/HeroVisualization';
 
 export default function LandingPage() {
   return (
@@ -24,10 +23,10 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      <main className="flex-1">
+      <main className="flex-1 flex items-center justify-center">
 
         {/* Hero Section */}
-        <section className="relative pt-12 pb-16 overflow-hidden">
+        <section className="relative w-full py-16 sm:py-20 overflow-hidden">
           <div className="container mx-auto px-3 sm:px-4 lg:px-6">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div className="max-w-2xl">
@@ -65,15 +64,8 @@ export default function LandingPage() {
               <Link href="/" className="text-sm font-medium text-foreground">
                 ProcessLab
               </Link>
-              <span className="hidden sm:inline">•</span>
-              <p className="hidden sm:inline text-sm">
-                Open-source BPMN toolkit.
-              </p>
             </div>
             <div className="flex items-center gap-4">
-              <p className="text-sm">
-                © {new Date().getFullYear()} ProcessLab
-              </p>
               <Link href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
                 <Github className="h-5 w-5" />
               </Link>

@@ -93,7 +93,7 @@ async def health():
         logger.error(f"Database health check failed: {e}")
     
     # Storage health (Local)
-    from app.services.storage.local import storage_service
+    from app.infrastructure.services.storage.local import storage_service
     if storage_service.base_path.exists():
         health_status["checks"]["storage"] = {"status": "healthy", "message": "Local storage ready"}
     else:
