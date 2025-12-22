@@ -6,7 +6,7 @@ from typing import List
 from app.domain.repositories.version_repository import VersionRepository
 from app.domain.repositories.process_repository import ProcessRepository
 from app.core.exceptions import ResourceNotFoundError
-from app.api.versioning import VersionHistoryItem
+from app.api.schemas.versions import VersionHistoryItem
 
 
 class ListVersionsUseCase:

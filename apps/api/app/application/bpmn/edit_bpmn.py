@@ -60,7 +60,7 @@ class EditBpmnUseCase:
             current_etag = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
             
             if command.if_match != current_etag:
-                from app.api.governance import ConflictError
+                from app.api.schemas.governance import ConflictError
                 raise ConflictError(
                     message="Process changed since you started editing.",
                     your_etag=command.if_match,

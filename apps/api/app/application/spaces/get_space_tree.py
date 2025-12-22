@@ -5,8 +5,8 @@ Get Space Tree Use Case
 from typing import Dict, List
 from app.domain.repositories.folder_repository import FolderRepository
 from app.domain.repositories.process_repository import ProcessRepository
-from app.api.hierarchy import FolderTree
-from app.api.processes import ProcessResponse
+from app.api.schemas.folders import FolderTree
+from app.api.schemas.processes import ProcessResponse
 from datetime import datetime
 
 

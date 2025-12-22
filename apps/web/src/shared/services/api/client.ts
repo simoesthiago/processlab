@@ -24,6 +24,7 @@ export interface FetchOptions extends RequestInit {
 
 export async function apiFetch<T = any>(endpoint: string, options: FetchOptions = {}): Promise<T> {
     const { token, headers = {}, ...rest } = options;
+    const fullUrl = `${API_URL}${endpoint}`;
 
     // No Bearer token needed for local-first single-user mode
     const authHeaders: Record<string, string> = {
@@ -31,13 +32,32 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
         ...(headers as Record<string, string>),
     };
 
+    console.log(`[apiFetch] Fazendo requisição para: ${fullUrl}`);
+
     let response: Response;
 
     try {
-        response = await fetch(`${API_URL}${endpoint}`, {
-            headers: authHeaders,
-            ...rest,
-        });
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+        }, 10000); // 10 second timeout
+
+        try {
+            response = await fetch(fullUrl, {
+                headers: authHeaders,
+                ...rest,
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            console.log(`[apiFetch] Resposta recebida para ${endpoint}:`, { status: response.status, ok: response.ok });
+        } catch (fetchError: any) {
+            clearTimeout(timeoutId);
+            if (fetchError.name === 'AbortError') {
+                throw new Error('Request timeout: API server did not respond within 10 seconds');
+            }
+            throw fetchError;
+        }
     } catch (error: any) {
         // Handle network errors
         const errorMessage = error?.message || 'Failed to fetch';
@@ -54,16 +74,22 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
 
     // Handle 204 No Content
     if (response.status === 204) {
+        console.log(`[apiFetch] 204 No Content para ${endpoint}`);
         return {} as T;
     }
 
-    const data = await response.json().catch(() => ({}));
+    const data = await response.json().catch((err) => {
+        console.error(`[apiFetch] Erro ao parsear JSON para ${endpoint}:`, err);
+        return {};
+    });
 
     if (!response.ok) {
         const errorMessage = data.error?.message || data.detail || data.message || 'API Request Failed';
+        console.error(`[apiFetch] Erro na resposta para ${endpoint}:`, { status: response.status, errorMessage, data });
         throw new ApiError(errorMessage, response.status, data);
     }
 
+    console.log(`[apiFetch] Sucesso para ${endpoint}:`, data);
     return data;
 }
 

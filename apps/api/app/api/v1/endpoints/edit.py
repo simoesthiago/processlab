@@ -7,7 +7,8 @@ Maintains version history and provides human-readable change descriptions.
 
 from fastapi import APIRouter, HTTPException, status, Header, Depends
 from sqlalchemy.orm import Session
-from app.api import EditRequest, EditResponse, BPMNJSON
+from app.api.schemas.bpmn_operations import EditRequest, EditResponse
+from app.api.schemas.common import BPMNJSON
 from app.db.session import get_db
 from app.db.models import AuditEntry, LOCAL_USER_ID
 from app.domain.entities.process import Process
@@ -145,14 +146,14 @@ def compute_etag(payload: dict) -> str:
 async def edit_bpmn(
     request: EditRequest,
     x_request_id: Optional[str] = Header(None, description="Request tracking ID"),
-    db: Session = Depends(get_db),
-    edit_use_case: EditBpmnUseCase = Depends(get_edit_bpmn_use_case),
-    version_repo = Depends(get_version_repository),
-    process_repo = Depends(get_process_repository)
+    db: Session = Depends(get_db)
 ) -> EditResponse:
     """
     Edit BPMN using natural language commands.
     """
+    edit_use_case = get_edit_bpmn_use_case(db)
+    version_repo = get_version_repository(db)
+    process_repo = get_process_repository(db)
     
     # Validate command
     if not request.command or not request.command.strip():
@@ -190,7 +191,7 @@ async def edit_bpmn(
              logger.warning(f"Could not interpret command: {request.command}")
              return EditResponse(
                 bpmn=current_bpmn,
-                versionId=request.model_version_id or "unchanged",
+                version_id=request.model_version_id or "unchanged",
                 changes=["Command not understood"]
             )
             
@@ -202,8 +203,8 @@ async def edit_bpmn(
         
         # Compute etag for optimistic locking
         etag = None
-        if request.ifMatch:
-            etag = request.ifMatch
+        if request.if_match:
+            etag = request.if_match
         
         edit_command = EditBpmnCommand(
             current_bpmn_json=current_bpmn_dict,
@@ -266,7 +267,7 @@ async def edit_bpmn(
     
     return EditResponse(
         bpmn=BPMNJSON(**updated_bpmn_dict),
-        versionId=new_version_id,
+        version_id=new_version_id,
         changes=changes_list
     )
 

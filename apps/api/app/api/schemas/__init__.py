@@ -1,22 +1,24 @@
 """
-API Module - Re-exports all API schemas and types.
+API Schemas Module
 
-This module provides a single import point for all API schemas.
-All schemas are defined in app.api.schemas and re-exported here for convenience.
+Centralized location for all API request/response schemas.
 """
 
-# Re-export everything from schemas
-from app.api.schemas import (
-    # Common
+# Common BPMN types
+from .common import (
     BPMNJSON,
     BPMNElement,
     SequenceFlow,
     Lane,
     ProcessInfo,
     ElementMeta,
-    # Processes
-    ProcessResponse,
-    # Folders
+)
+
+# Process schemas
+from .processes import ProcessResponse
+
+# Folder schemas
+from .folders import (
     FolderResponse,
     FolderCreateRequest,
     FolderUpdateRequest,
@@ -24,9 +26,13 @@ from app.api.schemas import (
     FolderItem,
     FolderPathItem,
     FolderPathResponse,
-    FolderCreate,  # Backward compatibility
-    FolderUpdate,  # Backward compatibility
-    # Spaces
+    # Backward compatibility
+    FolderCreate,
+    FolderUpdate,
+)
+
+# Space schemas
+from .spaces import (
     SpaceTreeResponse,
     SpaceSummary,
     RecentItem,
@@ -38,16 +44,24 @@ from app.api.schemas import (
     FolderMoveRequest,
     ProcessMoveRequest,
     SpaceStatsResponse,
-    SpaceProcessCreate,  # Backward compatibility
-    SpaceProcessUpdate,  # Backward compatibility
-    # Versions
+    # Backward compatibility
+    SpaceProcessCreate,
+    SpaceProcessUpdate,
+)
+
+# Version schemas
+from .versions import (
     VersionCreateRequest,
     VersionResponse,
     VersionHistoryItem,
     RestoreVersionRequest,
-    ModelVersionCreate,  # Backward compatibility
-    ModelVersionResponse,  # Backward compatibility
-    # BPMN Operations
+    # Backward compatibility
+    ModelVersionCreate,
+    ModelVersionResponse,
+)
+
+# BPMN Operations schemas
+from .bpmn_operations import (
     GenerateRequest,
     GenerateResponse,
     EditRequest,
@@ -55,9 +69,10 @@ from app.api.schemas import (
     ExportRequest,
     ExportResponse,
     IngestResponse,
-    # Governance
-    ConflictError,
 )
+
+# Governance schemas
+from .governance import ConflictError
 
 __all__ = [
     # Common
@@ -77,8 +92,8 @@ __all__ = [
     "FolderItem",
     "FolderPathItem",
     "FolderPathResponse",
-    "FolderCreate",
-    "FolderUpdate",
+    "FolderCreate",  # Backward compatibility
+    "FolderUpdate",  # Backward compatibility
     # Spaces
     "SpaceTreeResponse",
     "SpaceSummary",
@@ -91,15 +106,15 @@ __all__ = [
     "FolderMoveRequest",
     "ProcessMoveRequest",
     "SpaceStatsResponse",
-    "SpaceProcessCreate",
-    "SpaceProcessUpdate",
+    "SpaceProcessCreate",  # Backward compatibility
+    "SpaceProcessUpdate",  # Backward compatibility
     # Versions
     "VersionCreateRequest",
     "VersionResponse",
     "VersionHistoryItem",
     "RestoreVersionRequest",
-    "ModelVersionCreate",
-    "ModelVersionResponse",
+    "ModelVersionCreate",  # Backward compatibility
+    "ModelVersionResponse",  # Backward compatibility
     # BPMN Operations
     "GenerateRequest",
     "GenerateResponse",
@@ -111,3 +126,4 @@ __all__ = [
     # Governance
     "ConflictError",
 ]
+

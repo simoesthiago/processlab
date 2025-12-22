@@ -26,26 +26,24 @@ from app.application.spaces.get_space_details import GetSpaceDetailsUseCase
 from app.application.spaces.get_space_stats import GetSpaceStatsUseCase
 from app.db.models import Folder, ProcessModel, ModelVersion, LOCAL_USER_ID
 from app.db.session import get_db
-from app.api.hierarchy import FolderTree, FolderCreate, FolderUpdate
-from app.api.spaces import (
+from app.api.schemas.folders import FolderTree, FolderCreateRequest, FolderUpdateRequest, FolderCreate, FolderUpdate, FolderPathItem, FolderPathResponse
+from app.api.schemas.spaces import (
     RecentsResponse,
     RecentItem,
     SpaceListResponse,
-    SpaceProcessCreate,
+    SpaceProcessCreateRequest,
     SpaceSummary,
     SpaceTreeResponse,
-    SpaceProcessUpdate,
-    FolderPathResponse,
-    FolderPathItem,
+    SpaceProcessUpdateRequest,
     SpaceStatsResponse,
+    SpaceProcessCreate,
+    SpaceProcessUpdate,
 )
+from app.api.schemas.processes import ProcessResponse
 from pydantic import BaseModel
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-from app.api.processes import ProcessResponse
 
 
 # ============================================================================
@@ -199,9 +197,10 @@ def get_space_tree(space_id: str, db: Session = Depends(get_db)):
 @router.get("/spaces/{space_id}")
 def get_space_details(
     space_id: str,
-    use_case: GetSpaceDetailsUseCase = Depends(get_space_details_use_case)
+    db: Session = Depends(get_db)
 ):
     """Get space details."""
+    use_case = get_space_details_use_case(db)
     return use_case.execute(space_id)
 
 
@@ -212,7 +211,7 @@ def get_space_details(
 @router.post("/spaces/{space_id}/folders", response_model=FolderTree, status_code=status.HTTP_201_CREATED)
 def create_space_folder(
     space_id: str,
-    folder_data: FolderCreate,
+    folder_data: FolderCreateRequest,
     db: Session = Depends(get_db)
 ):
     """Create a folder under a space."""
@@ -334,7 +333,7 @@ def get_space_folder(
 def update_space_folder(
     space_id: str,
     folder_id: str,
-    folder_data: FolderUpdate,
+    folder_data: FolderUpdateRequest,
     db: Session = Depends(get_db),
 ):
     """Update a folder within a space."""
@@ -406,7 +405,7 @@ def delete_space_folder(
 @router.post("/spaces/{space_id}/processes", response_model=ProcessResponse, status_code=status.HTTP_201_CREATED)
 def create_space_process(
     space_id: str,
-    payload: SpaceProcessCreate,
+    payload: SpaceProcessCreateRequest,
     db: Session = Depends(get_db),
 ):
     """Create a process in a space."""
@@ -492,7 +491,7 @@ def get_space_process(
 def update_space_process(
     space_id: str,
     process_id: str,
-    payload: SpaceProcessUpdate,
+    payload: SpaceProcessUpdateRequest,
     db: Session = Depends(get_db),
 ):
     """Update a process."""
@@ -624,8 +623,9 @@ def get_recents(
 @router.get("/spaces/{space_id}/stats", response_model=SpaceStatsResponse)
 def get_space_stats(
     space_id: str,
-    use_case: GetSpaceStatsUseCase = Depends(get_space_stats_use_case)
+    db: Session = Depends(get_db)
 ):
     """Get statistics for a space."""
+    use_case = get_space_stats_use_case(db)
     stats = use_case.execute(space_id)
     return SpaceStatsResponse(**stats)

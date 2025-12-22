@@ -82,13 +82,13 @@ export function StudioNavbar({
   onSearchClick,
   onDeleteProcess,
 }: StudioNavbarProps) {
-  const { getFolderPath, trees } = useSpaces();
+  const { getFolderPath, getFolder, trees } = useSpaces();
   const [folderPath, setFolderPath] = useState<Array<{ id: string; name: string }>>([]);
   
   // Debug: Log quando props mudarem
   useEffect(() => {
-    console.log('[StudioNavbar] Props recebidas - folderId:', folderId, 'process?.folder_id:', process?.folder_id, 'process?.name:', process?.name);
-  }, [folderId, process?.folder_id, process?.name]);
+    console.log('[StudioNavbar] Props recebidas - folderId:', folderId, 'process?.folder_id:', process?.folder_id, 'process?.name:', process?.name, 'process completo:', process);
+  }, [folderId, process?.folder_id, process?.name, process]);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(1);
@@ -106,7 +106,10 @@ export function StudioNavbar({
       processFolderId: process?.folder_id,
       effectiveFolderId: processFolderId,
       workspaceId: effectiveWorkspaceId,
-      processName: process?.name
+      processName: process?.name,
+      processExists: !!process,
+      processId: process?.id,
+      processObject: process
     });
     
     if (!processFolderId) {
@@ -135,11 +138,22 @@ export function StudioNavbar({
     
     // Tentar obter path local imediatamente para exibição rápida (igual FolderBreadcrumbs)
     const tree = trees?.[effectiveWorkspaceId];
+    let hasLocalPath = false;
     if (tree) {
       const localPath = findLocalPath(tree.root_folders || [], processFolderId);
       if (localPath && localPath.length > 0) {
         console.log('[StudioNavbar] Path local encontrado:', localPath);
         setFolderPath(localPath);
+        hasLocalPath = true;
+      }
+    }
+    
+    // Se não encontrou path local, tentar usar folder atual como fallback temporário
+    if (!hasLocalPath) {
+      const currentFolder = getFolder(effectiveWorkspaceId, processFolderId);
+      if (currentFolder && currentFolder.name && currentFolder.id) {
+        console.log('[StudioNavbar] Usando folder atual como fallback temporário:', currentFolder.name);
+        setFolderPath([{ id: currentFolder.id, name: currentFolder.name }]);
       }
     }
 
@@ -154,14 +168,31 @@ export function StudioNavbar({
           if (validPath.length > 0) {
             setFolderPath(validPath);
           }
+        } else if (isMounted && (!p || !Array.isArray(p) || p.length === 0)) {
+          // Fallback: se API não retornar path, usar folder atual se disponível
+          const currentFolder = getFolder(effectiveWorkspaceId, processFolderId);
+          if (currentFolder && currentFolder.name && currentFolder.id) {
+            // Usando console.log ao invés de warn, pois é um comportamento esperado de fallback
+            console.log('[StudioNavbar] Usando folder atual como fallback (path completo não disponível):', currentFolder.name);
+            setFolderPath([{ id: currentFolder.id, name: currentFolder.name }]);
+          }
         }
       })
       .catch((err) => {
         console.error('[StudioNavbar] Failed to load folder path:', err);
+        // Fallback: se API falhar, usar folder atual se disponível
+        if (isMounted) {
+          const currentFolder = getFolder(effectiveWorkspaceId, processFolderId);
+          if (currentFolder && currentFolder.name && currentFolder.id) {
+            // Usando console.log ao invés de warn, pois é um comportamento esperado de fallback
+            console.log('[StudioNavbar] Usando folder atual como fallback (erro ao carregar path):', currentFolder.name);
+            setFolderPath([{ id: currentFolder.id, name: currentFolder.name }]);
+          }
+        }
       });
 
     return () => { isMounted = false; };
-  }, [folderId, process?.folder_id, workspaceId, getFolderPath, trees]);
+  }, [folderId, process?.folder_id, workspaceId, getFolderPath, getFolder, trees]);
 
   // Check undo/redo state periodically
   useEffect(() => {

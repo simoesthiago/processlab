@@ -131,7 +131,8 @@ export function FolderBreadcrumbs({ spaceId, folderId, spaceName }: FolderBreadc
     // Path não carregou mas temos o folder atual - mostrar apenas ele como fallback
     // Isso pode acontecer se a API falhar ou retornar vazio
     if (currentFolder.name && currentFolder.id) {
-      console.warn('[FolderBreadcrumbs] Path não carregou, mostrando apenas folder atual como fallback:', currentFolder.name);
+      // Usando console.log ao invés de warn, pois é um comportamento esperado de fallback
+      console.log('[FolderBreadcrumbs] Usando folder atual como fallback (path completo não disponível):', currentFolder.name);
       fullItems.push({
         label: currentFolder.name,
         href: `/spaces/${spaceId}/folders/${currentFolder.id}`,

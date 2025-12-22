@@ -5,6 +5,7 @@ Provides dependencies for repositories and use cases.
 """
 
 from functools import lru_cache
+from fastapi import Depends
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.infrastructure.persistence.sqlalchemy import (
@@ -39,99 +40,93 @@ from app.application.spaces.get_space_stats import GetSpaceStatsUseCase
 
 
 # Repository dependencies
-def get_process_repository(db: Session = None) -> ProcessRepository:
+def get_process_repository(db: Session) -> ProcessRepository:
     """Get process repository instance"""
-    if db is None:
-        db = next(get_db())
     return SQLAlchemyProcessRepository(db)
 
 
-def get_folder_repository(db: Session = None) -> FolderRepository:
+def get_folder_repository(db: Session) -> FolderRepository:
     """Get folder repository instance"""
-    if db is None:
-        db = next(get_db())
     return SQLAlchemyFolderRepository(db)
 
 
-def get_version_repository(db: Session = None) -> VersionRepository:
+def get_version_repository(db: Session) -> VersionRepository:
     """Get version repository instance"""
-    if db is None:
-        db = next(get_db())
     return SQLAlchemyVersionRepository(db)
 
 
 # Use case dependencies
-def get_create_process_use_case(db: Session = None) -> CreateProcessUseCase:
+def get_create_process_use_case(db: Session) -> CreateProcessUseCase:
     """Get create process use case"""
     process_repo = get_process_repository(db)
     folder_repo = get_folder_repository(db)
     return CreateProcessUseCase(process_repo, folder_repo)
 
 
-def get_update_process_use_case(db: Session = None) -> UpdateProcessUseCase:
+def get_update_process_use_case(db: Session) -> UpdateProcessUseCase:
     """Get update process use case"""
     process_repo = get_process_repository(db)
     folder_repo = get_folder_repository(db)
     return UpdateProcessUseCase(process_repo, folder_repo)
 
 
-def get_delete_process_use_case(db: Session = None) -> DeleteProcessUseCase:
+def get_delete_process_use_case(db: Session) -> DeleteProcessUseCase:
     """Get delete process use case"""
     process_repo = get_process_repository(db)
     return DeleteProcessUseCase(process_repo)
 
 
-def get_get_process_use_case(db: Session = None) -> GetProcessUseCase:
+def get_get_process_use_case(db: Session) -> GetProcessUseCase:
     """Get get process use case"""
     process_repo = get_process_repository(db)
     return GetProcessUseCase(process_repo)
 
 
-def get_list_processes_use_case(db: Session = None) -> ListProcessesUseCase:
+def get_list_processes_use_case(db: Session) -> ListProcessesUseCase:
     """Get list processes use case"""
     process_repo = get_process_repository(db)
     return ListProcessesUseCase(process_repo)
 
 
-def get_create_version_use_case(db: Session = None) -> CreateVersionUseCase:
+def get_create_version_use_case(db: Session) -> CreateVersionUseCase:
     """Get create version use case"""
     version_repo = get_version_repository(db)
     process_repo = get_process_repository(db)
     return CreateVersionUseCase(version_repo, process_repo)
 
 
-def get_create_folder_use_case(db: Session = None) -> CreateFolderUseCase:
+def get_create_folder_use_case(db: Session) -> CreateFolderUseCase:
     """Get create folder use case"""
     folder_repo = get_folder_repository(db)
     return CreateFolderUseCase(folder_repo)
 
 
-def get_update_folder_use_case(db: Session = None) -> UpdateFolderUseCase:
+def get_update_folder_use_case(db: Session) -> UpdateFolderUseCase:
     """Get update folder use case"""
     folder_repo = get_folder_repository(db)
     return UpdateFolderUseCase(folder_repo)
 
 
-def get_delete_folder_use_case(db: Session = None) -> DeleteFolderUseCase:
+def get_delete_folder_use_case(db: Session) -> DeleteFolderUseCase:
     """Get delete folder use case"""
     folder_repo = get_folder_repository(db)
     process_repo = get_process_repository(db)
     return DeleteFolderUseCase(folder_repo, process_repo)
 
 
-def get_get_folder_use_case(db: Session = None) -> GetFolderUseCase:
+def get_get_folder_use_case(db: Session) -> GetFolderUseCase:
     """Get get folder use case"""
     folder_repo = get_folder_repository(db)
     return GetFolderUseCase(folder_repo)
 
 
-def get_list_folders_use_case(db: Session = None) -> ListFoldersUseCase:
+def get_list_folders_use_case(db: Session) -> ListFoldersUseCase:
     """Get list folders use case"""
     folder_repo = get_folder_repository(db)
     return ListFoldersUseCase(folder_repo)
 
 
-def get_generate_bpmn_use_case(db: Session = None) -> GenerateBpmnUseCase:
+def get_generate_bpmn_use_case(db: Session) -> GenerateBpmnUseCase:
     """Get generate BPMN use case"""
     process_repo = get_process_repository(db)
     folder_repo = get_folder_repository(db)
@@ -139,7 +134,7 @@ def get_generate_bpmn_use_case(db: Session = None) -> GenerateBpmnUseCase:
     return GenerateBpmnUseCase(process_repo, folder_repo, version_repo)
 
 
-def get_edit_bpmn_use_case(db: Session = None) -> EditBpmnUseCase:
+def get_edit_bpmn_use_case(db: Session) -> EditBpmnUseCase:
     """Get edit BPMN use case"""
     version_repo = get_version_repository(db)
     return EditBpmnUseCase(version_repo)
@@ -150,42 +145,42 @@ def get_export_bpmn_use_case() -> ExportBpmnUseCase:
     return ExportBpmnUseCase()
 
 
-def get_list_versions_use_case(db: Session = None) -> ListVersionsUseCase:
+def get_list_versions_use_case(db: Session) -> ListVersionsUseCase:
     """Get list versions use case"""
     version_repo = get_version_repository(db)
     process_repo = get_process_repository(db)
     return ListVersionsUseCase(version_repo, process_repo)
 
 
-def get_get_version_use_case(db: Session = None) -> GetVersionUseCase:
+def get_get_version_use_case(db: Session) -> GetVersionUseCase:
     """Get get version use case"""
     version_repo = get_version_repository(db)
     process_repo = get_process_repository(db)
     return GetVersionUseCase(version_repo, process_repo)
 
 
-def get_activate_version_use_case(db: Session = None) -> ActivateVersionUseCase:
+def get_activate_version_use_case(db: Session) -> ActivateVersionUseCase:
     """Get activate version use case"""
     version_repo = get_version_repository(db)
     process_repo = get_process_repository(db)
     return ActivateVersionUseCase(version_repo, process_repo)
 
 
-def get_restore_version_use_case(db: Session = None) -> RestoreVersionUseCase:
+def get_restore_version_use_case(db: Session) -> RestoreVersionUseCase:
     """Get restore version use case"""
     version_repo = get_version_repository(db)
     process_repo = get_process_repository(db)
     return RestoreVersionUseCase(version_repo, process_repo)
 
 
-def get_space_details_use_case(db: Session = None) -> GetSpaceDetailsUseCase:
+def get_space_details_use_case(db: Session) -> GetSpaceDetailsUseCase:
     """Get space details use case"""
     folder_repo = get_folder_repository(db)
     process_repo = get_process_repository(db)
     return GetSpaceDetailsUseCase(folder_repo, process_repo)
 
 
-def get_space_stats_use_case(db: Session = None) -> GetSpaceStatsUseCase:
+def get_space_stats_use_case(db: Session) -> GetSpaceStatsUseCase:
     """Get space stats use case"""
     folder_repo = get_folder_repository(db)
     process_repo = get_process_repository(db)

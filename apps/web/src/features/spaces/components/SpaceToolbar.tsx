@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { SearchBar } from './SearchBar';
 import { ViewToggle, ViewMode } from './ViewToggle';
 import { Button } from '@/shared/components/ui/button';
-import { Plus, Folder, Workflow, ChevronDown, Search, Filter } from 'lucide-react';
+import { Plus, Folder, Workflow, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type SortOption = 'name' | 'date' | 'type';
@@ -62,17 +62,11 @@ export function SpaceToolbar({
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
         <ViewToggle value={viewMode} onChange={onViewModeChange} />
-        <button
-          className="p-1.5 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded transition-colors"
-          title="Filters"
-        >
-          <Filter className="h-4 w-4" />
-        </button>
         {(onNewFolder || onNewProcess) && (
           <div className="relative ml-2" ref={newMenuRef}>
             <Button
               onClick={() => setNewMenuOpen(!newMenuOpen)}
-              className="gap-2 h-8 px-3 text-sm bg-black hover:bg-black/90 text-white"
+              className="gap-2 h-9 px-3 text-sm bg-black hover:bg-black/90 text-white"
               size="sm"
             >
               <Plus className="h-4 w-4" />

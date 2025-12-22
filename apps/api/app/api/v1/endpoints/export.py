@@ -5,7 +5,7 @@ Thin HTTP layer that delegates to use case.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.api import ExportRequest, ExportResponse
+from app.api.schemas.bpmn_operations import ExportRequest, ExportResponse
 from app.core.dependencies import get_export_bpmn_use_case
 from app.application.bpmn.export_bpmn import ExportBpmnUseCase, ExportBpmnCommand
 import base64
@@ -55,7 +55,7 @@ async def export_bpmn(
             format=result.format,
             content=content_b64,
             filename=filename,
-            mimeType=result.mime_type
+            mime_type=result.mime_type
         )
     except NotImplementedError as e:
         raise HTTPException(

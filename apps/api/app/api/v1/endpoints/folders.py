@@ -5,6 +5,8 @@ Thin HTTP layer that delegates to use cases.
 """
 
 from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
+from app.db.session import get_db
 from app.core.dependencies import (
     get_update_folder_use_case,
     get_delete_folder_use_case,
@@ -12,9 +14,8 @@ from app.core.dependencies import (
     get_process_repository,
     get_folder_repository
 )
-from app.application.folders.update_folder import UpdateFolderUseCase, UpdateFolderCommand
-from app.application.folders.delete_folder import DeleteFolderUseCase
-from app.api.hierarchy import FolderResponse, FolderUpdate
+from app.application.folders.update_folder import UpdateFolderCommand
+from app.api.schemas.folders import FolderResponse, FolderUpdateRequest, FolderUpdate
 
 router = APIRouter()
 
@@ -41,11 +42,12 @@ def _entity_to_response(folder, process_count: int = 0, child_count: int = 0) ->
 @router.patch("/folders/{folder_id}", response_model=FolderResponse)
 def update_folder(
     folder_id: str,
-    folder_data: FolderUpdate,
-    use_case: UpdateFolderUseCase = Depends(get_update_folder_use_case),
-    process_repo = Depends(get_process_repository),
-    folder_repo = Depends(get_folder_repository)
+    folder_data: FolderUpdateRequest,
+    db: Session = Depends(get_db)
 ):
+    use_case = get_update_folder_use_case(db)
+    process_repo = get_process_repository(db)
+    folder_repo = get_folder_repository(db)
     """Rename, recolor, or move a folder."""
     command = UpdateFolderCommand(
         folder_id=folder_id,
@@ -69,8 +71,9 @@ def update_folder(
 @router.delete("/folders/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_folder(
     folder_id: str,
-    use_case: DeleteFolderUseCase = Depends(get_delete_folder_use_case)
+    db: Session = Depends(get_db)
 ):
+    use_case = get_delete_folder_use_case(db)
     """Soft-delete a folder and everything inside it."""
     use_case.execute(folder_id)
     return None

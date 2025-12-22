@@ -24,16 +24,25 @@ export function useProcess({ processId }: UseProcessOptions) {
             return;
         }
 
+        console.log('[useProcess] loadProcess iniciado para id:', id);
         setLoading(true);
         setError(null);
 
         try {
+            console.log('[useProcess] Chamando processService.findById para id:', id);
             const data = await processService.findById(id);
+            console.log('[useProcess] Process carregado com sucesso:', { id: data.id, name: data.name, folder_id: data.folder_id, data });
             setProcess(data);
             setProcessName(data.name);
             setError(null);
         } catch (err: any) {
             console.error('[useProcess] Load process error:', err);
+            console.error('[useProcess] Error details:', { 
+                message: err.message, 
+                status: err.status, 
+                data: err.data,
+                stack: err.stack 
+            });
             
             let errorMessage = 'Failed to load process';
             if (err.status === 0 || err.data?.networkError) {
@@ -46,13 +55,19 @@ export function useProcess({ processId }: UseProcessOptions) {
             
             setError(errorMessage);
         } finally {
+            console.log('[useProcess] loadProcess finalizado para id:', id);
             setLoading(false);
         }
     }, []);
 
     useEffect(() => {
+        console.log('[useProcess] useEffect chamado com processId:', processId);
         if (processId) {
+            console.log('[useProcess] Chamando loadProcess para processId:', processId);
             loadProcess(processId);
+        } else {
+            console.log('[useProcess] processId não fornecido, limpando processo');
+            setProcess(null);
         }
     }, [processId, loadProcess]);
 

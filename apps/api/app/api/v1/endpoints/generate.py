@@ -5,44 +5,29 @@ Thin HTTP layer that delegates to use case.
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.db.session import get_db
 from app.core.dependencies import get_generate_bpmn_use_case
 from app.application.bpmn.generate_bpmn import GenerateBpmnUseCase, GenerateBpmnCommand
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from app.api.schemas.bpmn_operations import GenerateRequest, GenerateResponse
+from typing import Optional
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-class GenerateRequest(BaseModel):
-    """Request schema for BPMN generation"""
-    artifact_ids: List[str] = Field(..., description="List of artifact IDs to use as context")
-    process_name: str = Field(default="Untitled Process", description="Name for the generated process")
-    project_id: Optional[str] = Field(None, description="Project ID to associate the process with")
-    folder_id: Optional[str] = Field(None, description="Folder inside the project (optional)")
-    options: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Generation options")
-
-
-class GenerateResponse(BaseModel):
-    """Response schema for BPMN generation"""
-    bpmn_json: Dict[str, Any] = Field(..., description="Generated BPMN in JSON format")
-    preview_xml: str = Field(..., description="Generated BPMN in XML format (for preview)")
-    process_id: Optional[str] = Field(None, description="Created process ID (if project_id was provided)")
-    model_version_id: str = Field(..., description="Model version ID")
-    metrics: Dict[str, Any] = Field(..., description="Generation metrics")
-
-
 @router.post("/", response_model=GenerateResponse)
 async def generate_bpmn(
     request: GenerateRequest,
-    use_case: GenerateBpmnUseCase = Depends(get_generate_bpmn_use_case)
+    db: Session = Depends(get_db)
 ):
     """
     Generate a BPMN diagram from artifacts using AI.
     
     Creates a ProcessModel and ModelVersion in the database.
     """
+    use_case = get_generate_bpmn_use_case(db)
     logger.info(f"Generate request: artifacts={request.artifact_ids}, process_name={request.process_name}")
     
     try:

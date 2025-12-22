@@ -22,7 +22,7 @@ export function SearchBar({ value, onChange, placeholder = 'Buscar...', classNam
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="pl-9"
+        className="pl-9 h-9"
       />
     </div>
   );
