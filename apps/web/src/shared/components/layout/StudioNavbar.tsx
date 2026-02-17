@@ -31,6 +31,7 @@ import {
   Search,
   Lock,
   Trash2,
+  Settings,
 } from 'lucide-react';
 
 
@@ -52,6 +53,7 @@ interface StudioNavbarProps {
   editorRef?: React.RefObject<BpmnEditorRef | null>;
   onSearchClick?: () => void;
   onDeleteProcess?: () => void;
+  onSettingsClick?: () => void;
 }
 
 export function StudioNavbar({
@@ -66,6 +68,7 @@ export function StudioNavbar({
   editorRef,
   onSearchClick,
   onDeleteProcess,
+  onSettingsClick,
 }: StudioNavbarProps) {
   const { getFolderPath, getFolder, trees } = useSpaces();
   const [folderPath, setFolderPath] = useState<Array<{ id: string; name: string }>>([]);
@@ -394,6 +397,16 @@ export function StudioNavbar({
               <Trash2 className="h-4 w-4" />
             </button>
           ) : null}
+          {onSettingsClick && (
+            <button
+              onClick={onSettingsClick}
+              className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+              title="Settings"
+              aria-label="Open settings"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* Export */}
@@ -401,7 +414,7 @@ export function StudioNavbar({
           variant="outline"
           size="sm"
           onClick={onExport}
-          className="min-w-[88px]"
+          className="shrink-0 whitespace-nowrap min-w-[88px]"
         >
           <Share className="h-4 w-4 mr-1.5" />
           Export
@@ -413,7 +426,7 @@ export function StudioNavbar({
           size="sm"
           onClick={onSave}
           disabled={isSaving}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[88px]"
+          className="shrink-0 whitespace-nowrap bg-primary hover:bg-primary/90 text-primary-foreground min-w-[88px]"
         >
           <Save className="h-4 w-4 mr-1.5" />
           {isSaving ? 'Saving...' : 'Save'}

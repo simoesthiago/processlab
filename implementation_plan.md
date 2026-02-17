@@ -24,7 +24,7 @@ Tasks 3.x — all independent, can run in parallel
 
 ## Phase 1 — MVP (product works end-to-end)
 
-### [ ] Task 1.1 — BYOK: OpenAI API Key UI
+### [x] Task 1.1 — BYOK: OpenAI API Key UI
 **Complexity: M** | Prerequisite for all AI-related work
 
 The user enters their OpenAI API Key in Settings. It lives only in React state — never persisted to `localStorage`. It is sent on every Wizard request as the `X-OpenAI-API-Key` HTTP header.
@@ -41,7 +41,7 @@ The user enters their OpenAI API Key in Settings. It lives only in React state �
 
 ---
 
-### [ ] Task 1.2 — Process Wizard: Chat UI
+### [x] Task 1.2 — Process Wizard: Chat UI
 **Complexity: M** | Depends on: 1.1
 
 Replace the static suggestions screen with a real chat interface: message history, user/AI bubbles, typing indicator, auto-scroll.
@@ -70,7 +70,7 @@ Layout logic:
 
 ---
 
-### [ ] Task 1.3 — Process Wizard: File Upload
+### [x] Task 1.3 — Process Wizard: File Upload
 **Complexity: M** | Depends on: 1.2
 
 The "+" button in the Wizard opens a file picker and uploads to `/api/v1/ingest/upload`. Result appears as a system message in the chat.
@@ -97,7 +97,7 @@ async handleFileUpload(files):
 
 ---
 
-### [ ] Task 1.4 — Fix and Verify Export (PNG, PDF, XML, JSON)
+### [x] Task 1.4 — Fix and Verify Export (PNG, PDF, XML, JSON)
 **Complexity: S** | Independent
 
 Export logic already exists in `StudioContent.tsx` (lines 461–678) and is fully client-side (Canvas API + jsPDF). The main risk is that `getSvg()` may be missing from `BpmnEditorRef`.
@@ -114,7 +114,7 @@ Export logic already exists in `StudioContent.tsx` (lines 461–678) and is full
 
 ## Phase 2 — High Priority Features
 
-### [ ] Task 2.1 — SaveVersionModal: Real Form
+### [x] Task 2.1 — SaveVersionModal: Real Form
 **Complexity: S** | Independent
 
 The current modal (`apps/web/src/features/versioning/SaveVersionModal.tsx`) is 46 lines and hardcodes `'Manual save'` / `'minor'`. Replace with a proper form.
@@ -219,7 +219,7 @@ When the canvas has no BPMN elements, render an absolutely-positioned `pointer-e
 
 ---
 
-### [ ] Task 3.4 — Fix Truncated Save Button in Navbar
+### [x] Task 3.4 — Fix Truncated Save Button in Navbar
 **Complexity: S** | Independent
 
 **File:** `apps/web/src/shared/components/layout/StudioNavbar.tsx`
@@ -244,4 +244,9 @@ Add `shrink-0 whitespace-nowrap` to the Save and Export buttons to prevent them 
 
 ## Completed Tasks
 
-_Move tasks here (with `[x]`) as they are finished._
+- [x] **Task 1.1** — BYOK: OpenAI API Key UI (`SettingsModal` AI tab + `StudioContent` state threading + `ProcessWizard` header)
+- [x] **Task 1.2** — Process Wizard: Chat UI (full rewrite with message history, user/AI bubbles, typing indicator, auto-scroll)
+- [x] **Task 1.3** — Process Wizard: File Upload (hidden input + `/api/v1/ingest/upload` POST + system message on success)
+- [x] **Task 1.4** — Fix and Verify Export (`getSvg()` confirmed in `BpmnEditorRef`; `StudioNavbar` settings gear wired)
+- [x] **Task 2.1** — SaveVersionModal: Real Form (shadcn Dialog + commit textarea + Major/Minor/Patch control + version preview badge)
+- [x] **Task 3.4** — Fix Truncated Save Button (`shrink-0 whitespace-nowrap` on Save and Export buttons in `StudioNavbar`)

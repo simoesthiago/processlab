@@ -138,6 +138,8 @@ export default function StudioContent({
   const [isExporting, setIsExporting] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [editorSettings, setEditorSettings] = useState<EditorSettings | null>(null);
+  // BYOK: key lives only in React state, never persisted
+  const [openAiKey, setOpenAiKey] = useState('');
 
   const openRightPanel = (mode: 'wizard' | 'search') => {
     setRightPanelMode(mode);
@@ -733,6 +735,7 @@ export default function StudioContent({
         editorRef={editorRef}
         onSearchClick={() => openRightPanel('search')}
         onDeleteProcess={currentProcess?.id ? () => handleDeleteProcess() : undefined}
+        onSettingsClick={() => setIsSettingsModalOpen(true)}
       />
 
       {/* Navbar 2 (Fixed) - Format Toolbar */}
@@ -805,6 +808,7 @@ export default function StudioContent({
             <ProcessWizard
               bpmnXml={bpmnXml || ''}
               modelVersionId={selectedVersionId || undefined}
+              openAiKey={openAiKey}
               onEditApplied={(newBpmn, newVersionId) => {
                 console.log("Edit applied", newVersionId);
                 setToast({ message: 'Edit applied! Reloading...', type: 'info' });
@@ -831,6 +835,7 @@ export default function StudioContent({
         onClose={() => setIsSaveModalOpen(false)}
         onSave={handleConfirmSave}
         isSaving={isSaving}
+        currentVersionNumber={versions[0]?.version_number}
       />
 
       {/* Export Modal */}
@@ -847,6 +852,7 @@ export default function StudioContent({
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         onSettingsChange={handleSettingsChange}
+        onApiKeyChange={setOpenAiKey}
       />
 
       {/* Toast Notification */}

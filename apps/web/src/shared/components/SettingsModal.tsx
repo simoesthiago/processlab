@@ -38,6 +38,9 @@ import {
   Download,
   X,
   Clock,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export interface EditorSettings {
@@ -109,6 +112,7 @@ interface SettingsModalProps {
   onClose: () => void;
   onSettingsChange?: (settings: EditorSettings) => void;
   onOpenHistory?: () => void;
+  onApiKeyChange?: (key: string) => void;
 }
 
 export function SettingsModal({
@@ -116,9 +120,12 @@ export function SettingsModal({
   onClose,
   onSettingsChange,
   onOpenHistory,
+  onApiKeyChange,
 }: SettingsModalProps) {
   const [settings, setSettings] = useState<EditorSettings>(DEFAULT_SETTINGS);
   const [activeTab, setActiveTab] = useState('editor');
+  const [apiKey, setApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
 
   // Load settings from localStorage on mount
   useEffect(() => {
@@ -172,7 +179,7 @@ export function SettingsModal({
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="editor" className="flex items-center gap-1.5">
               <Grid3x3 className="h-3.5 w-3.5" />
               Editor
@@ -188,6 +195,10 @@ export function SettingsModal({
             <TabsTrigger value="export" className="flex items-center gap-1.5">
               <Download className="h-3.5 w-3.5" />
               Export
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="flex items-center gap-1.5">
+              <KeyRound className="h-3.5 w-3.5" />
+              AI
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" />
@@ -429,6 +440,56 @@ export function SettingsModal({
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* AI Tab */}
+          <TabsContent value="ai" className="space-y-4 mt-4">
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground mb-1">OpenAI API Key</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Required to use the Process Wizard with AI. Your key is kept only in memory for this session — never saved to disk or sent anywhere except the API.
+                </p>
+                <div className="relative">
+                  <input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={apiKey}
+                    onChange={(e) => {
+                      setApiKey(e.target.value);
+                      onApiKeyChange?.(e.target.value);
+                    }}
+                    placeholder="sk-..."
+                    className={cn(
+                      'w-full px-3 py-2 pr-10 text-sm rounded-md font-mono',
+                      'bg-background border border-input',
+                      'focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent',
+                      'placeholder:text-muted-foreground placeholder:font-sans'
+                    )}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey((v) => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {apiKey && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1.5 flex items-center gap-1">
+                    <KeyRound className="h-3 w-3" />
+                    Key configured — Process Wizard is ready to use
+                  </p>
+                )}
+              </div>
+              <div className="rounded-md bg-muted/50 border border-border p-3">
+                <p className="text-xs text-muted-foreground">
+                  <strong className="text-foreground">How it works:</strong> Your key is sent as an HTTP header on each request and is never logged or stored on the server. Closing this session clears it.
+                </p>
               </div>
             </div>
           </TabsContent>
