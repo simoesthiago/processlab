@@ -30,6 +30,7 @@ import { SettingsModal, EditorSettings } from '@/shared/components/SettingsModal
 import { cn } from '@/lib/utils';
 import {
   Sparkles,
+  Wand2,
   FileText,
   Clock,
   ChevronDown,
@@ -780,12 +781,26 @@ export default function StudioContent({
                 </div>
               </div>
             ) : (
-              <BpmnEditor
-                ref={editorRef}
-                initialXml={bpmnXml ?? undefined}
-                onSelectionChange={handleSelectionChange}
-                key={selectedVersionId || 'new'} // Force re-render when version changes
-              />
+              <div className="relative w-full h-full">
+                <BpmnEditor
+                  ref={editorRef}
+                  initialXml={bpmnXml ?? undefined}
+                  onSelectionChange={handleSelectionChange}
+                  key={selectedVersionId || 'new'} // Force re-render when version changes
+                />
+                {/* Canvas Empty State — shown when diagram has no elements */}
+                {(!bpmnXml || !bpmnXml.includes('BPMNShape')) && (
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="h-16 w-16 rounded-full bg-muted/60 flex items-center justify-center border border-border/60">
+                      <Wand2 className="h-8 w-8 text-muted-foreground/50" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground/70">Your canvas is empty</p>
+                      <p className="text-xs text-muted-foreground/50 mt-1 max-w-[260px]">Drag elements from the palette or use the Process Wizard to get started</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

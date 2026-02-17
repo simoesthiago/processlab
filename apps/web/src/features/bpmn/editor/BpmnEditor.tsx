@@ -97,6 +97,8 @@ export interface BpmnEditorRef {
         zoomMin?: number;
         zoomMax?: number;
     }) => void;
+    /** Automatically layout the diagram using ELK.js */
+    autoLayout: () => Promise<void>;
 }
 
 interface BpmnEditorProps {
@@ -825,7 +827,71 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             canvas.zoom('fit-viewport', 'auto');
             canvas.scrollToElement(element, { top: 100, left: 100 });
         },
-        createElement: async (type: string, position: { x: number; y: number }) => {
+        autoLayout: async () => {
+            if (!modelerRef.current || !isReady) return;
+            try {
+                const elementRegistry = modelerRef.current.get('elementRegistry');
+                const modeling = modelerRef.current.get('modeling');
+                const canvas = modelerRef.current.get('canvas');
+
+                const allElements = elementRegistry.getAll();
+                const shapes: any[] = allElements.filter((el: any) => {
+                    const bo = el.businessObject;
+                    return (
+                        bo && bo.$type &&
+                        bo.$type !== 'bpmn:Process' &&
+                        bo.$type !== 'bpmn:Collaboration' &&
+                        !bo.$type.includes('SequenceFlow') &&
+                        !bo.$type.includes('MessageFlow') &&
+                        el.waypoints === undefined
+                    );
+                });
+
+                if (shapes.length < 2) return;
+
+                const ELK = (await import('elkjs/lib/elk.bundled.js')).default;
+                const elk = new ELK();
+
+                const elkGraph = {
+                    id: 'root',
+                    layoutOptions: {
+                        'elk.algorithm': 'layered',
+                        'elk.direction': 'RIGHT',
+                        'elk.spacing.nodeNode': '60',
+                        'elk.layered.spacing.nodeNodeBetweenLayers': '80',
+                    },
+                    children: shapes.map((s: any) => ({
+                        id: s.id,
+                        width: s.width || 100,
+                        height: s.height || 80,
+                    })),
+                    edges: allElements
+                        .filter((el: any) => el.waypoints !== undefined && el.source && el.target)
+                        .map((conn: any) => ({
+                            id: conn.id,
+                            sources: [conn.source.id],
+                            targets: [conn.target.id],
+                        })),
+                };
+
+                const laid = await elk.layout(elkGraph);
+
+                laid.children?.forEach((node: any) => {
+                    const el = elementRegistry.get(node.id);
+                    if (!el) return;
+                    const dx = node.x - el.x;
+                    const dy = node.y - el.y;
+                    if (dx !== 0 || dy !== 0) {
+                        modeling.moveShape(el, { x: dx, y: dy });
+                    }
+                });
+
+                canvas.zoom('fit-viewport', 'auto');
+            } catch (err) {
+                console.warn('[BpmnEditor] autoLayout failed:', err);
+            }
+        },
+                createElement: async (type: string, position: { x: number; y: number }) => {
             if (!modelerRef.current || !isReady) {
                 throw new Error("Editor not initialized");
             }

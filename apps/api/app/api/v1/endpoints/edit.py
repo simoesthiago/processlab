@@ -146,6 +146,7 @@ def compute_etag(payload: dict) -> str:
 async def edit_bpmn(
     request: EditRequest,
     x_request_id: Optional[str] = Header(None, description="Request tracking ID"),
+    x_openai_api_key: Optional[str] = Header(None, alias="X-OpenAI-API-Key", description="BYOK OpenAI key"),
     db: Session = Depends(get_db)
 ) -> EditResponse:
     """
@@ -184,9 +185,22 @@ async def edit_bpmn(
         else:
             raise HTTPException(status_code=400, detail="Must provide bpmn, bpmn_xml, or model_version_id")
 
-    # 1. Interpret Command
+    # 1. Interpret Command (LLM when key provided, regex fallback otherwise)
     try:
-        raw_patch = interpreter.interpret(request.command)
+        if x_openai_api_key:
+            from app.infrastructure.services.ai.llm_interpreter import LlmCommandInterpreter, LlmInterpreterError
+            try:
+                llm = LlmCommandInterpreter(api_key=x_openai_api_key)
+                elements = [
+                    {"id": el.id, "name": el.name, "type": el.type}
+                    for el in current_bpmn.elements
+                ] if current_bpmn.elements else []
+                raw_patch = llm.interpret(request.command, elements)
+                logger.info(f"LLM interpreted command as: {raw_patch['op']}")
+            except LlmInterpreterError as llm_err:
+                raise HTTPException(status_code=llm_err.status_code, detail=str(llm_err))
+        else:
+            raw_patch = interpreter.interpret(request.command)
         if raw_patch["op"] == "noop":
              logger.warning(f"Could not interpret command: {request.command}")
              return EditResponse(

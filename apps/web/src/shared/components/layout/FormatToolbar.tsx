@@ -38,6 +38,7 @@ import {
   Layers3,
   MoveHorizontal,
   MoveVertical,
+  LayoutGrid,
 } from 'lucide-react';
 
 import { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
@@ -92,7 +93,7 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
   const effectiveSelection = liveSelection.length > 0 
     ? liveSelection 
     : editorRef?.current?.getSelectedElements?.() || [];
-  const hasSelection = true;
+  const hasSelection = effectiveSelection.length > 0;
   const applyToSelection = (fmt: Record<string, any>) => {
     editorRef?.current?.applyFormatting?.({ ...fmt, targets: effectiveSelection });
   };
@@ -981,8 +982,22 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
         {/* Arrange removed */}
       )}
 
-      {/* Group 4: Action Buttons (Wizard) */}
+      {/* Group 4: Action Buttons (Auto Layout + Wizard) */}
       <div className="flex items-center gap-1 ml-auto">
+        <button
+          onClick={async (e) => {
+            e.stopPropagation();
+            await editorRef?.current?.autoLayout?.();
+          }}
+          className="flex items-center gap-1.5 px-2 h-8 rounded-md transition-colors text-xs text-muted-foreground hover:text-foreground hover:bg-accent"
+          title="Auto Layout (ELK)"
+          aria-label="Auto layout diagram"
+          type="button"
+        >
+          <LayoutGrid className="h-3.5 w-3.5" />
+          <span>Auto Layout</span>
+        </button>
+        <div className="w-px h-5 bg-border mx-0.5" />
         <button
           onClick={(e) => {
             e.stopPropagation();

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/shared/components/ui/button';
-import { Github } from 'lucide-react';
+import { Github, Workflow, Wand2, GitBranch } from 'lucide-react';
 import { HeroVisualization } from '@/shared/components/HeroVisualization';
 
 export default function LandingPage() {
@@ -23,7 +23,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      <main className="flex-1 flex items-center justify-center">
+      <main>
 
         {/* Hero Section */}
         <section className="relative w-full py-16 sm:py-20 overflow-hidden">
@@ -55,6 +55,50 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Features Section */}
+        <section className="w-full py-16 sm:py-20 border-t border-border/60">
+          <div className="container mx-auto px-3 sm:px-4 lg:px-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12 tracking-tight">
+              Everything you need to model processes
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="rounded-xl border border-border p-6 flex flex-col gap-4 bg-card">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Workflow className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-base mb-1">BPMN Editor</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Professional drag-and-drop editing with bpmn-js. Full BPMN 2.0 support with formatting, versioning, and export.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border p-6 flex flex-col gap-4 bg-card">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Wand2 className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-base mb-1">AI-Powered</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Use natural language to build and modify processes. Upload documents and let the Process Wizard generate BPMN diagrams instantly.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border p-6 flex flex-col gap-4 bg-card">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <GitBranch className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-base mb-1">Version Control</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Full version history with semantic versioning. Compare changes, roll back, and track every edit with commit messages.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
       </main>
 
       <footer className="border-t py-6 bg-background">
@@ -66,7 +110,7 @@ export default function LandingPage() {
               </Link>
             </div>
             <div className="flex items-center gap-4">
-              <Link href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+              <Link href="https://github.com/simoesthiago/processlab" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
                 <Github className="h-5 w-5" />
               </Link>
             </div>

@@ -36,6 +36,7 @@ export interface SpaceProcess {
   name: string;
   description?: string | null;
   folder_id?: string | null;
+  created_at?: string | null;
 }
 
 export interface SpaceFolder {
@@ -48,6 +49,7 @@ export interface SpaceFolder {
   children: SpaceFolder[];
   processes: SpaceProcess[];
   process_count?: number;
+  created_at?: string | null;
 }
 
 export interface SpaceTree {

@@ -3,7 +3,7 @@
 import { KeyboardEvent, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/shared/components/ui/card';
-import { Folder, Workflow } from 'lucide-react';
+import { Folder, Workflow, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FileCardProps {
@@ -16,6 +16,10 @@ interface FileCardProps {
   onOpen?: () => void;
   onVisit?: () => void;
   disabled?: boolean;
+  /** ISO 8601 date string for creation date display */
+  createdAt?: string;
+  /** Item count badge (e.g. processes inside a folder) */
+  itemCount?: number;
 }
 
 export function FileCard({
@@ -28,10 +32,16 @@ export function FileCard({
   onOpen,
   onVisit,
   disabled = false,
+  createdAt,
+  itemCount,
 }: FileCardProps) {
   const router = useRouter();
   const isFolder = type === 'folder';
-  const count = processCount ?? (isFolder ? 0 : 1);
+  const count = itemCount ?? processCount ?? (isFolder ? 0 : 1);
+
+  const formattedDate = createdAt
+    ? new Date(createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
 
   const FolderVisual = () => (
     <div className="flex h-full w-full items-center justify-center">
@@ -116,8 +126,13 @@ export function FileCard({
             {description}
           </p>
         )}
+        {formattedDate && (
+          <div className="flex items-center gap-1 mt-1 text-[11px] text-neutral-400">
+            <Calendar className="h-3 w-3" strokeWidth={1.5} />
+            <span>{formattedDate}</span>
+          </div>
+        )}
       </div>
     </Card>
   );
 }
-

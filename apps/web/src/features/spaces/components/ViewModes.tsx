@@ -47,6 +47,8 @@ export function ViewModes({
             meta={spaceName}
             processCount={folder.process_count ?? folder.processes?.length ?? 0}
             href={`/spaces/${spaceId}/folders/${folder.id}`}
+            createdAt={folder.created_at || undefined}
+            itemCount={folder.process_count ?? folder.processes?.length ?? 0}
           />
         ))}
         {processes.map((proc) => (
@@ -58,6 +60,7 @@ export function ViewModes({
             meta={spaceName}
             processCount={1}
             href={`/spaces/${spaceId}/processes/${proc.id}`}
+            createdAt={proc.created_at || undefined}
           />
         ))}
       </div>

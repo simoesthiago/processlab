@@ -133,7 +133,7 @@ Use shadcn `<Dialog>` for consistency. Compute the next version number from `cur
 
 ---
 
-### [ ] Task 2.2 — LLM-Based Edit Commands (Backend)
+### [x] Task 2.2 — LLM-Based Edit Commands (Backend)
 **Complexity: L** | Depends on: 1.1
 
 Replace the regex `CommandInterpreter` in `edit.py` with a real GPT call. Keep regex as fallback when no API key is provided.
@@ -169,7 +169,7 @@ Current elements: [{id, name, type}, ...]
 
 ---
 
-### [ ] Task 2.3 — Auto-Layout with ELK.js
+### [x] Task 2.3 — Auto-Layout with ELK.js
 **Complexity: M** | Independent
 
 Add an "Auto Layout" button that reorganises the diagram automatically using ELK.
@@ -190,7 +190,7 @@ The backend `apps/api/app/infrastructure/services/bpmn/layout.py` stub stays as-
 
 ## Phase 3 — Design & UX Polish
 
-### [ ] Task 3.1 — Format Toolbar: Show Only When Element Is Selected
+### [x] Task 3.1 — Format Toolbar: Show Only When Element Is Selected
 **Complexity: S** | Independent
 
 **File:** `apps/web/src/shared/components/layout/FormatToolbar.tsx`
@@ -199,7 +199,7 @@ Line 95 has `const hasSelection = true` (hardcoded). Change to `const hasSelecti
 
 ---
 
-### [ ] Task 3.2 — Canvas Empty State
+### [x] Task 3.2 — Canvas Empty State
 **Complexity: S** | Independent
 
 **File:** `apps/web/src/features/bpmn/StudioContent.tsx`
@@ -209,7 +209,7 @@ When the canvas has no BPMN elements, render an absolutely-positioned `pointer-e
 
 ---
 
-### [ ] Task 3.3 — Folder & Process Cards: Add Metadata
+### [x] Task 3.3 — Folder & Process Cards: Add Metadata
 **Complexity: S** | Independent
 
 **Files to change:**
@@ -228,7 +228,7 @@ Add `shrink-0 whitespace-nowrap` to the Save and Export buttons to prevent them 
 
 ---
 
-### [ ] Task 3.5 — Landing Page: Remove Pink Border + Add Features Section
+### [x] Task 3.5 — Landing Page: Remove Pink Border + Add Features Section
 **Complexity: S** | Independent
 
 **Files to change:**
@@ -244,6 +244,12 @@ Add `shrink-0 whitespace-nowrap` to the Save and Export buttons to prevent them 
 
 ## Completed Tasks
 
+- [x] **Task 2.2** — LLM-Based Edit Commands backend (`llm_interpreter.py` + `edit.py` branching LLM vs regex via `X-OpenAI-API-Key` header)
+- [x] **Task 2.3** — Auto-Layout ELK.js (`autoLayout()` in `BpmnEditorRef` using `elkjs` directly; "Auto Layout" button in `FormatToolbar`)
+- [x] **Task 3.1** — Format Toolbar contextual (`hasSelection` fixed from `true` to `effectiveSelection.length > 0`)
+- [x] **Task 3.2** — Canvas Empty State (Wand2 overlay when `!bpmnXml || !bpmnXml.includes('BPMNShape')`)
+- [x] **Task 3.3** — Cards Metadata (`createdAt`/`itemCount` props on `FileCard`; `created_at` field in `SpaceProcess`/`SpaceFolder`)
+- [x] **Task 3.5** — Landing Page (features section with 3 cards; removed `flex-1 flex items-center justify-center`; GitHub link fixed)
 - [x] **Task 1.1** — BYOK: OpenAI API Key UI (`SettingsModal` AI tab + `StudioContent` state threading + `ProcessWizard` header)
 - [x] **Task 1.2** — Process Wizard: Chat UI (full rewrite with message history, user/AI bubbles, typing indicator, auto-scroll)
 - [x] **Task 1.3** — Process Wizard: File Upload (hidden input + `/api/v1/ingest/upload` POST + system message on success)
