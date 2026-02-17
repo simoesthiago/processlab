@@ -45,6 +45,11 @@ export function ResizablePanel({
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
+  // Sync collapsed state when parent prop changes (e.g. Wizard toggle button)
+  useEffect(() => {
+    setIsCollapsed(defaultCollapsed);
+  }, [defaultCollapsed]);
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);

@@ -211,6 +211,15 @@ export default function StudioContent({
     }
   }, [bpmnXml]);
 
+  // Poll DOM for BPMN shapes to keep canvasHasElements accurate regardless of events
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const count = document.querySelectorAll('.djs-element.djs-shape').length;
+      setCanvasHasElements(count > 0);
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
 
 
   // Load space name immediately when workspaceId is available

@@ -254,10 +254,9 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               e.stopPropagation();
               setIsFontMenuOpen(!isFontMenuOpen);
             }}
-            disabled={!hasSelection}
             className={cn(
               "flex items-center gap-1.5 px-2 h-8 rounded-md hover:bg-accent transition-colors border border-input w-28",
-              !hasSelection && "opacity-50 cursor-not-allowed"
+              
             )}
             title="Font Family"
             aria-label="Select font family"
@@ -302,10 +301,9 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               e.stopPropagation();
               setIsFontSizeMenuOpen(!isFontSizeMenuOpen);
             }}
-            disabled={!hasSelection}
             className={cn(
               "flex items-center gap-1.5 px-2 h-8 rounded-md hover:bg-accent transition-colors border border-input w-16 justify-between",
-              !hasSelection && "opacity-50 cursor-not-allowed"
+              
             )}
             title="Font Size"
             aria-label="Select font size"
@@ -356,10 +354,9 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               setSelectedFontSize(newSizeStr);
               applyToSelection({ fontSize: newSizeStr });
             }}
-            disabled={!hasSelection}
             className={cn(
               "h-7 w-7 flex items-center justify-center rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground",
-              !hasSelection && "opacity-50 cursor-not-allowed"
+              
             )}
             title="Decrease font size"
             aria-label="Decrease font size"
@@ -380,10 +377,9 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               setSelectedFontSize(newSizeStr);
               applyToSelection({ fontSize: newSizeStr });
             }}
-            disabled={!hasSelection}
             className={cn(
               "h-7 w-7 flex items-center justify-center rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground",
-              !hasSelection && "opacity-50 cursor-not-allowed"
+              
             )}
             title="Increase font size"
             aria-label="Increase font size"
@@ -404,11 +400,10 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
             setIsBold(newBold);
             applyToSelection({ bold: newBold });
           }}
-          disabled={!hasSelection}
           className={cn(
             'h-8 w-8 flex items-center justify-center rounded-md hover:bg-accent transition-colors',
             isBold ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground',
-            !hasSelection && 'opacity-50 cursor-not-allowed'
+            
           )}
           title="Bold (Ctrl+B)"
           aria-label="Bold text formatting"
@@ -425,11 +420,10 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
             setIsItalic(newItalic);
             applyToSelection({ italic: newItalic });
           }}
-          disabled={!hasSelection}
           className={cn(
             'h-8 w-8 flex items-center justify-center rounded-md hover:bg-accent transition-colors',
             isItalic ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground',
-            !hasSelection && 'opacity-50 cursor-not-allowed'
+            
           )}
           title="Italic (Ctrl+I)"
           aria-label="Italic text formatting"
@@ -446,11 +440,10 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
             setIsUnderline(newUnderline);
             applyToSelection({ underline: newUnderline });
           }}
-          disabled={!hasSelection}
           className={cn(
             'h-8 w-8 flex items-center justify-center rounded-md hover:bg-accent transition-colors',
             isUnderline ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground',
-            !hasSelection && 'opacity-50 cursor-not-allowed'
+            
           )}
           title="Underline (Ctrl+U)"
           aria-label="Underline text formatting"
@@ -471,10 +464,9 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               e.stopPropagation();
               setIsTextColorMenuOpen(!isTextColorMenuOpen);
             }}
-            disabled={!hasSelection}
             className={cn(
               "h-8 px-1.5 rounded-md hover:bg-accent transition-colors flex items-center gap-0.5 text-muted-foreground hover:text-foreground",
-              !hasSelection && "opacity-50 cursor-not-allowed"
+              
             )}
             title="Text Color"
             aria-label="Select text color"
@@ -608,10 +600,9 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               e.stopPropagation();
               setIsFillColorMenuOpen(!isFillColorMenuOpen);
             }}
-            disabled={!hasSelection}
             className={cn(
               "h-8 px-1.5 rounded-md hover:bg-accent transition-colors flex items-center gap-0.5 text-muted-foreground hover:text-foreground",
-              !hasSelection && "opacity-50 cursor-not-allowed"
+              
             )}
             title="Fill Color"
             aria-label="Select fill color"
@@ -786,11 +777,10 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               e.stopPropagation();
               setIsHorizontalAlignMenuOpen(!isHorizontalAlignMenuOpen);
             }}
-            disabled={!hasSelection}
             className={cn(
               "h-8 w-8 flex items-center justify-center rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground gap-0.5",
               (isHorizontalAlignMenuOpen || textAlign !== 'left') && "bg-accent text-foreground",
-              !hasSelection && "opacity-50 cursor-not-allowed"
+              
             )}
             title="Text Alignment"
             aria-label="Select text alignment"
@@ -861,11 +851,10 @@ export function FormatToolbar({ className, editorRef, selectedElements = [], onW
               e.stopPropagation();
               setIsVerticalAlignMenuOpen(!isVerticalAlignMenuOpen);
             }}
-            disabled={!hasSelection}
             className={cn(
               "h-8 w-8 flex items-center justify-center rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground gap-0.5",
               isVerticalAlignMenuOpen && "bg-accent text-foreground",
-              !hasSelection && "opacity-50 cursor-not-allowed"
+              
             )}
             title="Vertical Alignment"
             aria-label="Select vertical alignment"

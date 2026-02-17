@@ -294,7 +294,6 @@ export function StudioNavbar({
                 editorRef.current.undo();
               }
             }}
-            disabled={!canUndo}
             className={cn(
               "p-1.5 rounded-md transition-colors",
               canUndo
@@ -311,7 +310,6 @@ export function StudioNavbar({
                 editorRef.current.redo();
               }
             }}
-            disabled={!canRedo}
             className={cn(
               "p-1.5 rounded-md transition-colors",
               canRedo
