@@ -99,6 +99,8 @@ export interface BpmnEditorRef {
     }) => void;
     /** Automatically layout the diagram using ELK.js */
     autoLayout: () => Promise<void>;
+    /** Get count of shape elements on the canvas (excludes connections/labels) */
+    getShapeCount: () => number;
 }
 
 interface BpmnEditorProps {
@@ -891,6 +893,13 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                 console.warn('[BpmnEditor] autoLayout failed:', err);
             }
         },
+        getShapeCount: () => {
+            if (!modelerRef.current || !isReady) return 0;
+            const elementRegistry = modelerRef.current.get('elementRegistry');
+            const all = elementRegistry.getAll();
+            // Count only shapes (not connections/labels/root)
+            return all.filter((el: any) => el.waypoints === undefined && el.type !== 'label' && el.parent != null).length;
+        },
                 createElement: async (type: string, position: { x: number; y: number }) => {
             if (!modelerRef.current || !isReady) {
                 throw new Error("Editor not initialized");
@@ -1286,33 +1295,15 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
         eventBus.on('render.connection', handleRender);
         eventBus.on('render.label', handleRender);
         eventBus.on('drag.end', handleGlobalDrop);
-        eventBus.on('element.create', (event: any) => {
-            console.log('[BpmnEditor] ========== Element created via eventBus ==========');
-            console.log('[BpmnEditor] Event:', event);
-            console.log('[BpmnEditor] Element:', event.element);
-            console.log('[BpmnEditor] Shape:', event.shape);
-            
-            // Verify element was added to registry
-            const elementRegistry = modeler.get('elementRegistry');
-            const allElements = elementRegistry.getAll();
-            console.log('[BpmnEditor] Total elements after creation:', allElements.length);
-            
-            // Check if element has business object
-            if (event.shape) {
-                const bo = event.shape.businessObject;
-                console.log('[BpmnEditor] Business object type:', bo?.$type);
-                console.log('[BpmnEditor] Business object:', bo);
-            }
+        eventBus.on('element.create', (_event: any) => {
+            // No-op, kept for potential future use
         });
         
-        eventBus.on('shape.added', (event: any) => {
-            console.log('[BpmnEditor] ========== Shape added to canvas ==========');
-            console.log('[BpmnEditor] Shape:', event.shape);
-            console.log('[BpmnEditor] Element:', event.element);
-            
-            const elementRegistry = modeler.get('elementRegistry');
-            const allElements = elementRegistry.getAll();
-            console.log('[BpmnEditor] Total elements after shape added:', allElements.length);
+        eventBus.on('shape.added', (_event: any) => {
+            // Notify parent so it can update canvas empty state
+            const selectionService = modeler.get('selection');
+            const current = selectionService?.get?.() || [];
+            onSelectionChange?.(current);
         });
 
         // Emit current selection once on mount

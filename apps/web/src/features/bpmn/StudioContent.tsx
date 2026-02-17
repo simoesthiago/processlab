@@ -115,10 +115,16 @@ export default function StudioContent({
   const [rightPanelMode, setRightPanelMode] = useState<'wizard' | 'search'>('wizard');
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [selectedElements, setSelectedElements] = useState<any[]>([]);
+  const [canvasHasElements, setCanvasHasElements] = useState(false);
 
   // Memoize selection change handler to prevent infinite loops
   const handleSelectionChange = useCallback((elements: any[]) => {
     setSelectedElements(elements);
+    // Update canvas emptiness by counting DOM shapes (fastest, no registry timing issues)
+    setTimeout(() => {
+      const shapeCount = document.querySelectorAll('.djs-element.djs-shape').length;
+      setCanvasHasElements(shapeCount > 0);
+    }, 30);
   }, []);
 
   // Memoize settings change handler to prevent infinite loops
@@ -195,6 +201,15 @@ export default function StudioContent({
       });
     }
   }, [currentProcess?.id, selectedVersionId, loadVersionXml]);
+
+  // Sync canvas empty state from loaded XML
+  useEffect(() => {
+    if (bpmnXml) {
+      setCanvasHasElements(bpmnXml.includes('BPMNShape'));
+    } else {
+      setCanvasHasElements(false);
+    }
+  }, [bpmnXml]);
 
 
 
@@ -789,7 +804,7 @@ export default function StudioContent({
                   key={selectedVersionId || 'new'} // Force re-render when version changes
                 />
                 {/* Canvas Empty State — shown when diagram has no elements */}
-                {(!bpmnXml || !bpmnXml.includes('BPMNShape')) && (
+                {!canvasHasElements && (!bpmnXml || !bpmnXml.includes('BPMNShape')) && (
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
                     <div className="h-16 w-16 rounded-full bg-muted/60 flex items-center justify-center border border-border/60">
                       <Wand2 className="h-8 w-8 text-muted-foreground/50" />
@@ -838,6 +853,7 @@ export default function StudioContent({
               editorRef={editorRef as React.RefObject<BpmnEditorRef>}
               onClose={() => {
                 setRightPanelCollapsed(true);
+                setRightPanelMode('wizard');
               }}
             />
           )}
