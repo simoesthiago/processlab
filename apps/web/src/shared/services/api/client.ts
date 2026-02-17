@@ -20,10 +20,11 @@ export class ApiError extends Error {
 
 export interface FetchOptions extends RequestInit {
     token?: string | null;  // Kept for compatibility but unused
+    silent?: boolean;  // If true, don't log errors to console
 }
 
 export async function apiFetch<T = any>(endpoint: string, options: FetchOptions = {}): Promise<T> {
-    const { token, headers = {}, ...rest } = options;
+    const { token, headers = {}, silent = false, ...rest } = options;
     const fullUrl = `${API_URL}${endpoint}`;
 
     // No Bearer token needed for local-first single-user mode
@@ -32,7 +33,9 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
         ...(headers as Record<string, string>),
     };
 
-    console.log(`[apiFetch] Fazendo requisição para: ${fullUrl}`);
+    if (!silent) {
+        console.log(`[apiFetch] Fazendo requisição para: ${fullUrl}`);
+    }
 
     let response: Response;
 
@@ -50,7 +53,9 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
                 signal: controller.signal,
             });
             clearTimeout(timeoutId);
-            console.log(`[apiFetch] Resposta recebida para ${endpoint}:`, { status: response.status, ok: response.ok });
+            if (!silent) {
+                console.log(`[apiFetch] Resposta recebida para ${endpoint}:`, { status: response.status, ok: response.ok });
+            }
         } catch (fetchError: any) {
             clearTimeout(timeoutId);
             if (fetchError.name === 'AbortError') {
@@ -61,7 +66,9 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
     } catch (error: any) {
         // Handle network errors
         const errorMessage = error?.message || 'Failed to fetch';
-        console.error(`[apiFetch] Network error for ${endpoint}:`, errorMessage);
+        if (!silent) {
+            console.error(`[apiFetch] Network error for ${endpoint}:`, errorMessage);
+        }
 
         const networkError = new ApiError(
             `Network error: ${errorMessage}. Please check if the API server is running at ${API_URL}`,
@@ -79,17 +86,23 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
     }
 
     const data = await response.json().catch((err) => {
-        console.error(`[apiFetch] Erro ao parsear JSON para ${endpoint}:`, err);
+        if (!silent) {
+            console.error(`[apiFetch] Erro ao parsear JSON para ${endpoint}:`, err);
+        }
         return {};
     });
 
     if (!response.ok) {
         const errorMessage = data.error?.message || data.detail || data.message || 'API Request Failed';
-        console.error(`[apiFetch] Erro na resposta para ${endpoint}:`, { status: response.status, errorMessage, data });
+        if (!silent) {
+            console.error(`[apiFetch] Erro na resposta para ${endpoint}:`, { status: response.status, errorMessage, data });
+        }
         throw new ApiError(errorMessage, response.status, data);
     }
 
-    console.log(`[apiFetch] Sucesso para ${endpoint}:`, data);
+    if (!silent) {
+        console.log(`[apiFetch] Sucesso para ${endpoint}:`, data);
+    }
     return data;
 }
 

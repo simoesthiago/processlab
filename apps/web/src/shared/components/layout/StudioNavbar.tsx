@@ -10,7 +10,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/shared/components/ui/button';
-import { Badge } from '@/shared/components/ui/badge';
 import { BpmnEditorRef } from '@/features/bpmn/editor/BpmnEditor';
 import { Breadcrumbs, type BreadcrumbItem } from '@/shared/components/ui/breadcrumbs';
 import { useSpaces } from '@/contexts/SpacesContext';
@@ -19,9 +18,6 @@ import {
   ChevronRight,
   Save,
   Share,
-  GitBranch,
-  Clock,
-  CheckCircle,
   ArrowLeft,
   FolderOpen,
   Workflow,
@@ -40,21 +36,12 @@ import {
 
 export interface Process {
   id: string;
-  name: string;
+  name?: string;
   folder_id?: string | null;
-}
-
-interface Version {
-  id: string;
-  version_number: number;
-  version_label?: string;
-  is_active: boolean;
 }
 
 interface StudioNavbarProps {
   process: Process | null;
-  versions: Version[];
-  selectedVersionId: string | null;
   basePath: string;
   workspaceId?: string;
   folderId?: string | null;
@@ -69,8 +56,6 @@ interface StudioNavbarProps {
 
 export function StudioNavbar({
   process,
-  versions,
-  selectedVersionId,
   basePath,
   workspaceId,
   folderId,
@@ -227,8 +212,6 @@ export function StudioNavbar({
   };
   // Use spaceName if provided, otherwise fall back to 'Workspace'
   const displayWorkspaceName = spaceName || 'Workspace';
-
-  const selectedVersion = versions.find(v => v.id === selectedVersionId);
   
   // Construir breadcrumb EXATAMENTE igual FolderBreadcrumbs + processo no final
   const breadcrumbItems = useMemo<BreadcrumbItem[]>(() => {
@@ -297,30 +280,6 @@ export function StudioNavbar({
         </div>
       </div>
 
-      {/* Center Section - Version Info */}
-      {selectedVersion && (
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/50 rounded-lg border border-border">
-            <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              v{selectedVersion.version_number}
-            </span>
-            {selectedVersion.is_active && (
-              <Badge variant="default" className="h-5 px-1.5 text-[10px] bg-success text-success-foreground">
-                <CheckCircle className="h-2.5 w-2.5 mr-0.5" />
-                Active
-              </Badge>
-            )}
-          </div>
-
-          {versions.length > 1 && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              <span>{versions.length} versions</span>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Right Section - Actions */}
       <div className="flex items-center gap-1.5">

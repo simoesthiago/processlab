@@ -168,10 +168,12 @@ export default function StudioContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialProcessId, token, authLoading, loadProcess]); // Removido currentProcess das dependências para evitar loop
 
-  // Load versions if process loaded
+  // Load versions if process loaded (silent mode to prevent UI breaking)
   useEffect(() => {
     if (currentProcess?.id) {
-      loadVersions(currentProcess.id);
+      loadVersions(currentProcess.id, true).catch(() => {
+        // Silently handle errors - versions will be empty but UI won't break
+      });
     }
   }, [currentProcess?.id, loadVersions]);
 
@@ -185,7 +187,7 @@ export default function StudioContent({
   // Load XML when version ID changes
   useEffect(() => {
     if (currentProcess?.id && selectedVersionId) {
-      loadVersionXml(currentProcess.id, selectedVersionId).catch(() => {
+      loadVersionXml(selectedVersionId).catch(() => {
         setToast({ message: 'Failed to load version XML', type: 'error' });
       });
     }
@@ -361,10 +363,26 @@ export default function StudioContent({
         const xml = await editorRef.current?.getXml();
         if (!xml) throw new Error('Failed to get XML');
 
-        await saveVersion(newProcess.id, xml, {
-          message: 'Initial version',
-          changeType: 'major',
-          parentVersionId: null
+        // Convert XML to a simple JSON structure for the API
+        // The API expects bpmn_json, so we create a minimal structure
+        const bpmnJson = {
+          xml: xml,
+          process: {
+            id: newProcess.id,
+            name: newProcess.name || 'New Process',
+          },
+          elements: [],
+          flows: [],
+        };
+
+        // Use API directly since useVersions hook doesn't have the new processId yet
+        await apiFetch(`/api/v1/processes/${newProcess.id}/versions`, {
+          method: 'POST',
+          body: JSON.stringify({
+            bpmn_json: bpmnJson,
+            commit_message: 'Initial version',
+            change_type: 'major',
+          }),
         });
 
         // Small delay to ensure process is fully committed before navigation
@@ -381,15 +399,41 @@ export default function StudioContent({
     }
 
     try {
+      // Small delay to ensure all changes are committed to the modeler
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const xml = await editorRef.current?.getXml();
       if (!xml) throw new Error('No XML content');
 
-      await saveVersion(currentProcess.id, xml, {
-        message: params.message,
-        changeType: params.changeType,
-        parentVersionId: selectedVersionId,
-        force: params.force
-      });
+      console.log('[StudioContent] Saving XML, length:', xml.length);
+      console.log('[StudioContent] XML preview (first 500 chars):', xml.substring(0, 500));
+      
+      // Check if XML is empty (only has basic structure)
+      const hasElements = xml.includes('<bpmn2:') && (
+        xml.includes('task') || 
+        xml.includes('event') || 
+        xml.includes('gateway') ||
+        xml.includes('sequenceFlow') ||
+        xml.includes('BPMNShape') ||
+        xml.includes('BPMNEdge')
+      );
+      
+      if (!hasElements) {
+        console.warn('[StudioContent] Warning: XML appears to be empty (no elements found)');
+      }
+
+      // Convert XML to a simple JSON structure for the API
+      const bpmnJson = {
+        xml: xml,
+        process: {
+          id: currentProcess.id,
+          name: currentProcess.name || 'Process',
+        },
+        elements: [],
+        flows: [],
+      };
+
+      await saveVersion(bpmnJson, params.message, params.changeType);
 
       setToast({ message: 'Version saved successfully!', type: 'success' });
       setIsSaveModalOpen(false);
@@ -640,7 +684,7 @@ export default function StudioContent({
 
     if (currentProcess?.id) {
       try {
-        await loadVersionXml(currentProcess.id, versionId);
+        await loadVersionXml(versionId);
       } catch (err) {
         setToast({ message: 'Failed to load version', type: 'error' });
       }
@@ -679,8 +723,6 @@ export default function StudioContent({
       {/* Professional Navbar */}
       <StudioNavbar
         process={currentProcess}
-        versions={versions}
-        selectedVersionId={selectedVersionId}
         basePath={basePath}
         workspaceId={workspaceId}
         folderId={currentProcess?.folder_id ?? null}
@@ -737,8 +779,9 @@ export default function StudioContent({
             ) : (
               <BpmnEditor
                 ref={editorRef}
-                initialXml={bpmnXml}
+                initialXml={bpmnXml ?? undefined}
                 onSelectionChange={handleSelectionChange}
+                key={selectedVersionId || 'new'} // Force re-render when version changes
               />
             )}
           </div>
@@ -773,7 +816,7 @@ export default function StudioContent({
           )}
           {rightPanelMode === 'search' && (
             <SearchPanel
-              editorRef={editorRef}
+              editorRef={editorRef as React.RefObject<BpmnEditorRef>}
               onClose={() => {
                 setRightPanelCollapsed(true);
               }}

@@ -41,7 +41,9 @@ class ListVersionsUseCase:
                 "created_at": v.created_at,
                 "created_by": v.created_by,
                 "change_type": v.change_type,
-                "is_active": (v.id == process.current_version_id)
+                "is_active": (v.id == process.current_version_id),
+                "parent_version_id": v.parent_version_id,
+                "etag": v.etag
             })
             history_items.append(item)
         

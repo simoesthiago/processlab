@@ -109,6 +109,7 @@ export function ElementsSidebar({ onElementDragStart, className }: ElementsSideb
   const [expandedCategories, setExpandedCategories] = useState<string[]>(['events', 'activities', 'gateways']);
   const [searchQuery, setSearchQuery] = useState('');
 
+  console.log('[ElementsSidebar] Component rendered');
   console.log('[ElementsSidebar] expandedCategories:', expandedCategories);
 
   const toggleCategory = (categoryId: string) => {
@@ -139,8 +140,16 @@ export function ElementsSidebar({ onElementDragStart, className }: ElementsSideb
       type: element.type,
       description: element.description,
     };
-    e.dataTransfer.setData('application/bpmn-element', JSON.stringify(dragData));
+    const dataString = JSON.stringify(dragData);
+    console.log('[ElementsSidebar] handleDragStart called with:', dragData);
+    console.log('[ElementsSidebar] Setting dataTransfer data:', dataString);
+    
+    // Set data in multiple formats for compatibility
+    e.dataTransfer.setData('application/bpmn-element', dataString);
+    e.dataTransfer.setData('text/plain', dataString); // Fallback
     e.dataTransfer.effectAllowed = 'copy';
+    
+    console.log('[ElementsSidebar] dataTransfer types after set:', Array.from(e.dataTransfer.types));
     onElementDragStart?.(dragData);
   };
 
@@ -210,27 +219,50 @@ export function ElementsSidebar({ onElementDragStart, className }: ElementsSideb
 
         {/* Events */}
         <button
+          draggable={true}
+          onDragStart={(e) => {
+            console.log('[ElementsSidebar] Drag start event fired!');
+            console.log('[ElementsSidebar] Event:', e);
+            console.log('[ElementsSidebar] Drag start: Start Event');
+            handleDragStart(e, ELEMENT_CATEGORIES[0].elements[0]);
+          }}
+          onMouseDown={() => {
+            console.log('[ElementsSidebar] Mouse down on Start Event button');
+          }}
           className={cn(
             'w-10 h-10 flex items-center justify-center rounded-md',
-            'text-muted-foreground hover:bg-accent hover:text-foreground transition-colors'
+            'text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+            'cursor-grab active:cursor-grabbing'
           )}
           title="Start Event"
         >
           <Circle className="h-5 w-5 text-success" />
         </button>
         <button
+          draggable
+          onDragStart={(e) => {
+            console.log('[ElementsSidebar] Drag start: Intermediate Event');
+            handleDragStart(e, ELEMENT_CATEGORIES[0].elements[2]);
+          }}
           className={cn(
             'w-10 h-10 flex items-center justify-center rounded-md',
-            'text-muted-foreground hover:bg-accent hover:text-foreground transition-colors'
+            'text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+            'cursor-grab active:cursor-grabbing'
           )}
           title="Intermediate Event"
         >
           <CircleDot className="h-5 w-5 text-warning" />
         </button>
         <button
+          draggable
+          onDragStart={(e) => {
+            console.log('[ElementsSidebar] Drag start: End Event');
+            handleDragStart(e, ELEMENT_CATEGORIES[0].elements[1]);
+          }}
           className={cn(
             'w-10 h-10 flex items-center justify-center rounded-md',
-            'text-muted-foreground hover:bg-accent hover:text-foreground transition-colors'
+            'text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+            'cursor-grab active:cursor-grabbing'
           )}
           title="End Event"
         >
@@ -239,9 +271,15 @@ export function ElementsSidebar({ onElementDragStart, className }: ElementsSideb
 
         {/* Gateway */}
         <button
+          draggable
+          onDragStart={(e) => {
+            console.log('[ElementsSidebar] Drag start: Exclusive Gateway');
+            handleDragStart(e, ELEMENT_CATEGORIES[2].elements[0]);
+          }}
           className={cn(
             'w-10 h-10 flex items-center justify-center rounded-md',
-            'text-muted-foreground hover:bg-accent hover:text-foreground transition-colors'
+            'text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+            'cursor-grab active:cursor-grabbing'
           )}
           title="Gateway"
         >
@@ -250,9 +288,15 @@ export function ElementsSidebar({ onElementDragStart, className }: ElementsSideb
 
         {/* Task */}
         <button
+          draggable
+          onDragStart={(e) => {
+            console.log('[ElementsSidebar] Drag start: Task');
+            handleDragStart(e, ELEMENT_CATEGORIES[1].elements[0]);
+          }}
           className={cn(
             'w-10 h-10 flex items-center justify-center rounded-md',
-            'text-muted-foreground hover:bg-accent hover:text-foreground transition-colors'
+            'text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+            'cursor-grab active:cursor-grabbing'
           )}
           title="Task"
         >

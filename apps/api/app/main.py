@@ -30,15 +30,7 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Setup custom middlewares (request tracking, logging, error handling)
-from app.core.middleware import setup_middlewares
-setup_middlewares(app)
-
-# Setup exception handlers
-from app.core.exceptions import setup_exception_handlers
-setup_exception_handlers(app)
-
-# CORS Configuration
+# CORS Configuration - MUST be first to handle preflight requests
 # Allow Next.js frontend to make requests (dev defaults + env override)
 default_cors_origins = settings.BACKEND_CORS_ORIGINS
 
@@ -49,7 +41,16 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+# Setup custom middlewares (request tracking, logging, error handling)
+from app.core.middleware import setup_middlewares
+setup_middlewares(app)
+
+# Setup exception handlers
+from app.core.exceptions import setup_exception_handlers
+setup_exception_handlers(app)
 
 # Security: Add trusted host middleware
 # Note: This is added AFTER custom middlewares to run first in the chain

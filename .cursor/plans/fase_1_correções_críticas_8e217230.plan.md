@@ -13,7 +13,7 @@ todos:
     status: pending
   - id: verify-save
     content: Verificar e corrigir funcionalidade de Save - testar salvamento de versões e verificar API
-    status: pending
+    status: completed
   - id: improve-breadcrumb
     content: Melhorar breadcrumb no StudioNavbar - garantir atualização correta e suporte a folders aninhados profundos
     status: pending

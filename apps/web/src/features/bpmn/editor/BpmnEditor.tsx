@@ -30,6 +30,7 @@ const MINIMAL_BPMN_XML = `<?xml version="1.0" encoding="UTF-8"?>
 
 export interface BpmnEditorRef {
     getXml: () => Promise<string>;
+    createElement: (type: string, position: { x: number; y: number }) => Promise<void>;
     /** Get SVG representation of the diagram */
     getSvg: () => Promise<string>;
     /** Get selected elements */
@@ -136,8 +137,30 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
         getXml: async () => {
             if (!modelerRef.current) throw new Error("Editor not initialized");
             const modeler = modelerRef.current;
+            
+            // Get the element registry to check if there are any elements
+            const elementRegistry = modeler.get('elementRegistry');
+            const allElements = elementRegistry.getAll();
+            console.log('[BpmnEditor] getXml called, element count:', allElements.length);
+            
+            // Filter out root and connection elements to count actual BPMN elements
+            const bpmnElements = allElements.filter((el: any) => {
+                const bo = el.businessObject;
+                return bo && bo.$type && !bo.$type.includes('di:') && bo.$type !== 'bpmn:Process';
+            });
+            console.log('[BpmnEditor] BPMN elements found:', bpmnElements.length);
+            
             const { xml } = await modeler.saveXML({ format: true });
-            console.log('[BpmnEditor] getXml called, returning XML length:', xml.length);
+            console.log('[BpmnEditor] getXml returning XML length:', xml.length);
+            console.log('[BpmnEditor] XML contains elements:', {
+                hasTasks: xml.includes('task'),
+                hasEvents: xml.includes('event'),
+                hasGateways: xml.includes('gateway'),
+                hasSequenceFlows: xml.includes('sequenceFlow'),
+                hasShapes: xml.includes('BPMNShape'),
+                hasEdges: xml.includes('BPMNEdge'),
+                elementCount: bpmnElements.length
+            });
             return xml;
         },
         getSvg: async () => {
@@ -802,6 +825,40 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             canvas.zoom('fit-viewport', 'auto');
             canvas.scrollToElement(element, { top: 100, left: 100 });
         },
+        createElement: async (type: string, position: { x: number; y: number }) => {
+            if (!modelerRef.current || !isReady) {
+                throw new Error("Editor not initialized");
+            }
+            const modeler = modelerRef.current;
+            const modeling = modeler.get('modeling');
+            const elementFactory = modeler.get('elementFactory');
+            const canvas = modeler.get('canvas');
+            const rootElement = canvas.getRootElement();
+
+            console.log('[BpmnEditor] createElement called:', { type, position });
+
+            // Create the element shape
+            const shape = elementFactory.createShape({
+                type: type,
+                x: position.x,
+                y: position.y
+            });
+
+            console.log('[BpmnEditor] Shape created:', shape);
+
+            // Append shape to root element using modeling service
+            modeling.appendShape(rootElement, shape, {
+                x: position.x,
+                y: position.y
+            }, rootElement);
+
+            console.log('[BpmnEditor] Element created successfully:', type);
+            
+            // Verify element was added
+            const elementRegistry = modeler.get('elementRegistry');
+            const allElements = elementRegistry.getAll();
+            console.log('[BpmnEditor] Total elements after creation:', allElements.length);
+        },
     }));
 
     useEffect(() => {
@@ -836,6 +893,187 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                 const xmlToImport = initialXml || MINIMAL_BPMN_XML;
                 console.log('[BpmnEditor] Initializing with XML length:', xmlToImport.length);
                 await modeler.importXML(xmlToImport);
+                
+                console.log('[BpmnEditor] XML imported, setting up drop handlers...');
+
+                // Setup drag and drop handler for custom sidebar elements
+                // Wait a bit for the canvas to be fully rendered
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                const canvas = modeler.get('canvas');
+                // Try multiple ways to access the canvas container
+                const canvasElement = (canvas as any)._container || 
+                                    (canvas as any)._svgContainer || 
+                                    containerRef.current?.querySelector('.djs-container') ||
+                                    containerRef.current?.querySelector('svg')?.parentElement ||
+                                    containerRef.current;
+                
+                console.log('[BpmnEditor] Setting up drop handler, canvas element:', canvasElement);
+                console.log('[BpmnEditor] Container ref:', containerRef.current);
+                
+                if (canvasElement) {
+                    const handleDrop = async (e: DragEvent) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        console.log('[BpmnEditor] Drop event fired!');
+                        
+                        try {
+                            const dragDataStr = e.dataTransfer?.getData('application/bpmn-element');
+                            console.log('[BpmnEditor] Drag data string:', dragDataStr);
+                            
+                            if (!dragDataStr) {
+                                console.log('[BpmnEditor] No drag data found, checking all dataTransfer types');
+                                const types = e.dataTransfer?.types || [];
+                                console.log('[BpmnEditor] Available types:', types);
+                                for (const type of types) {
+                                    const data = e.dataTransfer?.getData(type);
+                                    console.log(`[BpmnEditor] Data for type ${type}:`, data);
+                                }
+                                return;
+                            }
+
+                            const dragData = JSON.parse(dragDataStr);
+                            console.log('[BpmnEditor] Drop received:', dragData);
+
+                            const modeling = modeler.get('modeling');
+                            const elementFactory = modeler.get('elementFactory');
+                            const rootElement = canvas.getRootElement();
+
+                            console.log('[BpmnEditor] Root element:', rootElement);
+
+                            // Get drop position relative to canvas
+                            const canvasPosition = canvas.clientToCanvas({
+                                x: e.clientX,
+                                y: e.clientY
+                            });
+
+                            console.log('[BpmnEditor] Canvas position:', canvasPosition);
+
+                            // Create the element shape
+                            const shape = elementFactory.createShape({
+                                type: dragData.type,
+                                x: canvasPosition.x,
+                                y: canvasPosition.y
+                            });
+
+                            console.log('[BpmnEditor] Shape created:', shape);
+
+                            // Append shape to root element using modeling service
+                            modeling.appendShape(rootElement, shape, {
+                                x: canvasPosition.x,
+                                y: canvasPosition.y
+                            }, rootElement);
+
+                            console.log('[BpmnEditor] Element created successfully:', dragData.type);
+                            
+                            // Verify element was added
+                            const elementRegistry = modeler.get('elementRegistry');
+                            const allElements = elementRegistry.getAll();
+                            console.log('[BpmnEditor] Total elements after creation:', allElements.length);
+                        } catch (err) {
+                            console.error('[BpmnEditor] Failed to create element on drop:', err);
+                        }
+                    };
+
+                    const handleDragOver = (e: DragEvent) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (e.dataTransfer) {
+                            e.dataTransfer.dropEffect = 'copy';
+                        }
+                        console.log('[BpmnEditor] Drag over event');
+                    };
+
+                    const handleDragEnter = (e: DragEvent) => {
+                        e.preventDefault();
+                        console.log('[BpmnEditor] Drag enter event');
+                    };
+
+                    // Add listeners to canvas element
+                    canvasElement.addEventListener('drop', handleDrop, true); // Use capture phase
+                    canvasElement.addEventListener('dragover', handleDragOver, true);
+                    canvasElement.addEventListener('dragenter', handleDragEnter, true);
+
+                    // Also add to containerRef as fallback
+                    if (containerRef.current && containerRef.current !== canvasElement) {
+                        containerRef.current.addEventListener('drop', handleDrop, true);
+                        containerRef.current.addEventListener('dragover', handleDragOver, true);
+                        containerRef.current.addEventListener('dragenter', handleDragEnter, true);
+                    }
+
+                    // Add global listener on document as ultimate fallback
+                    // This ensures we catch the drop even if bpmn-js intercepts it
+                    const handleGlobalDrop = (e: DragEvent) => {
+                        console.log('[BpmnEditor] Global drop handler triggered!', e.target);
+                        // Check if drop target is within our canvas
+                        const target = e.target as HTMLElement;
+                        const isWithinCanvas = target && (
+                            containerRef.current?.contains(target) || 
+                            canvasElement.contains(target) ||
+                            target.closest('.bpmn-editor-container') !== null
+                        );
+                        
+                        if (isWithinCanvas) {
+                            console.log('[BpmnEditor] Drop target is within canvas, checking for drag data');
+                            // Try to get data - this only works during drop event
+                            const dragDataStr = e.dataTransfer?.getData('application/bpmn-element') || 
+                                              e.dataTransfer?.getData('text/plain');
+                            console.log('[BpmnEditor] Drag data from global handler:', dragDataStr);
+                            
+                            if (dragDataStr) {
+                                console.log('[BpmnEditor] Delegating to handleDrop');
+                                handleDrop(e);
+                            } else {
+                                console.log('[BpmnEditor] No drag data found in global handler');
+                            }
+                        }
+                    };
+
+                    const handleGlobalDragOver = (e: DragEvent) => {
+                        // Check if dragging over our canvas area
+                        const target = e.target as HTMLElement;
+                        const isWithinCanvas = target && (
+                            containerRef.current?.contains(target) || 
+                            canvasElement.contains(target) ||
+                            target.closest('.bpmn-editor-container') !== null
+                        );
+                        
+                        if (isWithinCanvas) {
+                            // Check if it's our custom drag by checking types
+                            const types = Array.from(e.dataTransfer?.types || []);
+                            if (types.includes('application/bpmn-element') || types.includes('text/plain')) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (e.dataTransfer) {
+                                    e.dataTransfer.dropEffect = 'copy';
+                                }
+                                console.log('[BpmnEditor] Global drag over canvas');
+                            }
+                        }
+                    };
+
+                    document.addEventListener('drop', handleGlobalDrop, true);
+                    document.addEventListener('dragover', handleGlobalDragOver, true);
+
+                    // Store cleanup function
+                    (modeler as any)._customDropCleanup = () => {
+                        canvasElement.removeEventListener('drop', handleDrop, true);
+                        canvasElement.removeEventListener('dragover', handleDragOver, true);
+                        canvasElement.removeEventListener('dragenter', handleDragEnter, true);
+                        if (containerRef.current && containerRef.current !== canvasElement) {
+                            containerRef.current.removeEventListener('drop', handleDrop, true);
+                            containerRef.current.removeEventListener('dragover', handleDragOver, true);
+                            containerRef.current.removeEventListener('dragenter', handleDragEnter, true);
+                        }
+                        document.removeEventListener('drop', handleGlobalDrop, true);
+                        document.removeEventListener('dragover', handleGlobalDragOver, true);
+                    };
+                    
+                    console.log('[BpmnEditor] Drop handlers registered on canvas, container, and document');
+                } else {
+                    console.warn('[BpmnEditor] Could not find canvas element for drop handler');
+                }
 
                 console.log('[BpmnEditor] Modeler initialized and XML imported');
                 setIsReady(true);
@@ -853,17 +1091,30 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
 
         return () => {
             if (modeler) {
+                // Cleanup custom drop handlers
+                if ((modeler as any)._customDropCleanup) {
+                    (modeler as any)._customDropCleanup();
+                }
                 (modeler as { destroy: () => void }).destroy();
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    const lastXmlRef = useRef<string | null>(null);
+    
     useEffect(() => {
         if (modelerRef.current && isReady && initialXml) {
-            // Only re-import if initialXml changes and is different from what's already loaded
+            // Only re-import if initialXml actually changed (avoid unnecessary re-imports)
+            if (lastXmlRef.current === initialXml) {
+                console.log('[BpmnEditor] XML unchanged, skipping re-import');
+                return;
+            }
+            
             const modeler = modelerRef.current as { importXML: (xml: string) => Promise<unknown> };
             console.log('[BpmnEditor] Re-importing XML length:', initialXml.length);
+            lastXmlRef.current = initialXml;
+            
             modeler.importXML(initialXml).catch((err: unknown) => {
                 console.error("[BpmnEditor] Failed to import XML:", err);
                 setError("Failed to render BPMN diagram");
@@ -872,12 +1123,26 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
     }, [initialXml, isReady]);
 
     // Wire selection change events to propagate to parent
+    // Also setup global drop handler using eventBus
     useEffect(() => {
         if (!modelerRef.current || !isReady) return;
         const modeler = modelerRef.current;
         const eventBus = modeler.get('eventBus');
         const selection = modeler.get('selection');
         const elementRegistry = modeler.get('elementRegistry');
+        const canvas = modeler.get('canvas');
+        
+        // Global drop handler using eventBus
+        const handleGlobalDrop = (event: any) => {
+            console.log('[BpmnEditor] Global drop event via eventBus:', event);
+            // This is a fallback - the main handler should be on the canvas element
+        };
+        
+        // Listen for any drag/drop events
+        eventBus.on('drag.end', handleGlobalDrop);
+        eventBus.on('element.create', (event: any) => {
+            console.log('[BpmnEditor] Element created via eventBus:', event);
+        });
         const alignToTextAnchor: Record<'left' | 'center' | 'right', string> = {
             left: 'start',
             center: 'middle',
@@ -954,6 +1219,35 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
         eventBus.on('render.shape', handleRender);
         eventBus.on('render.connection', handleRender);
         eventBus.on('render.label', handleRender);
+        eventBus.on('drag.end', handleGlobalDrop);
+        eventBus.on('element.create', (event: any) => {
+            console.log('[BpmnEditor] ========== Element created via eventBus ==========');
+            console.log('[BpmnEditor] Event:', event);
+            console.log('[BpmnEditor] Element:', event.element);
+            console.log('[BpmnEditor] Shape:', event.shape);
+            
+            // Verify element was added to registry
+            const elementRegistry = modeler.get('elementRegistry');
+            const allElements = elementRegistry.getAll();
+            console.log('[BpmnEditor] Total elements after creation:', allElements.length);
+            
+            // Check if element has business object
+            if (event.shape) {
+                const bo = event.shape.businessObject;
+                console.log('[BpmnEditor] Business object type:', bo?.$type);
+                console.log('[BpmnEditor] Business object:', bo);
+            }
+        });
+        
+        eventBus.on('shape.added', (event: any) => {
+            console.log('[BpmnEditor] ========== Shape added to canvas ==========');
+            console.log('[BpmnEditor] Shape:', event.shape);
+            console.log('[BpmnEditor] Element:', event.element);
+            
+            const elementRegistry = modeler.get('elementRegistry');
+            const allElements = elementRegistry.getAll();
+            console.log('[BpmnEditor] Total elements after shape added:', allElements.length);
+        });
 
         // Emit current selection once on mount
         onSelectionChange?.(selection.get() || []);
@@ -963,6 +1257,9 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
             eventBus.off('render.shape', handleRender);
             eventBus.off('render.connection', handleRender);
             eventBus.off('render.label', handleRender);
+            eventBus.off('drag.end', handleGlobalDrop);
+            eventBus.off('element.create');
+            eventBus.off('shape.added');
         };
     }, [isReady, onSelectionChange]);
 
@@ -985,10 +1282,6 @@ const BpmnEditor = forwardRef<BpmnEditorRef, BpmnEditorProps>(({
                 ref={containerRef}
                 className="w-full h-full bpmn-editor-container"
                 style={{ minHeight: '500px' }}
-                onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'copy';
-                }}
             />
 
             {/* Loading State */}

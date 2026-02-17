@@ -143,8 +143,12 @@ def list_process_versions(
     db: Session = Depends(get_db)
 ):
     """List all versions of a process (History)."""
-    use_case = get_list_versions_use_case(db)
-    return use_case.execute(process_id)
+    try:
+        use_case = get_list_versions_use_case(db)
+        return use_case.execute(process_id)
+    except Exception as e:
+        logger.error(f"Error listing versions for process {process_id}: {e}", exc_info=True)
+        raise
 
 
 @router.get("/processes/{process_id}/versions/{version_id}")
